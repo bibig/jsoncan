@@ -4,7 +4,7 @@
 + load seamlessly with zero config.
 + if you are developing a project demo or a static site, or based on small data project like company offical sites, jsoncan is quite useful.
 + all the data is saved in json files, it's like a cache system, and it works the way.
-+ using in the right place, it will be convient, fast and effective.
++ using in the right place, it will be convenient, fast and effective.
 
 
 ## Install
@@ -166,19 +166,25 @@ query data in more natural and intuitive way.
 
 ### the model way
 like "query" style, it's more intuitive too.
+Three way to create a model object: 
+
++ var model = Table.create({/*data*/});
++ var model = Table.load(_id);
++ var model = Table.loadBy(uniqueName, value);
+
 ```javascript
 
 	var Product = db.table.create(path, fields);
 	
-	// create
+	// create a new one
 	var productA = Product.model({name: 'xxx'}); // or Product.create({...});
 	productA.set(price, 2.99);
 	product.save(function (e, records) {...});
 	
-	// load by primary id
+	// load exist by primary id
 	var productB = Product.load('the_primary_id');
-	// load by unique field
-	var productC = product.load(an_unique_name, 'xxxx');
+	// load exist by unique field
+	var productC = product.loadBy(an_unique_name, 'xxxx');
 	
 	// use chain
 	productA.set(name, 'xxx').save(callback);
