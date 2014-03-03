@@ -291,7 +291,7 @@ describe('test table.js', function () {
       done();
     });
   });
-
+  
   it('test remove all', function (done) {
     Table.removeAll({age: ['>', 10]}, function (err) {
       should.not.exist(err);
@@ -313,5 +313,4 @@ describe('test table.js', function () {
       done();
     })
   });
-  
 });

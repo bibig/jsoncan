@@ -23,10 +23,14 @@ function create (_path) {
     getTableUniqueFile: getTableUniqueFile,
     createTablePaths: createTablePaths,
     save: save, // for insert or update
+    saveSync: saveSync,
     remove: remove,
+    removeSync: removeSync,
     findAll: findAll,
     find: find,
-    findBy: findBy
+    findBy: findBy,
+    findSync: findSync,
+    findBySync: findBySync
   };
 }
 
@@ -119,6 +123,11 @@ function _find (file, callback) {
   });
 }
 
+function _findSync (file) {
+  var data = fs.readFileSync(file, {encoding: 'utf8'});
+  return JSON.parse(data);
+}
+
 
 // 得到原始json数据
 function find (table, id, callback) {
@@ -129,6 +138,14 @@ function findBy (table, fieldName, fieldValue, callback) {
   _find(this.getTableUniqueFile(table, fieldName, fieldValue), callback);
 }
 
+// 得到原始json数据
+function findSync (table, id) {
+  return _findSync(this.getTableIdFile(table, id));
+}
+
+function findBySync (table, fieldName, fieldValue) {
+  return _findSync(this.getTableUniqueFile(table, fieldName, fieldValue));
+}
 
 
 // 将读出所有记录
@@ -154,12 +171,15 @@ function isValidFile (file) {
   return file.split('.')[1] == 'js';
 }
 
-// for connect
 function remove (table, _id, callback) {
   fs.unlink(this.getTableIdFile(table, _id), callback);
 }
 
-// for connect
+function removeSync (table, _id) {
+  fs.unlinkSync(this.getTableIdFile(table, _id));
+}
+
+
 function save (table, _id, data, callback) {
   fs.writeFile(this.getTableIdFile(table, _id), JSON.stringify(data), function (err) {
     if (err) {
@@ -168,4 +188,8 @@ function save (table, _id, data, callback) {
       callback(null, data);
     }
   });
+}
+
+function saveSync (table, _id, data) {
+  fs.writeFileSync(this.getTableIdFile(table, _id), JSON.stringify(data));
 }

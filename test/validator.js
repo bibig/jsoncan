@@ -1,6 +1,6 @@
 var should = require('should');
 var assert = require('assert');
-var validator = require('../libs/validator');
+var Validator = require('../libs/validator');
 
 var fields = {
     id: {
@@ -77,17 +77,18 @@ var data = {
     created: Date.now(),
     modified: Date.now()
   };
+var validator = Validator.create(fields);
 
 describe('test validator.js', function () {
   it('test create', function () {
-    var check = validator.create(fields, data).run();
+    var check = validator.check(data);
     // console.log(check.getMessages());
     assert.ok(check.isValid());
   });
   
   it('test invalid type', function () {
     data.age = 'ab';
-    var check = validator.create(fields, data).run();
+    var check = validator.check(data);
     var messages = check.getMessages();
     assert.ok(!check.isValid());
     // console.log(messages);
@@ -97,7 +98,7 @@ describe('test validator.js', function () {
   it('test invalid max size', function () {
     data.age = 23;
     data.name = 'abcdefghijklmnopqrstuvl';
-    var check = validator.create(fields, data).run();
+    var check = validator.check(data);
     var messages = check.getMessages();
     assert.ok(!check.isValid());
     // console.log(messages);
@@ -106,7 +107,7 @@ describe('test validator.js', function () {
   
   it('test invalid min size', function () {
     data.name = 'ab';
-    var check = validator.create(fields, data).run();
+    var check = validator.check(data);
     var messages = check.getMessages();
     assert.ok(!check.isValid());
     // console.log(messages);
@@ -116,7 +117,7 @@ describe('test validator.js', function () {
   it('test invalid fixed size', function () {
     data.name = 'david';
     data.id = 'abef';
-    var check = validator.create(fields, data).run();
+    var check = validator.check(data);
     var messages = check.getMessages();
     assert.ok(!check.isValid());
     // console.log(messages);

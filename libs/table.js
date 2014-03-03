@@ -12,7 +12,7 @@ var Connect = require('./connect');
 var Schemas = require('./schemas');
 var Query = require('./query');
 var error = require('./error');
-var validator = require('./validator');
+var Validator = require('./validator');
 
 
 
@@ -29,6 +29,7 @@ var validator = require('./validator');
 function create (root, table, fields, validateMessages) {
   var conn = Connect.create(root);
   var schemas = Schemas.create(fields);
+  var validator = Validator.create(fields, validateMessages);
   
   // 初始化表目录和unique字段目录
   conn.createTablePaths(table, fields);
@@ -39,7 +40,8 @@ function create (root, table, fields, validateMessages) {
     root: conn.getTablePath(table),
     schemas: schemas,
     fields: schemas.fields,
-    validateMessages: validateMessages || {},
+    validator: validator,
+    validate: validate,
     hasUniqueField: hasUniqueField,
     forEachField: forEachField,
     inputFields: function () { return this.schemas.inputFields(); }, // 返回所有来自input输入的字段
@@ -50,6 +52,8 @@ function create (root, table, fields, validateMessages) {
     createQuery: createQuery,
     find: function (id, callback) { this.conn.find(this.table, id, callback); },
     findBy: function (name, value, callback) { this.conn.findBy(this.table, name, value, callback); },
+    findSync: function (id) { return this.conn.findSync(this.table, id); },
+    findBySync: function (name, value) { return this.conn.findBySync(this.table, name, value); },
     _findAll: function (callback) { this.conn.findAll(this.table, callback);},
     findAll: findAll,
     insert: insert,
@@ -65,10 +69,94 @@ function create (root, table, fields, validateMessages) {
     _remove: _remove,
     remove: remove,
     removeBy: removeBy,
-    removeAll: removeAll
+    removeAll: removeAll,
+    model: model,
+    create: model, // alias model
+    load: load,
+    loadBy: loadBy
   };
 }
 
+function model (data) {
+  var parent = this; // Table
+  var _model = {
+    isNew: (data._id ? false : true),
+    data: data,
+    messages: null, // validate messages
+    get: function (name) { return this.data[name]; },
+    set: function (/*name, value | hash*/) { 
+      var _this = this;
+      var map;
+      
+      if (arguments.length == 2) {
+        this.data[arguments[0]] = arguments[1]; 
+      } else if (arguments.length == 1 && typeof arguments[0] == 'object') {
+        map = arguments[0];
+        Object.keys(map).forEach(function (name) {
+          _this.data[name] = map[name];
+        });
+      }
+
+      return this;
+    },
+    validate: function () {
+      var data = parent.filterEachFieldBeforeSave(this.data);
+      var check = parent.validate(data);
+      this.messages = check.getMessages();
+      this.isValid = check.isValid();
+      return this.isValid;
+    },
+    getPrimaryId: function () { return this.get('_id'); },
+    save: function (callback) {
+      var _this = this;
+      if (this.isNew) { // update
+        parent.insert(this.data, function (e, record) {
+          if (e) {
+            callback(e);
+          } else {
+            _this.data = record;
+            _this.isNew = false;
+            callback(null, record);
+          }  
+        });        
+      } else {
+        parent.update(this.getPrimaryId(), this.data, function (e, record) {
+          if (e) {
+            callback(e);
+          } else {
+            _this.data = record;
+            callback(null, record);
+          }  
+        });
+      }
+    },
+    remove: function (callback) {
+      parent.remove(this.getPrimaryId(), callback);
+    }
+  };
+  
+  return _model;
+}
+
+function load (_id) {
+  return this.model(this.findSync(_id));
+}
+
+function loadBy(name, value) {
+  return this.model(this.findBySync(name, value));
+}
+
+/*
+function clone (data) {
+  var _data = {};
+  
+  Object.keys(data).forEach(function (name) {
+    _data[name] = data[name];
+  });
+  
+  return _data;
+}
+*/
 
 /**
  * 本Table是否保护unique字段
@@ -526,6 +614,16 @@ function findAll (/*options, callback*/) {
   
 }
 
+function validate (data) {
+  var _this = this;
+
+  this.validator.isUnique = function (name, field, value) {
+    return _this.checkUniqueField (name, value, true);
+  };
+  
+  return this.validator.check(data);
+}
+
 /**
  * 保存数据
  * @data: 要保存的数据
@@ -533,15 +631,11 @@ function findAll (/*options, callback*/) {
  *  error 1300 表示数据校验失败
  */
 function save (data, callback) {
-  var check = validator.create(this.fields, data, this.validateMessages);
+  
   var e;
-  var _this = this;
+  var check = this.validate(data);
   
-  check.isUnique = function (name, field, value) {
-    return _this.checkUniqueField (name, value, true);
-  };
-  
-  if (check.run().isValid()) {
+  if (check.isValid()) {
     this.conn.save(this.table, data._id, data, callback); 
   } else {
     e = error.create(1300); 

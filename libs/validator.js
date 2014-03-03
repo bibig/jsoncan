@@ -30,7 +30,7 @@ var Messages = {
   218: 'Duplicated value found, <%s> already exists'
 };
 
-function create (fields, data, messages) {
+function create (fields, messages) {
   
   if (messages) {
     Object.keys(messages).forEach(function (key) {
@@ -42,7 +42,7 @@ function create (fields, data, messages) {
     Map: {},
     Messages: Messages,
     fields: fields,
-    data: data,
+    data: {},
     isValid: function () {
       return this.getCount() == 0;
     },
@@ -55,8 +55,8 @@ function create (fields, data, messages) {
       return Object.keys(this.Map).length;
     },
     isUnique: null,  // 需要外部注入
-    setMessage: setMessage,
-    run: run,
+    addMessage: addMessage,
+    check: check,
     validate: validate,
     checkType: checkType,
     checkSize: checkSize,
@@ -67,8 +67,11 @@ function create (fields, data, messages) {
 
 }
 
-function run () {
+function check (data) {
   var _this = this;
+  this.Map = {};
+  this.data = data;
+  
   Object.keys(this.fields).forEach(function (name) {
     _this.validate(name, _this.fields[name], _this.data[name]);
   });
@@ -131,7 +134,7 @@ function checkType (name, field, value) {
   }
   
   if (!pass) {
-    this.setMessage(name, 100, field.type);
+    this.addMessage(name, 100, field.type);
   }
   
 }
@@ -141,109 +144,109 @@ function checkSize (name, field, value) {
   var fixed = field.size || field.length;
   
   if (fixed && len != fixed) {
-    this.setMessage(name, 101, fixed);
+    this.addMessage(name, 101, fixed);
   }
   
   if (field.max && len > field.max) {
-    this.setMessage(name, 102, field.max);
+    this.addMessage(name, 102, field.max);
   }
   
   if (field.min && len < field.min) {
-    this.setMessage(name, 103, field.min);
+    this.addMessage(name, 103, field.min);
   }
 }
 
 // 注意： unique field不能为空
 function checkNull (name, field, value) {
   if ( (field.isRequired || field.required || field.isNull === false || field.isUnique ) &&  validator.isNull(value) ) {
-    this.setMessage(name, 200);
+    this.addMessage(name, 200);
   }
 }
 
 function checkValue (name, field, value) {
   
   if (field.pattern && !validator.matches(value, field.pattern, 'i')) {
-    this.setMessage(name, 201, field.pattern);
+    this.addMessage(name, 201, field.pattern);
     return;
   }
   
   if (field.isEmail && !validator.isEmail(value)) {
-    this.setMessage(name, 202, value);
+    this.addMessage(name, 202, value);
     return;
   }
   
   if (field.isUrl && !validator.isURL(value)) {
-    this.setMessage(name, 203, value);
+    this.addMessage(name, 203, value);
     return;
   }
   
   if (field.isAlpha && !validator.isAlpha(value)) {
-    this.setMessage(name, 204, value);
+    this.addMessage(name, 204, value);
     return;
   }
 
   if (field.isNumeric && !validator.isNumeric(value)) {
-    this.setMessage(name, 205, value);
+    this.addMessage(name, 205, value);
     return;
   } 
   
   if (field.isAlphanumeric && !validator.isAlphanumeric(value)) {
-    this.setMessage(name, 206, value);
+    this.addMessage(name, 206, value);
     return;
   }
 
   if (field.isUUID &&  !validator.isUUID(value)) {
-    this.setMessage(name, 207, value);
+    this.addMessage(name, 207, value);
     return;
   }
   
   if (field.isDate && !validator.isDate(value)) {
-    this.setMessage(name, 208, value);
+    this.addMessage(name, 208, value);
     return;
   }
   
   if ((field.isIP || field.isIP4) && !validator.isIP(value, 4)) {
-    this.setMessage(name, 209, value);
+    this.addMessage(name, 209, value);
     return;
   }
   
   if (field.isIP6 && !validator.isIP(value, 6)) {
-    this.setMessage(name, 210, value);
+    this.addMessage(name, 210, value);
     return;
   }
   
   if (field.shouldAfter && !validator.isAfter(value, field.shouldAfter)) {
-    this.setMessage(name, 211, field.shouldAfter);
+    this.addMessage(name, 211, field.shouldAfter);
     return;
   }
   
   if (field.shouldBefore && !validator.isBefore(value, field.shouldBefore)) {
-    this.setMessage(name, 212, field.shouldBefore);
+    this.addMessage(name, 212, field.shouldBefore);
     return;
   }
   
   if (field.type == 'enum' && field.values.indexOf(value) == -1) {
-    this.setMessage(name, 213, field.values.join(','));
+    this.addMessage(name, 213, field.values.join(','));
     return;
   }
   
   if ((field.type == 'hash' || field.type == 'map') && field.values[value] == undefined) {
-    this.setMessage(name, 214, Object.keys(field.values));
+    this.addMessage(name, 214, Object.keys(field.values));
     return;
   }
   
   if (field.isCreditCard &&  !validator.isCreditCard(value)) {
-    this.setMessage(name, 215, value);
+    this.addMessage(name, 215, value);
     return;
   }
   
   if (field.maxValue && value > field.maxValue) {
-    this.setMessage(name, 216, field.maxValue);
+    this.addMessage(name, 216, field.maxValue);
     return;
   }
 
   if (field.minValue && value < field.minValue) {
-    this.setMessage(name, 217, field.minValue);
+    this.addMessage(name, 217, field.minValue);
     return;
   }
   
@@ -252,12 +255,12 @@ function checkValue (name, field, value) {
 function checkUnique (name, field, value) {
   if ( field.isUnique && typeof this.isUnique == 'function') {
     if (!this.isUnique(name, field, value)) {
-      this.setMessage(name, 218, value);  
+      this.addMessage(name, 218, value);  
     }
   }
 }
 
-function setMessage (name, code/*, param1, param2*/) {
+function addMessage (name, code/*, param1, param2*/) {
   var params = [this.Messages[code]];
   
   for (var i = 2; i < arguments.length; i++) {
