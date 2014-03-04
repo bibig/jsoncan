@@ -1,12 +1,12 @@
-
 var should = require('should');
 var assert = require('assert');
-var db = require('../index');
+var Jsoncan = require('../index');
 var path = require('path');
 var fs = require('fs');
+var exec = require('child_process').exec;
 
-describe('test table.js model way', function () {
-  
+describe('test model way', function () {
+  var PATH = path.join(__dirname, '_data');
   var fields = {
     id: {
       text: 'user id',
@@ -22,6 +22,12 @@ describe('test table.js model way', function () {
       required: true,
       isInput: true,
       isUnique: true
+    },
+    password: {
+      text: 'password',
+      type: 'string',
+      isPassword: true,
+      required: true
     },
     email: {
       text: 'your email',
@@ -64,46 +70,57 @@ describe('test table.js model way', function () {
       isCurrent: true
     }
   };
-  var PATH = path.join(__dirname, 'data');
   var tableName = 'people';
   var Table;
   var people1 = {
     email: 'tom@hello.com',
     mobile: '18921001800',
     name: 'Tom',
+    password: '123',
     age: 18
   };
   var people2 = {
     email: 'david@hello.com',
     mobile: '18911112222',
     name: 'David',
+    password: '123',
     age: 22
   };
   var people3 = {
     email: 'cici@hello.com',
     mobile: '18933332222',
     name: 'Cici',
+    password: '123',
     age: 26
   };
   var people4 = {
     email: 'gary@hello.com',
     mobile: '218-444-1234',
     name: 'Gary',
+    password: '123',
     age: 58
   };
   var Gary;
   
-  it('create a Table Object', function () {
-    Table = db.table.create(PATH, tableName, fields);
-    assert.ok(typeof Table == 'object');
+  before(function (done) {
+    var can = new Jsoncan(PATH);
+    Table = can.open(tableName, fields);
+    Gary = Table.create(people4);
+    done();
+  });
+
+  after(function (done) {
+    var command = 'rm -rf ' + PATH;
+    exec(command, function(err, stdout, stderr) {
+      done();
+    });
   });
   
   it('test validate', function () {
     Gary = Table.create(people4);
     assert.ok(Gary.validate());
   });
-  
-  
+    
   it('test save() for insert ', function (done) {
     Gary.save(function (e, record) {
       should.not.exist(e);
@@ -113,35 +130,82 @@ describe('test table.js model way', function () {
       record.should.have.property('created', Gary.get('created'));
       record.should.have.property('modified', Gary.get('modified'));
       record.should.have.property('_id', Gary.getPrimaryId());
+      Table.forEachField
       done();
     });
   });
+  
+  it('link files should be created', function () {
+    var nameLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'name', people4.name));
+    var emailLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'email', people4.email));
+    var mobileLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', people4.mobile));
+    var idLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'id', Gary.get('id')));
+    assert.ok(emailLink);
+    assert.ok(mobileLink);
+    assert.ok(idLink);
+  });
+
   
   it('test save() for update', function (done) {
-    Gary.set('age', 19).save(function (e, record) {
+    var newAge = 19;
+    var newName = 'Garee';
+    
+    Gary.set('age', newAge).set('name', newName).save(function (e, record) {
+      var oldNameLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'name', people4.name));
+      var newNameLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'name', newName));
       should.not.exist(e);
-      record.should.have.property('age',19);
+      record.should.have.property('age',newAge);
+      assert.ok(Gary.get('age') == newAge);
+      assert.ok(Gary.get('name') == newName);
+      assert.ok(!oldNameLink);
+      assert.ok(newNameLink);
       done();
     });
   });
   
-  it('create more people ', function (done) {
-    Table.insertAll([people1, people2, people3], function (e) {
-      should.not.exist(e);
-      done();
-    });
+  it('test insert sync ', function (done) {
+    var p1 = Table.create(people1).saveSync();
+    var p2 = Table.create(people2).saveSync();
+    var p3 = Table.create(people3).saveSync();
+    var query = Table.createQuerySync();
+    assert.ok(p1.get('name') == people1.name);
+    assert.ok(p2.get('name') == people2.name);
+    assert.ok(query.count() == 4);
+    done();
   });
   
   it('test load', function () {
     var GaryClone = Table.load(Gary.getPrimaryId());
     assert.ok(GaryClone.get('age') == Gary.get('age'));
     assert.ok(GaryClone.get('email') == Gary.get('email'));
+    // console.log(GaryClone.data);
+  });
+  
+  it('test saveSync', function () {
+    var oldName = Gary.get('name');
+    var newName = people4.name;
+    Gary.set('name', newName).saveSync();
+    // console.log(Gary.data);
+    var oldNameLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'name', oldName));
+    var newNameLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'name', newName));
+    
+    assert.ok(newNameLink);
+    assert.ok(!oldNameLink);
   });
   
   it('test loadBy', function () {
-    var GaryClone = Table.loadBy('name', 'Gary');
+    var GaryClone = Table.loadBy('name', people4.name);
     assert.ok(GaryClone.get('age') == Gary.get('age'));
     assert.ok(GaryClone.get('_id') == Gary.get('_id'));
+  });
+  
+  it('test password compare', function () {
+    var GaryClone = Table.loadBy('name', 'Gary');
+    var newPassword = 'asdfadsfsdafsdafsadf';
+    assert.ok(GaryClone.isValidPassword('123'));
+    assert.ok(GaryClone.isValidPassword('123', 'password'));
+    GaryClone.set('password', newPassword).saveSync();
+    assert.ok(GaryClone.isValidPassword(newPassword));
   });
   
   it('validate failed', function () {

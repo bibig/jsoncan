@@ -11,47 +11,48 @@
  npm install jsoncan
 
 ## Version
-  0.0.2
+  1.0.0
 
 ## Usage	
 
 ### create and connection
 ```javascript
 	
-	// include engine
-	var db = require('jsoncan');
+	var Jsoncan = require('jsoncan');
 	
-	// table root, the json file will save here
-	// make sure the path does exist. if not, jsoncan will try to create it.
+	// db root, the json files will save here, make sure the path does exist. if not, jsoncan will try to create it.
 	var PATH = path.join(__dirname, 'data'); 
 	
-	// schemas define
+	// create a new db, if exists, connect it.
+	var can = new Jsoncan(PATH);
+	
+	// define table schemas
 	var fields = {
-		   id: {
-		     text: 'user id',
-		     type: 'string',
-		     isRandom: true,
-		     isUnique: true
-		   },
-		   name: {
-			 text: 'your name',
-			 type: 'string',
-			 max: 30,
-			 min: 2,
-			 required: true
-		  }
-	    };
+     id: {
+       text: 'user id',
+       type: 'string',
+       isRandom: true,
+       isUnique: true
+     },
+     name: {
+       text: 'your name',
+       type: 'string',
+       max: 30,
+       min: 2,
+       required: true
+    }
+	};
 	
 	var tableName = 'people';
 	    
-	// make a connection, it's easy like open a file
-	var People = db.table.create(PATH, tableName, fields);
+	// create or open a table.
+	var People = can.open(tableName, fields);
 	
 ```
 
 
 ### insert
-when any record inserted, it will be automatically added an "_id" field as the primary key.
+when a record inserted, it will be automatically added an "_id" field as the primary key.
 
 ```javascript
 	
@@ -79,13 +80,20 @@ findAll return mulitply records, if no arguments given, will return the whole re
 	// find by primary id
 	People.find(Tom._id, function (e, record) {...});
 	
-	// find by unique id
+	// find by unique id, only used for the uniqued fields.
 	People.findBy('id', Tom.id, function (e, record) {...});
 	
 	// find all
 	Product.findAll({price: ['>', 100], name: ['like', '%haha%']}, function (e, records) {...} );
 
+  // sync way
+  var man = People.findSync(_id);
+  var otherMan = People.findBySync('name', 'xxx');
+  var men = People.findAll({age: ['between', 18, 36]}, "id, name, age");
+  
 ```
+
+
 
 ### query way
 
@@ -136,6 +144,10 @@ query data in more natural and intuitive way.
 	query.sum('age');
 	query.average('age');
 	
+	// sync way
+	var query = People.createQuerySync();
+	var men = Query.where('age', 18).order(age).select();
+	
 ```
 
 ### update
@@ -151,6 +163,11 @@ query data in more natural and intuitive way.
 	// update all
 	User.updateAll({age: 17}, {class: 'xxx'}, function (e, records) {...});
 	
+	// sync way
+	Product.updateSync(product._id, {price: 199.99});
+	User.updateBySync('email', user.email, {age: 22});
+	User.updateAllSync({age: 17}, {class: 'xxx'});
+	
 ```
 
 ### remove
@@ -161,6 +178,11 @@ query data in more natural and intuitive way.
 	User.removeBy('class', 'xxx', function (e) {...});
 	// delete all
 	User.removeAll({age, 10}, function (e) {...});
+	// sync way
+	User.removeSync(_id);
+	User.removeBySync('class', 'xxx');
+	User.removeAllSync({age, 10});
+	
 		
 ```
 
@@ -174,20 +196,29 @@ Three way to create a model object:
 
 ```javascript
 
-	var Product = db.table.create(path, fields);
+	var Product = can.open(path, fields);
 	
 	// create a new one
 	var productA = Product.model({name: 'xxx'}); // or Product.create({...});
 	productA.set(price, 2.99);
 	product.save(function (e, records) {...});
 	
-	// load exist by primary id
+	// load exist record from db 
+	// load by primary id
 	var productB = Product.load('the_primary_id');
-	// load exist by unique field
+	// load by unique field
 	var productC = product.loadBy(an_unique_name, 'xxxx');
 	
 	// use chain
 	productA.set(name, 'xxx').save(callback);
+	
+	// remove
+	productA.remove(callback);
+	
+	// sync way
+	productA.set(price, 2.99).saveSync();
+	productA.set({name: 'xxx', price: 2.99}).saveSync();
+	productA.removeSync();
 	
 ```
 
@@ -248,6 +279,18 @@ in insert or update process, if validate failed, it will throw an error.
 		// and you can get the error messages by e.invalidMessages.
 		
 	});
+
+```
+
+you can also validate data in model way
+
+```javascript
+
+	var productA = Product.model({name: 'xxx', price: xxx, label: xxx});
+	productA.validate(); // return boolean
+	product.isValid // after validate, isValid will be set true or false
+	// if failed, messages will be set as a hash object.
+	validateMessages = productA.messages;  
 
 ```
 
@@ -339,7 +382,6 @@ examples:
 	var People = db.table.create(PATH, 'people', schemas);
 
 ```
-
 
 ### more detail
 Please see the test files.

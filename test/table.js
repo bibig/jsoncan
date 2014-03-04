@@ -1,8 +1,9 @@
 var should = require('should');
 var assert = require('assert');
-var db = require('../index');
+var Jsoncan = require('../index');
 var path = require('path');
 var fs = require('fs');
+var exec = require('child_process').exec;
 
 describe('test table.js', function () {
   
@@ -62,7 +63,7 @@ describe('test table.js', function () {
       isCurrent: true
     }
   };
-  var PATH = path.join(__dirname, 'data');
+  var PATH = path.join(__dirname, '_data');
   var tableName = 'user';
   var Table;
   var people1 = {
@@ -88,8 +89,16 @@ describe('test table.js', function () {
   
   var record;
   
+  after(function (done) {
+    var command = 'rm -rf ' + PATH;
+    exec(command, function(err, stdout, stderr) {
+      done();
+    });
+  });
+  
   it('create a Table Object', function () {
-    Table = db.table.create(PATH, tableName, fields);
+    var can = new Jsoncan(PATH);
+    Table = can.open(tableName, fields);
     assert.ok(typeof Table == 'object');
   });
   
@@ -99,9 +108,9 @@ describe('test table.js', function () {
   });
   
   it('should create all unique fields folds', function () {
-    var emailPath = fs.existsSync(path.join(PATH, tableName, 'email'));
-    var mobilePath = fs.existsSync(path.join(PATH, tableName, 'mobile'));
-    var idPath = fs.existsSync(path.join(PATH, tableName, 'id'));
+    var emailPath = fs.existsSync(Table.conn.getTableUniquePath(tableName, 'email'));
+    var mobilePath = fs.existsSync(Table.conn.getTableUniquePath(tableName, 'mobile'));
+    var idPath = fs.existsSync(Table.conn.getTableUniquePath(tableName, 'id'));
     
     emailPath.should.be.ok;
     mobilePath.should.be.ok;
@@ -124,6 +133,17 @@ describe('test table.js', function () {
       record.should.have.property('modified');
       done();
     });
+  });
+  
+  it('link files should be created', function () {
+    var emailLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'email', record.email));
+    var mobileLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', record.mobile));
+    var idLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'id', record.id));
+    
+    assert.ok(emailLink);
+    assert.ok(mobileLink);
+    assert.ok(idLink);
+    
   });
 
   it('test insertAll', function (done) {
@@ -170,11 +190,30 @@ describe('test table.js', function () {
     });
   });
   
+  it('test insert invalid data, validate shoule work', function (done) {
+    Table.insert({}, function (err, _record) {
+      // console.log(_record);
+      should.exist(err);
+      // console.log(err);
+      err.should.have.property('code');
+      err.should.have.property('invalidMessages');
+      err.should.have.property('invalid', true);
+      err.invalidMessages.should.have.property('name');
+      err.invalidMessages.should.have.property('email');
+      err.invalidMessages.should.have.property('mobile');
+      err.invalidMessages.should.have.property('age');
+      // console.error(err);
+      // console.log(err.code);
+      // console.log(err.message);
+      done();
+    });
+  });
+  
   it('test insert duplicate', function (done) {
     Table.insert(people3, function (err, _record) {
       // console.log(_record);
       should.exist(err);
-      console.log(err);
+      // console.log(err);
       err.should.have.property('code');
       err.should.have.property('invalidMessages');
       err.should.have.property('invalid', true);
@@ -257,7 +296,7 @@ describe('test table.js', function () {
   it('test update duplicate value', function (done) {
     Table.update(record._id, {mobile: people3.mobile, email: people2.email}, function (err, newRecord) {
       should.exist(err);
-      console.log(err);
+      // console.log(err);
       err.should.have.property('code');
       err.should.have.property('invalidMessages');
       err.should.have.property('invalid', true);
@@ -290,6 +329,17 @@ describe('test table.js', function () {
       
       done();
     });
+  });
+  
+  it('after remove, link files should be deleted', function () {
+    var emailLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'email', record.email));
+    var mobileLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', record.mobile));
+    var idLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'id', record.id));
+    
+    assert.ok(!emailLink);
+    assert.ok(!mobileLink);
+    assert.ok(!idLink);
+    
   });
   
   it('test remove all', function (done) {
