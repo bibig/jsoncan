@@ -46,7 +46,7 @@
 	var tableName = 'people';
 	    
 	// create or open a table.
-	var People = can.open(tableName, fields);
+	var People = can.open(tableName, fields); // can.create(...) do the same thing.
 	
 ```
 
@@ -187,8 +187,9 @@ query data in more natural and intuitive way.
 ```
 
 ### the model way
-like "query" style, it's more intuitive too.
-Three way to create a model object: 
+model is like "query" style, it's more intuitive too.
+
+There are three ways to create a model object: 
 
 + var model = Table.create({/*data*/});
 + var model = Table.load(_id);
@@ -249,6 +250,7 @@ so far, you can add these rules.
 + isNumeric
 + isAlpha
 + isDate
++ isPassword  // will encrypt the password value automatically
 + length
 + size // alias length
 + max // max size
@@ -303,6 +305,7 @@ except the above validate rule keys, a schema also support these keys:
 + type
 + default
 + values // for map or enum type
+
 
 and the valid type keys are:
 + 'string'
@@ -379,7 +382,7 @@ examples:
 	};
 	
 	// then use to create Table.
-	var People = db.table.create(PATH, 'people', schemas);
+	var People = can.open('people', schemas);
 
 ```
 
