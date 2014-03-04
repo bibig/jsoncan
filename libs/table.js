@@ -49,6 +49,7 @@ function create (conn, table, fields, validateMessages) {
     filterEachFieldBeforeSave: filterEachFieldBeforeSave,
     getUpdateSafeData: getUpdateSafeData,
     linkEachUniqueField: linkEachUniqueField,
+    readField: function (name, value) { return this.schemas.read(name, value); },
     rawToRead: function (data) { return this.schemas.rawToRead(data);},
     rawsToRead: rawsToRead,
     createQuery: createQuery,
@@ -107,6 +108,13 @@ function model (data) {
     data: data,
     messages: null, // validate messages
     get: function (name) { return this.data[name]; },
+    read: function (name) {
+      if (name) {
+        return parent.readField(name, this.data[name]);
+      } else {
+        return parent.rawToRead(this.data);
+      }
+    },
     set: function (/*name, value | hash*/) { 
       var _this = this;
       var map;

@@ -35,7 +35,8 @@ describe('test model way', function () {
       max: 30,
       required: true,
       isInput: true,
-      isUnique: true
+      isUnique: true,
+      prefix: '*',
     },
     age: {
       text: 'your age',
@@ -67,7 +68,11 @@ describe('test model way', function () {
     modified: {
       text: 'modified at',
       type: 'timestamp',
-      isCurrent: true
+      isCurrent: true,
+      format: function (t) {
+        var d = new Date(t);
+        return [d.getFullYear(), d.getMonth() + 1, d.getDate()].join('-') + ' ' + [d.getHours(), d.getMinutes(), d.getSeconds()].join(':');
+      },
     }
   };
   var tableName = 'people';
@@ -213,6 +218,17 @@ describe('test model way', function () {
     assert.ok(Gary.isValid === false);
     Gary.messages.should.have.property('name');
     Gary.messages.should.have.property('email');
+  });
+  
+  it('test read feature', function () {
+    var re = /\d{4}\-\d{1,2}\-\d{1,2}\s+\d{1,2}:\d{1,2}:\d{1,2}/i;
+    var GaryClone = Table.loadBy('name', 'Gary');
+    var toReadData = GaryClone.read();
+    // console.log(toReadData);
+    assert.equal(GaryClone.read('email'), '*' + GaryClone.get('email'));
+    assert.ok(re.test(GaryClone.read('modified')));
+    
+    toReadData.should.have.property('id', GaryClone.get('id'));
   });
   
   it('test model way, remove()', function (done) {

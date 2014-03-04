@@ -79,6 +79,7 @@ function create (fields) {
     inputFields: inputFields,
     isMap: isMap,
     mapIdToDesc: mapIdToDesc,
+    read: read, // read a field
     rawToRead: rawToRead,
     hasFormat: hasFormat,
     format: format,
@@ -126,18 +127,22 @@ function rawToRead (data) {
   var _this = this;
   
   keys.forEach(function (name) {
-    if (_this.isMap(name)) {
-      data[name] = _this.mapIdToDesc(name, data[name]);
-    }
-    
-    if (_this.hasFormat(name)) {
-      data[name] = _this.format(name, data[name], data);
-    }
-
-    data[name] = _this.addPrefixAndSuffix(name, data[name]);
+    data[name] = _this.read(name, data[name]);
   });
   
   return data;
+}
+
+function read (name, value, data) {
+  if (this.isMap(name)) {
+    value = this.mapIdToDesc(name, value);
+  }
+  
+  if (this.hasFormat(name)) {
+    value = this.format(name, value, data);
+  }
+
+  return this.addPrefixAndSuffix(name, value);
 }
 
 // 将map字段的值转换为描述文本
