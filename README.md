@@ -46,7 +46,7 @@
 	var tableName = 'people';
 	    
 	// create or open a table.
-	var People = can.open(tableName, fields); // can.create(...) do the same thing.
+	var People = can.open(tableName, fields); // can.table(...) do the same thing.
 	
 ```
 
