@@ -234,6 +234,26 @@ describe('test sync actions in table.js', function () {
     records[0].should.not.have.property('mobile');
   });
   
+  //---read
+  it('test read', function () {
+    var data = Table.readSync(record._id);
+    data.should.have.property('id', record.id);
+  });
+  
+  it('test readBy', function () {
+    var data = Table.readBySync('id', record.id);
+    data.should.have.property('_id', record._id);
+  });
+  
+  it('test readAll', function () {
+    var records = Table.readAllSync(record, ['id', 'email', 'name']);
+    assert.ok(records.length == 1);
+    records[0].should.have.property('id', record.id);
+    records[0].should.have.property('email', record.email);
+    records[0].should.have.property('name', record.name);
+    records[0].should.not.have.property('mobile');
+  });
+  
   it('test update', function () {
     var email = 'yyy@hello.com';
     var mobile = '1111';

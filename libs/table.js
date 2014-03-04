@@ -53,9 +53,15 @@ function create (conn, table, fields, validateMessages) {
     rawsToRead: rawsToRead,
     createQuery: createQuery,
     createQuerySync: createQuerySync,
-    find: function (id, callback) { this.conn.find(this.table, id, callback); },
+    read: read,
+    readSync: readSync,
+    readBy: readBy,
+    readBySync: readBySync,
+    readAll: readAll,
+    readAllSync: readAllSync,
+    find: function (_id, callback) { this.conn.find(this.table, _id, callback); },
     findBy: function (name, value, callback) { this.conn.findBy(this.table, name, value, callback); },
-    findSync: function (id) { return this.conn.findSync(this.table, id); },
+    findSync: function (_id) { return this.conn.findSync(this.table, _id); },
     findBySync: function (name, value) { return this.conn.findBySync(this.table, name, value); },
     _findAll: function (callback) { this.conn.findAll(this.table, callback);},
     _findAllSync: function () { return this.conn.findAllSync(this.table);},
@@ -792,7 +798,7 @@ function removeAllSync (options, callback) {
 }
 
 
-function findAll (/*options, callback*/) {
+function findAll (/*options, select, callback*/) {
   var _this = this;
   var options;
   var fields;
@@ -803,7 +809,11 @@ function findAll (/*options, callback*/) {
       callback = arguments[0];
       break;
     case 2: // hash options
-      options = arguments[0];
+      if (Array.isArray(arguments[0]) || typeof arguments[0] == 'string') {
+        fields = arguments[0];
+      } else if (typeof arguments[0] == 'object') {
+        options = arguments[0];  
+      }
       callback = arguments[1];
       break;
     case 3:
@@ -814,29 +824,9 @@ function findAll (/*options, callback*/) {
       break;
   }
   
-  if (!options) {
-    this._findAll(callback);
+  if (!options && !fields) {
+    return this._findAll(callback);
   }
-  /*
-  // console.log(arguments);
-  switch (arguments.length) {
-    case 1: // no options
-      callback = arguments[0];
-      _this._findAll(callback);
-      return;
-    case 2: // hash options
-      options = arguments[0];
-      callback = arguments[1];
-      fields = null;
-      break;
-    case 3:
-    default:
-      options = arguments[0];
-      fields = arguments[1];
-      callback = arguments[2];
-      break;
-  }
-  */
   
   this.createQuery(function (err, query) {
     var records;
@@ -851,7 +841,6 @@ function findAll (/*options, callback*/) {
 
 function findAllSync (options, fields) {
   var _this = this;
-  var query;
   
   if (!options) {
     return this._findAllSync();
@@ -919,4 +908,61 @@ function saveSync (data) {
  */
 function isValidPassword (hash, pass) {
   return safepass.set(hash).isValid(pass);
+}
+
+function read (_id, callback) {
+  var _this = this;
+  this.find(_id, function (e, record) {
+    if (e) {
+      callback(e);
+    } else if (record) {
+      callback(null, _this.rawToRead(record));
+    } else { // no data found
+      callback(null, null);
+    }
+  })  
+}
+
+function readSync (_id) {
+  var data = this.findSync(_id);
+  return data ? this.rawToRead(data): null;
+}
+
+function readBy (name, value, callback) {
+  var _this = this;
+  this.findBy(name, value, function (e, record) {
+    if (e) {
+      callback(e);
+    } else if (record) {
+      callback(null, _this.rawToRead(record));
+    } else {
+      callback(null, null);
+    }
+  });
+}
+
+function readBySync (name, value) {
+  var data = this.findBySync(name, value);
+  return data ? this.rawToRead(data) : null;
+}
+
+function readAll (options, fields, callback) {
+  var _this = this;
+  
+  this.findAll(options, fields, function (e, records) {
+    if (e) {
+      callback(e);
+    } else if (records.length > 0) {
+      callback(null, _this.rawsToRead(records));    
+    } else {
+      callback(null, records)
+    }
+  });
+
+}
+
+function readAllSync (options, fields) {
+  var data = this.findAllSync(options, fields);
+  return data.length > 0 ? this.rawsToRead(data) : data;
+  
 }

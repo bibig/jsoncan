@@ -28,7 +28,8 @@ describe('test table.js', function () {
       max: 30,
       required: true,
       isInput: true,
-      isUnique: true
+      isUnique: true,
+      prefix: '@'
     },
     age: {
       text: 'your age',
@@ -49,7 +50,9 @@ describe('test table.js', function () {
       type: 'float',
       decimal: 2,
       isNull: false,
-      default: 0.00
+      default: 0.00,
+      prefix: '$',
+      suffix: '*'
     },
     created: {
       text: 'created at',
@@ -60,7 +63,11 @@ describe('test table.js', function () {
     modified: {
       text: 'modified at',
       type: 'timestamp',
-      isCurrent: true
+      isCurrent: true,
+      format: function (t) {
+        var d = new Date(t);
+        return [d.getFullYear(), d.getMonth() + 1, d.getDate()].join('-') + ' ' + [d.getHours(), d.getMinutes(), d.getSeconds()].join(':');
+      },
     }
   };
   var PATH = path.join(__dirname, '_data');
@@ -234,6 +241,7 @@ describe('test table.js', function () {
     });
   });
   
+  
   it('test findById', function (done) {
     Table.findBy('id', record.id, function (err, data) {
       should.not.exist(err);
@@ -270,6 +278,80 @@ describe('test table.js', function () {
       done();
     });
   });
+  
+  it('test findAll with no options', function (done) {
+    Table.findAll(function (err, records) {
+      // console.error(err);
+      should.not.exist(err);
+      // console.log(records);
+      assert.equal(records.length, 3);
+      done();
+    });
+  });
+  
+  it('test findAll with select filter sting', function (done) {
+    Table.findAll("id, name", function (err, records) {
+      // console.error(err);
+      should.not.exist(err);
+      // console.log(records);
+      assert.equal(records.length, 3);
+      done();
+    });
+  });
+  
+  it('test findAll with select filter array', function (done) {
+    Table.findAll(["id", "age"], function (err, records) {
+      // console.error(err);
+      should.not.exist(err);
+      // console.log(records);
+      assert.equal(records.length, 3);
+      done();
+    });
+  });
+  
+  it('test read', function (done) {
+    Table.read(record._id, function (err, data) {
+      var re = /\d{4}\-\d{1,2}\-\d{1,2}\s+\d{1,2}:\d{1,2}:\d{1,2}/i;
+      should.not.exist(err);
+      data.should.have.property('id', record.id);
+      // console.log(data);
+      assert.ok(re.test(data.modified));
+      assert.ok(/\$[\d\.]+\*/.test(data.balance));
+      done();
+    });
+  });
+  
+  it('test readAll', function (done) {
+    Table.readAll(null, null, function (err, records) {
+      // console.error(err);
+      should.not.exist(err);
+      assert.equal(records.length,3);
+      done();
+    });
+  });
+  
+  it('test readAll with options and fields', function (done) {
+    Table.readAll(record, ['id', 'email', 'name'], function (err, records) {
+      // console.error(err);
+      // console.log(records);
+      should.not.exist(err);
+      assert.ok(records.length == 1);
+      records[0].should.have.property('id', record.id);
+      records[0].should.have.property('email', '@' + record.email);
+      records[0].should.have.property('name', record.name);
+      records[0].should.not.have.property('mobile');
+      done();
+    });
+  });
+  
+  it('test readBy', function (done) {
+    Table.readBy('id', record.id, function (err, data) {
+      should.not.exist(err);
+      data.should.have.property('_id', record._id);
+      done();
+    })
+  });
+
   
   it('test update', function (done) {
     var email = 'yyy@hello.com';

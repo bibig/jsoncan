@@ -224,7 +224,7 @@ function where (field/*, operator, value|values*/) {
 
 function filter (options) {
   var _this = this;
-  var keys = Object.keys(options);
+  var keys = Object.keys(options  || {});
   
   keys.forEach(function (key) {
     var params = [key];

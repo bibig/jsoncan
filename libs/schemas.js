@@ -39,7 +39,7 @@ var ValidKeys = [
   'minValue',
   'pattern', // regex object
   'default',
-  'format', // for date or datetime, money
+  'format', // a function which format value to show format, eg: format date object to 'yyyy-mm-dd' string. 
   'decimal',
   'values', // only for enum fields
   'suffix', // 后缀
@@ -79,7 +79,10 @@ function create (fields) {
     inputFields: inputFields,
     isMap: isMap,
     mapIdToDesc: mapIdToDesc,
-    rawToRead: rawToRead
+    rawToRead: rawToRead,
+    hasFormat: hasFormat,
+    format: format,
+    addPrefixAndSuffix:addPrefixAndSuffix
   };
 }
 
@@ -119,13 +122,21 @@ function checkField (name, field) {
 // 将原始的数据转换为可以放入表示层阅读的数据，主要是为map字段准备
 function rawToRead (data) {
   // console.log(data);
-  var keys = Object.keys(data);
+  var keys = Object.keys(data || {});
   var _this = this;
+  
   keys.forEach(function (name) {
     if (_this.isMap(name)) {
       data[name] = _this.mapIdToDesc(name, data[name]);
-    } 
+    }
+    
+    if (_this.hasFormat(name)) {
+      data[name] = _this.format(name, data[name], data);
+    }
+
+    data[name] = _this.addPrefixAndSuffix(name, data[name]);
   });
+  
   return data;
 }
 
@@ -133,6 +144,29 @@ function rawToRead (data) {
 function mapIdToDesc (name, value) {
   // console.log(this.schemas);
   return this.fields[name].values[parseInt(value, 10)];
+}
+
+function hasFormat (name) {
+  return typeof this.fields[name].format == 'function';
+}
+
+function addPrefixAndSuffix(name, value) {
+  var field = this.fields[name];
+  
+  if (field.prefix) {
+    value = field.prefix + '' + value;
+  }
+  
+  if (field.suffix) {
+    value = value + '' + field.suffix;
+  }
+  
+  return value;
+}
+
+// invoke the format function defined in schema.
+function format (name, value, data) {
+  return this.fields[name].format(value, data); 
 }
 
 // 是否是map字段
