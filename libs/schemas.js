@@ -14,7 +14,7 @@ var ValidKeys = [
   'isInput',
   'isEmail',
   'isUrl',
-  'isPassword',
+  // 'isPassword', deprecated, it's not a database business logic.
   'isAlpha',
   'isNumeric',
   'isUUID',
@@ -23,8 +23,8 @@ var ValidKeys = [
   'isIP4',
   'isIP6',
   'isCreditCard',
-  'isTimestamp', // for created, 一旦发现为空，补上当前时间戳
-  'isCurrent', // for modifed， 保存之前，始终赋值为当前时间戳
+  'isTimestamp', // for field like 'created', if no value found, it will be set to current timestamp when saving.
+  'isCurrent', // for field like 'modifed', always set to current timestamp when saving. 
   'shouldAfter', 
   'shouldBefore',
   'isAlphanumeric',
@@ -32,18 +32,21 @@ var ValidKeys = [
   'isAlpha',
   'isDate',
   'length',
-  'size', // alias length
+  'size', // alias length.
   'max',
   'min',
   'maxValue',
   'minValue',
-  'pattern', // regex object
+  'pattern', // regex object.
   'default',
-  'format', // a function which format value to show format, eg: format date object to 'yyyy-mm-dd' string. 
-  'decimal',
-  'values', // only for enum fields
-  'suffix', // 后缀
-  'prefix'  // 前缀
+  'format', // a function which format a value for presentation, eg: format date object to 'yyyy-mm-dd' string. 
+  'logic', // a function to create value of runtime field.
+  'decimals', // for float type.
+  'values', // only for enum fields.
+  'suffix', // for presentation
+  'prefix',  // for presentation
+  'validate', // a custom validate function, if failed it should return error message directly! passed return null
+  'isFake' // for field like 'passwordConfirm', it 's basically same as normal field, except it will never be saved!
 ];
 
 var RequiredKeys = ['text', 'type'];
@@ -58,8 +61,9 @@ var ValidTypes = [
   'enum',
   'date',
   'datetime',
-  'timestamp', // 时间戳
+  'timestamp', // int, like Date.now()
   'text',
+  'alias', // logic field, should define a logic function to create its value.
   'object' // array, hash, function ....
 ];
 
@@ -82,8 +86,11 @@ function create (fields) {
     read: read, // read a field
     rawToRead: rawToRead,
     hasFormat: hasFormat,
+    hasUniqueField: hasUniqueField,
     format: format,
-    addPrefixAndSuffix:addPrefixAndSuffix
+    addPrefixAndSuffix:addPrefixAndSuffix,
+    forEachField: forEachField,
+    precise: precise
   };
 }
 
@@ -120,17 +127,17 @@ function checkField (name, field) {
   }
 }
 
-// 将原始的数据转换为可以放入表示层阅读的数据，主要是为map字段准备
+// 将原始的数据转换为可以放入表示层阅读的数据
 function rawToRead (data) {
-  // console.log(data);
-  var keys = Object.keys(data || {});
-  var _this = this;
+  var keys = Object.keys(this.fields);
+  data = data || {};
+  var presentations = {};
   
-  keys.forEach(function (name) {
-    data[name] = _this.read(name, data[name]);
+  this.forEachField(function (name, field, _this) {
+    presentations[name] = _this.read(name, data[name], data);
   });
   
-  return data;
+  return presentations;
 }
 
 function read (name, value, data) {
@@ -142,13 +149,15 @@ function read (name, value, data) {
     value = this.format(name, value, data);
   }
 
-  return this.addPrefixAndSuffix(name, value);
+  value = this.addPrefixAndSuffix(name, value);
+
+  return value;
 }
 
 // 将map字段的值转换为描述文本
 function mapIdToDesc (name, value) {
-  // console.log(this.schemas);
-  return this.fields[name].values[parseInt(value, 10)];
+  value = value + '';
+  return this.fields[name].values[value];
 }
 
 function hasFormat (name) {
@@ -171,6 +180,7 @@ function addPrefixAndSuffix(name, value) {
 
 // invoke the format function defined in schema.
 function format (name, value, data) {
+  // console.log(arguments);
   return this.fields[name].format(value, data); 
 }
 
@@ -178,22 +188,52 @@ function format (name, value, data) {
 function isMap (name) {
   var field = this.fields[name];
   if (!field) return false;
-  // console.log('name: %s', name);
-  // console.log(field);
   return ( field.type == 'hash' || field.type == 'map' ) && field.values;
 }
 
 // 获取所有isInput的fields
 function inputFields () {
   var fields = {};
-  var _this = this;
-  Object.keys(this.fields).forEach(function (name) {
-    var field = _this.fields[name];
-    field.name = name;
+  
+  this.forEachField(function (name, field, _this) {
     if (field.isInput) {
       fields[name] = field;
+      fields[name].name = name;
     }
   });
   
   return fields;
+}
+
+/**
+ * 是否有unique字段
+ * @return boolean
+ */
+function hasUniqueField () {
+  var result = false;
+  this.forEachField(function (name, field) {
+    if (field.isUnique) {
+      result = true;
+    }
+  });
+  return result;
+}
+
+/**
+ * 遍历每一个表字段
+ * @callback(field name, field object, context)
+ */
+function forEachField (callback, fields) {
+  var _this = this;
+  var targets = fields ? fields : this.fields;
+  
+  Object.keys(targets).forEach(function (name) {
+    var field = _this.fields;
+    callback(name, field[name], _this);
+  });
+}
+
+
+function precise(num, decimals) {
+  return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
 }

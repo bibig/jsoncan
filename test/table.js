@@ -48,7 +48,7 @@ describe('test table.js', function () {
     balance: {
       text: 'cash remain',
       type: 'float',
-      decimal: 2,
+      decimals: 2,
       isNull: false,
       default: 0.00,
       prefix: '$',
@@ -322,24 +322,25 @@ describe('test table.js', function () {
   });
   
   it('test readAll', function (done) {
-    Table.readAll(null, null, function (err, records) {
+    Table.readAll(null, function (err, records) {
       // console.error(err);
       should.not.exist(err);
-      assert.equal(records.length,3);
+      // console.log(records);
+      assert.equal(records.length, 3);
       done();
     });
   });
   
   it('test readAll with options and fields', function (done) {
-    Table.readAll(record, ['id', 'email', 'name'], function (err, records) {
+    Table.readAll(record, function (err, records) {
       // console.error(err);
+      // console.log(records);
       // console.log(records);
       should.not.exist(err);
       assert.ok(records.length == 1);
       records[0].should.have.property('id', record.id);
       records[0].should.have.property('email', '@' + record.email);
       records[0].should.have.property('name', record.name);
-      records[0].should.not.have.property('mobile');
       done();
     });
   });

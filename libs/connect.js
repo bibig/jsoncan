@@ -95,7 +95,7 @@ function createTablePaths (table, fields) {
 
 
 function encrypt (s) {
-  if (typeof s === 'string' && s.length > 0) {
+  if (s !== '' && (typeof s === 'string' || typeof s === 'number')) {
 	  return require('crypto').createHash('sha1').update(s).digest('hex');
 	} else {
 	  throw new Error('invalid string param:' + s);

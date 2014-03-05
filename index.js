@@ -19,7 +19,7 @@ function open (path, validateMessages) {
 module.exports = function (path, validateMessages) {
   this.conn = Conn.create(path);
   this.validateMessages = validateMessages;
-  this.table = this.open = function (name, fields) {
+  this.capsule = this.table = this.open = function (name, fields) {
     return Table.create(this.conn, name, fields, this.validateMessages);
   }
 }

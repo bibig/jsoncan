@@ -26,7 +26,6 @@ describe('test model way', function () {
     password: {
       text: 'password',
       type: 'string',
-      isPassword: true,
       required: true
     },
     email: {
@@ -52,12 +51,27 @@ describe('test model way', function () {
       isInput: true,
       isUnique: true
     },
+    consumed: {
+      text: 'consumed money',
+      type: 'float',
+      decimals: 2,
+      isNull: false,
+      default: 0.00
+    },
     balance: {
       text: 'cash remain',
       type: 'float',
-      decimal: 2,
+      decimals: 2,
       isNull: false,
       default: 0.00
+    },
+    total: {
+      text: 'total money',
+      type: 'alias',
+      logic: function (data) {
+        return data.consumed + data.balance;
+      },
+      prefix: '$'
     },
     created: {
       text: 'created at',
@@ -103,7 +117,9 @@ describe('test model way', function () {
     mobile: '218-444-1234',
     name: 'Gary',
     password: '123',
-    age: 58
+    age: 58,
+    balance: 500,
+    consumed: 1300,
   };
   var Gary;
   
@@ -204,15 +220,6 @@ describe('test model way', function () {
     assert.ok(GaryClone.get('_id') == Gary.get('_id'));
   });
   
-  it('test password compare', function () {
-    var GaryClone = Table.loadBy('name', 'Gary');
-    var newPassword = 'asdfadsfsdafsdafsadf';
-    assert.ok(GaryClone.isValidPassword('123'));
-    assert.ok(GaryClone.isValidPassword('123', 'password'));
-    GaryClone.set('password', newPassword).saveSync();
-    assert.ok(GaryClone.isValidPassword(newPassword));
-  });
-  
   it('validate failed', function () {
     Gary.set({name: people1.name, email: people2.email}).validate();
     assert.ok(Gary.isValid === false);
@@ -223,12 +230,12 @@ describe('test model way', function () {
   it('test read feature', function () {
     var re = /\d{4}\-\d{1,2}\-\d{1,2}\s+\d{1,2}:\d{1,2}:\d{1,2}/i;
     var GaryClone = Table.loadBy('name', 'Gary');
-    var toReadData = GaryClone.read();
-    // console.log(toReadData);
+    var readData = GaryClone.read();
+    // console.log(readData);
     assert.equal(GaryClone.read('email'), '*' + GaryClone.get('email'));
+    assert.equal(readData.total, '$' + 1800.00 );
     assert.ok(re.test(GaryClone.read('modified')));
-    
-    toReadData.should.have.property('id', GaryClone.get('id'));
+    readData.should.have.property('id', GaryClone.get('id'));
   });
   
   it('test model way, remove()', function (done) {

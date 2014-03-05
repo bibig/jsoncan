@@ -1,4 +1,6 @@
+exports.isNumber = isNumber;
 exports.create = create;
+exports.isEmpty = isEmpty;
 
 var validator = require('validator');
 var util = require('util');
@@ -63,37 +65,49 @@ function create (fields, messages) {
     checkUnique: checkUnique,
     checkNull: checkNull,
     checkValue: checkValue,
+    checkCustom: checkCustom
   };
 
 }
 
-function check (data) {
+function check (data, isPart) {
   var _this = this;
+  var targets = isPart ? data : this.fields;
   this.Map = {};
   this.data = data;
   
-  Object.keys(this.fields).forEach(function (name) {
-    _this.validate(name, _this.fields[name], _this.data[name]);
+  Object.keys(targets).forEach(function (name) {
+    _this.validate(name, _this.fields[name], _this.data[name], data);
   });
   return this;
 }
 
-function validate (name, field, value) {
+function validate (name, field, value, data) {
+  
+  if (field.type == 'alias') return; // alias has a logic value
   
   this.checkNull.apply(this, arguments);
   if ( !this.isValidField(name) ) return;
   
-  this.checkType.apply(this, arguments);
-  if ( !this.isValidField(name) ) return;
+  // null value is valid, do not need check type, size and value
+  if (value !== undefined && value !== '' && value !== null) { 
+    this.checkType.apply(this, arguments);
+    if ( !this.isValidField(name) ) return;
+    
+    this.checkSize.apply(this, arguments);
+    if ( !this.isValidField(name) ) return;
   
-  this.checkSize.apply(this, arguments);
-  if ( !this.isValidField(name) ) return;
-
-  this.checkValue.apply(this, arguments);
-  if ( !this.isValidField(name) ) return;
+    this.checkValue.apply(this, arguments);
+    if ( !this.isValidField(name) ) return;
+    
+    this.checkUnique.apply(this, arguments);
+    if ( !this.isValidField(name) ) return;
+  }
   
-  this.checkUnique.apply(this, arguments);
+  this.checkCustom.apply(this, arguments);
 }
+
+
 
 function isValidField (name) {
   return this.Map[name] === undefined;
@@ -101,6 +115,7 @@ function isValidField (name) {
 
 function checkType (name, field, value) {
   var pass;
+  
   switch (field.type) {
     case 'int':
     case 'timestamp':
@@ -156,8 +171,19 @@ function checkSize (name, field, value) {
   }
 }
 
+function checkCustom (name, field, value, data) {
+  var message;
+  
+  if ( typeof field.validate == 'function' ) {
+    if ( message = field.validate(value, data)) {
+      this.addMessage(name, message);
+    }
+  }
+}
+
 // 注意： unique field不能为空
 function checkNull (name, field, value) {
+  
   if ( (field.isRequired || field.required || field.isNull === false || field.isUnique ) &&  validator.isNull(value) ) {
     this.addMessage(name, 200);
   }
@@ -260,14 +286,30 @@ function checkUnique (name, field, value) {
   }
 }
 
-function addMessage (name, code/*, param1, param2*/) {
-  var params = [this.Messages[code]];
+function addMessage (name, codeOrMessage/*, param1, param2*/) {
+  var message = typeof codeOrMessage == 'number' ? this.Messages[codeOrMessage] : codeOrMessage;
+  var params = [message];
   
   for (var i = 2; i < arguments.length; i++) {
     params.push(arguments[i]);
   }
   
-  // console.log('ready to add <%s> message <%s>', name, util.format.apply(util, params));
-  
   this.Map[name] = util.format.apply(util, params);
 }
+
+function isNumber (n) {
+  // return n!= null && n!= '' && !isNaN(n);
+  return validator.isInt(n) || validator.isFloat(n);
+}
+
+function isEmpty () {
+  var _isEmpty = function (s) { return typeof s === 'undefined' || s === null || s === ''; };
+
+  for (var i = 0; i < arguments.length; i++) {
+    if (_isEmpty(arguments[i])) { return true; }
+  }
+  
+  return false;
+}
+
+

@@ -50,7 +50,7 @@ describe('test sync actions in table.js', function () {
     balance: {
       text: 'cash remain',
       type: 'float',
-      decimal: 2,
+      decimals: 2,
       isNull: false,
       default: 0.00
     },
@@ -246,12 +246,11 @@ describe('test sync actions in table.js', function () {
   });
   
   it('test readAll', function () {
-    var records = Table.readAllSync(record, ['id', 'email', 'name']);
+    var records = Table.readAllSync(record);
     assert.ok(records.length == 1);
     records[0].should.have.property('id', record.id);
     records[0].should.have.property('email', record.email);
     records[0].should.have.property('name', record.name);
-    records[0].should.not.have.property('mobile');
   });
   
   it('test update', function () {
