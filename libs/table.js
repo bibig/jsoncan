@@ -17,41 +17,29 @@ var safepass = require('safepass');
 
 
 /**
- * 创建表对象
- * 1. 创建connection
- * 2. 初始化表需要的目录信息
- * 3. 返回一个封装好的对象
+ * create table object
+ *  
  * @conn: connection
- * @table: 表名称
- * @fields: 表字段的定义信息表
+ * @table: table name
+ * @fields: schemas
  * @return Object
  */
 function create (conn, table, fields, validateMessages) {
   var schemas = Schemas.create(fields);
-  var validator = Validator.create(fields, validateMessages);
+  var validator = Validator.create(schemas, validateMessages);
   
-  // 初始化表目录和unique字段目录
+  // build table root path and unique fields paths
   conn.createTablePaths(table, fields);
   
   return {
     table: table,
     conn: conn,
-    // root: conn.getTablePath(table),
     schemas: schemas,
-    fields: schemas.fields,
     validator: validator,
     validate: validate,
-    // check: check, // invoke by external
-    hasUniqueField: function () { return this.schemas.hasUniqueField(); },
-    forEachField: forEachField,
-    forEachUniqueField: forEachUniqueField,
-    forEachAliasField: forEachAliasField,
-    forEachNoneAliasField: forEachNoneAliasField,
     clearFakeFields: clearFakeFields,
     inputFields: function () { return this.schemas.inputFields(); }, // 返回所有来自input输入的字段
-    transformateEachField: transformateEachField,
-    addDefaultValueForEachField: addDefaultValueForEachField,
-    setEachAliasField: setEachAliasField,
+    getChangedFields: getChangedFields,
     getUpdateSafeData: getUpdateSafeData,
     linkEachUniqueField: linkEachUniqueField,
     readField: function (name, value, data) { return this.schemas.read(name, value, data); },
@@ -136,8 +124,7 @@ function model (data) {
       return this;
     },
     validate: function () {
-      var data = parent.addDefaultValueForEachField(this.data);
-      var check = parent.validate(data);
+      var check = parent.validate(this.data);
       this.messages = check.getMessages();
       this.isValid = check.isValid();
       return this.isValid;
@@ -174,6 +161,7 @@ function model (data) {
         this.isNew = false;
       } else {
         this.data = parent.updateSync(this.getPrimaryId(), this.data);
+        // console.log(this.data);
       }
       return this;
     },
@@ -183,16 +171,14 @@ function model (data) {
     removeSync: function () {
       parent.removeSync(this.getPrimaryId());
     },
-    /* deprecated
     isValidPassword: function (pass, passwordFieldName) {
       passwordFieldName = passwordFieldName || 'password';
-      if (parent.fields[passwordFieldName].isPassword) { // check whether the field is password
-        return parent.isValidPassword(this.data[passwordFieldName], pass);
+      if (parent.schemas.isType(passwordFieldName, 'password')) { // check whether the field is password
+        return parent.schemas.isValidPassword(this.data[passwordFieldName], pass);
       } else {
         return false;
       }
     }
-    */
   };
   
   return _model;
@@ -222,68 +208,6 @@ function clone (data) {
 }
 */
 
-/**
- * 遍历每一个表字段
- * @callback(field name, field object, context)
- */
-function forEachField (callback, fields) {
-  var _this = this;
-  var targets = fields ? fields : this.fields;
-  
-  Object.keys(targets).forEach(function (name) {
-    var field = _this.fields;
-    if (field.type == 'alias') return;
-    callback(name, field[name], _this);
-  });
-}
-
-/**
- * 遍历每一个unique字段
- * @callback(field name, field object, context)
- */
-function forEachUniqueField (callback, fields) {
-  var _this = this;
-  var targets = fields ? fields : this.fields;
-  
-  Object.keys(targets).forEach(function (name) {
-    var field = _this.fields[name];
-    if (field.isUnique) {
-      callback(name, _this.fields[name], _this);
-    }
-  });
-}
-
-/**
- * 遍历每一个Alias字段
- * @callback(field name, field object, context)
- */
-function forEachAliasField (callback) {
-  var _this = this;
-  
-  Object.keys(this.fields).forEach(function (name) {
-    var field = _this.fields[name];
-    if (field.type == 'alias' && typeof field.logic == 'function') {
-      callback(name, _this.fields[name], _this);
-    }
-  });
-}
-
-/**
- * 遍历每一个非Alias字段
- * @callback(field name, field object, context)
- */
-function forEachNoneAliasField (callback) {
-  var _this = this;
-  
-  Object.keys(this.fields).forEach(function (name) {
-    var field = _this.fields[name];
-    if (field.type != 'alias') {
-      callback(name, _this.fields[name], _this);
-    }
-  });
-}
-
-
 
 /**
  * remove all the fake fields data
@@ -292,10 +216,11 @@ function forEachNoneAliasField (callback) {
 
 function clearFakeFields (data) {
   var noFake = {};
-  this.forEachField(function (name, field, _this) {
-    if (field.isFake) return;
+  this.schemas.forEachField(function (name, field, _this) {
     noFake[name] = data[name];
-  }, data);
+  }, data, function (field) {
+    return !field.isFake;
+  });
   
   return noFake;
 }
@@ -350,7 +275,7 @@ function insert (data, callback) {
   // data = this.transformateEachField(data);
 
   // 补充default值, _id值
-  data = this.addDefaultValueForEachField(data);
+  data = this.schemas.addValues(data);
 
   // this.checkEachUniqueField(data); // process moved into validator
   this.save(data, function (err, record) {
@@ -371,7 +296,7 @@ function insertSync (data) {
   // data = this.transformateEachField(data);
 
   // 补充default值, _id值
-  data = this.addDefaultValueForEachField(data);
+  data = this.schemas.addValues(data);
 
   // 保存后的数据
   data = this.saveSync(data);
@@ -419,9 +344,10 @@ function getTimestamp () {
  * @fields: 特别指定的字段，update的时候可能只需要检查更改过的字段
  */
 function checkEachUniqueField (record, fields) {
-  this.forEachField(function (name, field, ctx) {
+  var _this = this;
+  this.schemas.forEachField(function (name, field) {
     if (field.isUnique) {
-      ctx.checkUniqueField(name, record[name]);
+      _this.checkUniqueField(name, record[name]);
     }
   }, fields);
 }
@@ -460,9 +386,11 @@ function checkUniqueField (name, value, isReturn) {
 function linkEachUniqueField (record, fields) {
   var _this = this;
 
-  this.forEachUniqueField(function (name, field, ctx) {
-    ctx.conn.linkTableUniqueFileSync(_this.table, record._id, name, record[name]);
-  }, fields);
+  this.schemas.forEachField(function (name, field) {
+    _this.conn.linkTableUniqueFileSync(_this.table, record._id, name, record[name]);
+  }, fields, function (field) {
+    return field.isUnique === true;
+  });
 }
 
 
@@ -473,109 +401,12 @@ function linkEachUniqueField (record, fields) {
  * @fields: 特别指定的字段范围
  */
 function unlinkEachUniqueField (record, fields) {
-  this.forEachUniqueField(function (name, field, ctx) {
-    ctx.conn.unlinkTableUniqueFileSync(ctx.table, name, record[name]);
-  }, fields);
-}
-
-/**
- * 过滤data中的信息，只保留有定义的字段信息
- * 如果字段是required类型，且设置了默认值，将自动填充
- * 本方法在保存到文件前调用
- * @data: 要过滤的数据
- */
-function addDefaultValueForEachField (data) {
-  var filtered = {};
-  this.forEachNoneAliasField(function (name, field, _this) {
-    if ( data[name] !== undefined) { // data中已经设置, 注意可以为空值，null值
-      
-      // 始终要求为当前时间， eg: updated or modified
-      if (field.isCurrent) { 
-        data[name] = getTimestamp();
-      }
-      filtered[name] = data[name];
-    } else if (field.isPrimary) {  // _id
-      filtered[name] = getPrimaryId();
-    } else if (field.isRandom) {
-      filtered[name] = getRandom(field.type, field.length);
-    } else if (field.isTimestamp || field.isCurrent) {  // 是否是邮戳， 如果没有赋值，将赋当前时间戳值
-      filtered[name] = getTimestamp();
-    } else if (field.default !== undefined) { // schemas中有定义默认值
-      if (typeof field.default == 'function') {
-        filtered[name] = field.default();
-      } else {
-        filtered[name] = field.default;
-      }
-    } else {
-      filtered[name] = null;
-    }
+  var _this = this;
+  this.schemas.forEachField(function (name, field) {
+    _this.conn.unlinkTableUniqueFileSync(_this.table, name, record[name]);
+  }, fields, function (field) {
+    return field.isUnique === true;
   });
-  
-  return this.setEachAliasField(filtered);
-}
-
-function setEachAliasField (data) {
-  this.forEachAliasField(function (name, field, _this) {
-    data[name] = field.logic(data);
-  });
-  return data;
-}
-
-/** 
- * 对即将保存的数据进行转换
- * @fields: name list
- * @data
- */
-
-function transformateEachField (data) {
- var processed = {};
- var _this = this;
- var _transformate = function (field, value) {
-    /* 
-    deprecated...
-    // password should be hashed 
-    if (field.isPassword) {
-      return safepass.hash(value);
-    }
-    */
-    
-    // string to date object
-    if ((field.type == 'date' || field.type == 'datetime') && typeof (value) == 'string') {
-      return new Date(value);
-    }
-    
-    if ((field.type == 'int') && typeof (value) == 'string') {
-      return parseInt(value, 10);
-    }
-    
-    if ((field.type == 'float') && typeof (value) == 'string') {
-      return _this.schemas.precise(value, field.decimals || 2);
-    }
-    
-    return value;
- }
- 
- Object.keys(data).forEach(function (name) {
-  processed[name] = _transformate(_this.fields[name], data[name]);
- });
- 
- return processed;
-}
-
-/** 
- * 获取随机字符串或数字
- * @type: 类型(string or int)
- * @len: 长度
- */
-function getRandom (type, len) {
-  len = len || 8;  
-  switch (type) {
-    case 'int':
-      return rander.number(len);
-    case 'string':
-    default:
-      return rander.string(len);
-  }
 }
 
 /** 
@@ -591,6 +422,11 @@ function update (_id, data, callback) {
     if (err) {
       callback(err);
     } else {
+      // console.log('@update');
+      // console.log('be to save');
+      // console.log(data);
+      // console.log('record in db');
+      // console.log(record);
       _this._update(data, record, callback);
     }
   });
@@ -610,6 +446,8 @@ function updateBy (field, value, data, callback) {
   this.findBy(field, value, function (err, record) {
     if (err) {
       callback(err);
+    } else if (!record) {
+      callback(error.create(1400, field, value));
     } else {
       _this._update(data, record, callback);
     }
@@ -622,6 +460,9 @@ function updateBy (field, value, data, callback) {
  */ 
 function updateBySync (field, value, data) {
   var record = this.findBySync(field, value);
+  if (!record) {
+    throw error.create(1400, field, value);
+  }
   return this._updateSync(data, record);
 }
 
@@ -635,53 +476,73 @@ function updateBySync (field, value, data) {
  */ 
 function _update (data, record, callback) {
   var _this = this;
-  var safe = this.getUpdateSafeData(data, record);
+  var changedFields = this.getChangedFields(data, record);
+  var safe;
   
-  if (!safe) { // 如果safe返回false，说明要么数据没有更改，要么no data found
+  // console.log('@_unpdate');
+  // console.log('ready to save data:');
+  // console.log(data);
+  // console.log('record in db:');
+  // console.log(record);
+  // console.log('changedFields:' + changedFields);
+  
+  if (changedFields.length == 0 ) { // 数据没有更改,
     return callback(null, record);
   }
   
-  this.unlinkEachUniqueField(record);
+  safe = this.getUpdateSafeData(data, record, changedFields);
+  
+  
+  // console.log('safe data');
+  // console.log(safe);
+  // 保存之前，删除掉link files
+  this.unlinkEachUniqueField(record, changedFields);
   
   this.save(safe, function (err, updatedRecord) {
     if (err) {
       // 出错时，要还原link文件
-      _this.linkEachUniqueField(record);
+      _this.linkEachUniqueField(record, changedFields);
       callback(err);
     } else {
-      _this.linkEachUniqueField(updatedRecord);
+      // console.log('after save:');
+      // console.log(updatedRecord);
+      
+      _this.linkEachUniqueField(updatedRecord, changedFields);
       callback(null, updatedRecord);
-      /*
-      // 如果unique字段改动了，需要校验其唯一性和值非空
-      if (Object.keys(changedFields).length > 0) {
-        // this.checkEachUniqueField(safe, changedFields);
-        _this.linkEachUniqueField(safe, changedFields);
-        _this.unlinkEachUniqueField(changedFieldsSource, changedFieldsSource);
-      }
-      */
     }
-  });
+  }, changedFields);
 }
 
 /** 
  * _update sync version
  */ 
 function _updateSync (data, record, callback) {
-  var safe = this.getUpdateSafeData(data, record);
+  var changedFields = this.getChangedFields(data, record);
+  var safe;
   
-  if (!safe) { // 如果safe返回false，说明要么数据没有更改，要么no data found
+  if (changedFields.length == 0 ) { // 数据没有更改,
     return record;
   }
   
   try{
-    this.unlinkEachUniqueField(record);
-    safe = this.saveSync(safe);
-    this.linkEachUniqueField(safe);
+    this.unlinkEachUniqueField(record, changedFields);
+    safe = this.saveSync(this.getUpdateSafeData(data, record, changedFields), changedFields);
+    this.linkEachUniqueField(safe, changedFields);
     return safe;
   } catch (e) {
-    this.linkEachUniqueField(record);
+    this.linkEachUniqueField(record, changedFields);
     throw e;
   }
+}
+
+function getChangedFields (data, record) {
+  var fields = [];
+  this.schemas.forEachField(function (name, field) {
+    if (data[name] != record[name]) {
+      fields.push(name);
+    }
+  }, data);
+  return fields;
 }
 
 /** 
@@ -690,40 +551,18 @@ function _updateSync (data, record, callback) {
  * @data: 要保存的数据
  * @record: 当前数据库中的数据
  */ 
-function getUpdateSafeData (data, record) {
+function getUpdateSafeData (data, record, changedFields) {
   var safe = {}; // 避免data中夹杂schemas没有定义的数据
-  var changedFields = {}; // 收集改动了的字段
-  
-  if (!record) { // no data found in db
-    return false;
-  }
-  
-  this.forEachField(function (name, field) {
+  // console.log(changedFields);
+  this.schemas.forEachField(function (name, field) {
     if (data[name] == undefined) {
       safe[name] = record[name];
     } else {
-       // 如果data设了值，检查是否与原记录相同
-      if (data[name] !== record[name]) {
-        changedFields[name] = data[name];
-        // changedFieldsSource[name] = record[name];
-      }
       safe[name] = data[name];
     }
   });
   
-    // 数据未做任何修改, 直接返回库中数据
-  if (Object.keys(changedFields).length == 0) {
-    return false;
-  }
-  
-  Object.keys(changedFields).forEach(function (name) {
-    safe[name] = changedFields[name];
-  });
-  
-  // 补充default值
-  safe = this.addDefaultValueForEachField(safe);
-  
-  return safe;
+  return this.schemas.addValues(safe, changedFields);
 }
 
 
@@ -766,7 +605,7 @@ function updateAllSync (options, data) {
 function remove (_id, callback) { 
   var _this = this;
   
-  if (this.hasUniqueField()) {
+  if (this.schemas.hasUniqueField()) {
     this.find(_id, function (err, record) {
       if (err) {
         callback(err);
@@ -780,7 +619,7 @@ function remove (_id, callback) {
 }
 
 function removeSync (_id) {
-  if (this.hasUniqueField()) {
+  if (this.schemas.hasUniqueField()) {
     this._removeSync(this.findSync(_id));
   } else {
     this.conn.removeSync(this.table, _id);
@@ -792,7 +631,7 @@ function _remove (record, callback) {
   if (!record) {
     callback();
   } else {
-    if (this.hasUniqueField()) {
+    if (this.schemas.hasUniqueField()) {
       this.unlinkEachUniqueField(record);
     }
     this.conn.remove(this.table, record._id, callback);
@@ -801,7 +640,7 @@ function _remove (record, callback) {
 
 function _removeSync (record) {
   if (!record) return;
-  if (this.hasUniqueField()) {
+  if (this.schemas.hasUniqueField()) {
     this.unlinkEachUniqueField(record);
   }
   this.conn.removeSync(this.table, record._id);
@@ -928,26 +767,15 @@ function findAllSync (options, fields) {
   return this.createQuerySync().filter(options).select(fields);
 }
 
-function validate (data, isPart) {
+function validate (data, changedFields) {
   var _this = this;
 
   this.validator.isUnique = function (name, field, value) {
     return _this.checkUniqueField (name, value, true);
   };
   
-  return this.validator.check(data, isPart);
+  return this.validator.check(data, changedFields);
 }
-
-/*
-function check (data) {
-  var result = this.validate(data, true);
-  if (result.isValid()) {
-    return true;
-  } else {
-    return result.getMessages();
-  }
-}
-*/
 
 /**
  * 保存数据
@@ -955,15 +783,15 @@ function check (data) {
  * @callback(err, data or invalid messages)
  *  error 1300 表示数据校验失败
  */
-function save (data, callback) {
+function save (data, callback, changedFields) {
   
   var e;
-  var check = this.validate(data);
+  var check = this.validate(data, changedFields);
   
   if (check.isValid()) {
     data = this.clearFakeFields(data);
     // 对需要转换的数据进行转换
-    data = this.transformateEachField(data);
+    data = this.schemas.convertEachField(data, changedFields);
     this.conn.save(this.table, data._id, data, callback); 
   } else {
     e = error.create(1300); 
@@ -978,13 +806,16 @@ function save (data, callback) {
  * @data: 要保存的数据
  * @throw error 1300 表示数据校验失败
  */
-function saveSync (data) {
-  var check = this.validate(data);
+function saveSync (data, changedFields) {
+  // console.log(changedFields);
+  var check = this.validate(data, changedFields);
   
   if (check.isValid()) {
     data = this.clearFakeFields(data);
-    // 对需要转换的数据进行转换
-    data = this.transformateEachField(data);
+    data = this.schemas.convertEachField(data, changedFields);
+    // console.log('@saveSync, after check');
+    // console.log(changedFields);
+    // console.log(data);
     return this.conn.saveSync(this.table, data._id, data); 
   } else {
     e = error.create(1300); 
@@ -993,21 +824,6 @@ function saveSync (data) {
     throw e;
   }
 }
-
-
-
-/**
- * deprecated
- * 检查密码是否正确
- * @hash: 数据库中保存的原值
- * @pass: 要检测的值
- * @return boolean
- */
-/* 
-function isValidPassword (hash, pass) {
-  return safepass.set(hash).isValid(pass);
-}
-*/
 
 function read (_id, callback) {
   var _this = this;

@@ -1,36 +1,19 @@
 exports.create = create;
 
 var error = require('./error');
+var rander = require('rander');
+var safepass = require('safepass');
 
 var ValidKeys = [
   'text', 
   'type',
-  'isPrimary',
-  'isRandom',
   'isUnique',
   'isNull',
   'isRequired',
   'required', // alias isRequired
   'isInput',
-  'isEmail',
-  'isUrl',
-  // 'isPassword', deprecated, it's not a database business logic.
-  'isAlpha',
-  'isNumeric',
-  'isUUID',
-  'isURL',
-  'isIP',
-  'isIP4',
-  'isIP6',
-  'isCreditCard',
-  'isTimestamp', // for field like 'created', if no value found, it will be set to current timestamp when saving.
-  'isCurrent', // for field like 'modifed', always set to current timestamp when saving. 
   'shouldAfter', 
   'shouldBefore',
-  'isAlphanumeric',
-  'isNumeric',
-  'isAlpha',
-  'isDate',
   'length',
   'size', // alias length.
   'max',
@@ -42,15 +25,16 @@ var ValidKeys = [
   'format', // a function which format a value for presentation, eg: format date object to 'yyyy-mm-dd' string. 
   'logic', // a function to create value of runtime field.
   'decimals', // for float type.
-  'values', // only for enum fields.
+  'values', // only for enum and map fields.
   'suffix', // for presentation
   'prefix',  // for presentation
   'validate', // a custom validate function, if failed it should return error message directly! passed return null
   'isFake' // for field like 'passwordConfirm', it 's basically same as normal field, except it will never be saved!
 ];
 
-var RequiredKeys = ['text', 'type'];
+var RequiredKeys = ['type'];
 
+// random, created, modified fields do not need to validate, the values are assigned by system.
 var ValidTypes = [
   'string',
   'int',
@@ -59,11 +43,28 @@ var ValidTypes = [
   'map',
   'hash', // map alias
   'enum',
+  'password',
   'date',
   'datetime',
   'timestamp', // int, like Date.now()
+  'created', // created timestamp
+  'modified', // modified timestamp
   'text',
+  'primary', // _id type
+  'random', // alpha number random, default length 8
   'alias', // logic field, should define a logic function to create its value.
+  'email',
+  'password',
+  'url',
+  'uuid',
+  'alpha',
+  'numeric',
+  'alphanumeric',
+  'ip', // same as ip4
+  'ip4',
+  'ip6',
+  'creditCard',
+  'credit card', // same as creditCard
   'object' // array, hash, function ....
 ];
 
@@ -72,8 +73,7 @@ function create (fields) {
   // add _id 字段
   fields._id = {
     text: '_id',
-    type: 'string',
-    isPrimary: true
+    type: 'primary'
   };
   
   checkFields(fields);
@@ -82,6 +82,8 @@ function create (fields) {
     fields: fields,
     inputFields: inputFields,
     isMap: isMap,
+    isAliasField: isAliasField,
+    isSystemField: isSystemField,
     mapIdToDesc: mapIdToDesc,
     read: read, // read a field
     rawToRead: rawToRead,
@@ -90,7 +92,20 @@ function create (fields) {
     format: format,
     addPrefixAndSuffix:addPrefixAndSuffix,
     forEachField: forEachField,
-    precise: precise
+    precise: precise,
+    convertEachField: convertEachField,
+    convert: convert,
+    addAliasValues: addAliasValues,
+    addSystemValues: addSystemValues,
+    addDefaultValues: addDefaultValues,
+    addValues: addValues,
+    getPrimaryId: getPrimaryId,
+    getTimestamp: getTimestamp,
+    getRandom: getRandom,
+    isValidType: isValidType,
+    isValidPassword: isValidPassword,
+    getFieldType: function (name) { return this.fields[name].type; },
+    isType: function (name, type) { return this.getFieldType(name) == type; }
   };
 }
 
@@ -108,13 +123,16 @@ function checkFields (fields) {
   });
 }
 
+
 function checkField (name, field) {
+  /*
   var keys = Object.keys(field);
   keys.forEach(function (key) {
     if (!isValidKey(key)) {
       throw error.create(1000, key, name);
     }
   });
+  */
   
   RequiredKeys.forEach(function (key) {
     if (field[key] == undefined) {
@@ -123,7 +141,7 @@ function checkField (name, field) {
   });
   
   if (!isValidType(field.type)) {
-    throw error.create(1003, field.type, name);
+    throw error.create(1002, field.type, name);
   }
 }
 
@@ -184,6 +202,14 @@ function format (name, value, data) {
   return this.fields[name].format(value, data); 
 }
 
+function isSystemField (field) {
+  return ['primary', 'created', 'modified', 'random'].indexOf(field.type) > -1;
+}
+
+function isAliasField (field) {
+  return field.type == 'alias' && typeof field.logic == 'function';
+}
+
 // 是否是map字段
 function isMap (name) {
   var field = this.fields[name];
@@ -223,17 +249,184 @@ function hasUniqueField () {
  * 遍历每一个表字段
  * @callback(field name, field object, context)
  */
-function forEachField (callback, fields) {
+function forEachField (callback, fields, filter) {
   var _this = this;
-  var targets = fields ? fields : this.fields;
+  var targets;
   
-  Object.keys(targets).forEach(function (name) {
-    var field = _this.fields;
-    callback(name, field[name], _this);
+  if (fields) {
+    if (Array.isArray(fields)) {
+      targets = fields;
+    } else {
+      targets = Object.keys(fields);
+    }
+  } else {
+    targets = Object.keys(this.fields);
+  }
+  
+  targets.forEach(function (name) {
+    var field = _this.fields[name];
+    // field['name'] = name;
+    if (typeof filter == 'function') {
+      if (!filter(field)) return;
+    }
+    
+    callback(name, field, _this);
   });
 }
 
-
 function precise(num, decimals) {
   return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
+}
+
+/**
+ * convert value, accoring to the field type
+ */
+function convertEachField (data, fields) {
+  var targets = {};
+  // console.log(fields);
+  
+  if (fields && Array.isArray(fields)) {
+    fields.forEach(function (name) {
+      targets[name] = data[name];
+    });
+  } else {
+    targets = data;
+  }
+  
+  this.forEachField(function (name, field, _this) {
+    data[name] = _this.convert(field, data[name]);
+  }, targets);
+ 
+  return data;
+}
+
+
+function convert (field, value) {
+  // console.log('convert field: %s = %s', field.type, value);
+  // string to date object
+  if ((field.type == 'date' || field.type == 'datetime') && typeof (value) == 'string') {
+    return new Date(value);
+  }
+
+  if ((field.type == 'int') && typeof (value) == 'string') {
+    return parseInt(value, 10);
+  }
+
+  if ((field.type == 'float') && typeof (value) == 'string') {
+    return precise(value, field.decimals || 2);
+  }
+
+  // 始终要求为当前时间， eg: updated or modified
+  if (field.type == 'timestamp' && field.isCurrent) { 
+    return getTimestamp();
+  }
+  
+  if (field.type == 'password') {
+    // console.log('password: %s', value);
+    return safepass.hash(value);
+  }
+  
+  return value;
+}
+
+// 得到当前时戳
+function getTimestamp () {
+  return (new Date()).getTime();
+}
+
+function getPrimaryId () {
+  return require('crypto').randomBytes(20).toString('hex');
+}
+
+/** 
+ * 获取随机字符串或数字
+ * @type: 类型(string or int)
+ * @len: 长度
+ */
+function getRandom (type, len) {
+  len = len || 8;  
+  switch (type) {
+    case 'int':
+      return rander.number(len);
+    case 'string':
+    default:
+      return rander.string(len);
+  }
+}
+
+function addDefaultValues (data) {
+  var filtered = {};
+  this.forEachField(function (name, field, _this) {
+    if (data[name] !== undefined) return; // data中已经设置, 注意可以为空值，null值
+    
+    if (typeof field.default == 'function') {
+      data[name] = field.default();
+    } else {
+      data[name] = field.default;
+    }
+    
+  }, null, function (field) {
+    return field.default !== undefined;
+  });
+  
+  return data;
+}
+
+function addSystemValues (data, fields) {
+
+  this.forEachField(function (name, field, _this) {
+    switch (field.type) {
+      case 'primary':
+        if (!data[name]) {
+          data[name] = _this.getPrimaryId();
+        }
+        break;
+      case 'random':
+        if (!data[name]) {
+          data[name] = _this.getRandom();
+        }
+        break;
+      case 'created':
+        if (!data[name]) {
+          data[name] = _this.getTimestamp();
+        }
+        break;
+      case 'modified':
+        data[name] = _this.getTimestamp();
+        break;
+    }
+  }, null, function (field) {
+    return isSystemField(field);
+  });
+  
+  return data;
+}
+
+
+function addAliasValues (data) {
+  this.forEachField(function (name, field, _this) {
+    data[name] = field.logic(data);
+  }, null, function (field) {
+    return isAliasField(field);
+  });
+  
+  return data;
+}
+
+function addValues (data, fields) {
+  data = this.addDefaultValues(data);
+  data = this.addSystemValues(data, fields);
+  data = this.addAliasValues(data);
+  return data;
+}
+
+/**
+ * 检查密码是否正确
+ * @hash: 数据库中保存的原值
+ * @pass: 要检测的值
+ * @return boolean
+ */ 
+
+function isValidPassword (hash, pass) {
+  return safepass.set(hash).isValid(pass);
 }

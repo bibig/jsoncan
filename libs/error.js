@@ -18,7 +18,8 @@ var Messages = {
   1202: 'Invalid query value <%s> in <like> query, only support:[%key, key%, %key%].',
   
   // save data
-  1300: 'invalid data found, save failed!'
+  1300: 'invalid data found, save failed!',
+  1400: 'no data found, find by <%s=%s>'
 };
     
 function create (code/*,var1, var2*/) {

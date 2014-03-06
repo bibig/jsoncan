@@ -10,8 +10,7 @@ describe('test model way', function () {
   var fields = {
     id: {
       text: 'user id',
-      type: 'string',
-      isRandom: true,
+      type: 'random',
       length: 8,
       isUnique: true
     },
@@ -25,7 +24,8 @@ describe('test model way', function () {
     },
     password: {
       text: 'password',
-      type: 'string',
+      type: 'password',
+      // type: 'string',
       required: true
     },
     email: {
@@ -75,18 +75,15 @@ describe('test model way', function () {
     },
     created: {
       text: 'created at',
-      type: 'timestamp',
-      isTimestamp: true,
-      default: Date.now
+      type: 'created'
     },
     modified: {
       text: 'modified at',
-      type: 'timestamp',
-      isCurrent: true,
+      type: 'modified',
       format: function (t) {
         var d = new Date(t);
         return [d.getFullYear(), d.getMonth() + 1, d.getDate()].join('-') + ' ' + [d.getHours(), d.getMinutes(), d.getSeconds()].join(':');
-      },
+      }
     }
   };
   var tableName = 'people';
@@ -166,11 +163,15 @@ describe('test model way', function () {
     assert.ok(idLink);
   });
 
+  it('test password validate before insert', function () {
+    // console.log(Gary.data);
+    assert.ok(Gary.isValidPassword('123'));
+  });
   
   it('test save() for update', function (done) {
     var newAge = 19;
     var newName = 'Garee';
-    
+    // console.log(Gary.get('password'));
     Gary.set('age', newAge).set('name', newName).save(function (e, record) {
       var oldNameLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'name', people4.name));
       var newNameLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'name', newName));
@@ -184,6 +185,12 @@ describe('test model way', function () {
     });
   });
   
+  it('test password validate after update', function () {
+    // console.log(Gary.data);
+    // console.log(Gary.get('password'));
+    assert.ok(Gary.isValidPassword('123'));
+  });
+  
   it('test insert sync ', function (done) {
     var p1 = Table.create(people1).saveSync();
     var p2 = Table.create(people2).saveSync();
@@ -192,6 +199,9 @@ describe('test model way', function () {
     assert.ok(p1.get('name') == people1.name);
     assert.ok(p2.get('name') == people2.name);
     assert.ok(query.count() == 4);
+    assert.ok(p1.isValidPassword('123'));
+    assert.ok(p2.isValidPassword('123'));
+    assert.ok(p3.isValidPassword('123'));
     done();
   });
   
@@ -199,6 +209,7 @@ describe('test model way', function () {
     var GaryClone = Table.load(Gary.getPrimaryId());
     assert.ok(GaryClone.get('age') == Gary.get('age'));
     assert.ok(GaryClone.get('email') == Gary.get('email'));
+    assert.ok(GaryClone.isValidPassword('123'));
     // console.log(GaryClone.data);
   });
   
@@ -212,12 +223,14 @@ describe('test model way', function () {
     
     assert.ok(newNameLink);
     assert.ok(!oldNameLink);
+    assert.ok(Gary.isValidPassword('123'));
   });
   
   it('test loadBy', function () {
     var GaryClone = Table.loadBy('name', people4.name);
     assert.ok(GaryClone.get('age') == Gary.get('age'));
     assert.ok(GaryClone.get('_id') == Gary.get('_id'));
+    assert.ok(GaryClone.isValidPassword('123'));
   });
   
   it('validate failed', function () {
@@ -225,6 +238,16 @@ describe('test model way', function () {
     assert.ok(Gary.isValid === false);
     Gary.messages.should.have.property('name');
     Gary.messages.should.have.property('email');
+    // Gary.saveSync();
+  });
+  
+  
+  it('test update password', function () {
+    var GaryClone = Table.loadBy('name', 'Gary');
+    // console.log(GaryClone.get('password'));
+    GaryClone.set('password', '234').saveSync();
+    // console.log(GaryClone.get('password'));
+    assert.ok(GaryClone.isValidPassword('234'));
   });
   
   it('test read feature', function () {

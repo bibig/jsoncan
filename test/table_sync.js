@@ -13,8 +13,7 @@ describe('test sync actions in table.js', function () {
   var fields = {
     id: {
       text: 'user id',
-      type: 'string',
-      isRandom: true,
+      type: 'random',
       length: 8,
       isUnique: true
     },
@@ -56,14 +55,11 @@ describe('test sync actions in table.js', function () {
     },
     created: {
       text: 'created at',
-      type: 'timestamp',
-      isTimestamp: true,
-      default: Date.now
+      type: 'created'
     },
     modified: {
       text: 'modified at',
-      type: 'timestamp',
-      isCurrent: true
+      type: 'modified'
     }
   };
   var Table;

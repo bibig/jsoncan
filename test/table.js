@@ -10,8 +10,7 @@ describe('test table.js', function () {
   var fields = {
     id: {
       text: 'user id',
-      type: 'string',
-      isRandom: true,
+      type: 'random',
       length: 8,
       isUnique: true
     },
@@ -56,14 +55,11 @@ describe('test table.js', function () {
     },
     created: {
       text: 'created at',
-      type: 'timestamp',
-      isTimestamp: true,
-      default: Date.now
+      type: 'created'
     },
     modified: {
       text: 'modified at',
-      type: 'timestamp',
-      isCurrent: true,
+      type: 'modified',
       format: function (t) {
         var d = new Date(t);
         return [d.getFullYear(), d.getMonth() + 1, d.getDate()].join('-') + ' ' + [d.getHours(), d.getMinutes(), d.getSeconds()].join(':');
@@ -75,21 +71,21 @@ describe('test table.js', function () {
   var Table;
   var people1 = {
     email: 'tom@hello.com',
-    mobile: '18921001800',
+    mobile: 'tom_mobile',
     name: 'Tom',
     age: 18
   };
   
   var people2 = {
     email: 'david@hello.com',
-    mobile: '18911112222',
+    mobile: 'david_mobile',
     name: 'David',
     age: 22
   };
   
   var people3 = {
     email: 'cici@hello.com',
-    mobile: '18933332222',
+    mobile: 'cici_mobile',
     name: 'Cici',
     age: 26
   };
@@ -355,12 +351,14 @@ describe('test table.js', function () {
 
   
   it('test update', function (done) {
-    var email = 'yyy@hello.com';
-    var mobile = '1111';
-    
+    var email = 'tom@xxx.com';
+    var mobile = 'tom_mobile2';
+    // console.log('old record');
+    // console.log(record);
     Table.update(record._id, {email: email, mobile: mobile}, function (err, newRecord) {
-      should.not.exist(err);
+      // console.log('new record');
       // console.log(newRecord);
+      should.not.exist(err);
       // console.log(Table.conn.getTableUniqueFile(tableName, 'email', record.email));
       // console.log(Table.conn.getTableUniqueFile(tableName, 'email', email));
       var oldEmailExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'email', record.email));
@@ -372,14 +370,17 @@ describe('test table.js', function () {
       newEmailExists.should.be.ok;
       newMobileExists.should.be.ok;
       assert.ok(newRecord.modified > record.modified);
+      assert.equal(newRecord.email, email);
+      assert.equal(newRecord.mobile, mobile);
       done();
     });
   });
   
   it('test update duplicate value', function (done) {
     Table.update(record._id, {mobile: people3.mobile, email: people2.email}, function (err, newRecord) {
-      should.exist(err);
+      // console.log(newRecord);
       // console.log(err);
+      should.exist(err);
       err.should.have.property('code');
       err.should.have.property('invalidMessages');
       err.should.have.property('invalid', true);

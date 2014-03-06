@@ -11,7 +11,7 @@
  npm install jsoncan
 
 ## Version
-  1.0.2
+  1.0.3
 
 ## Usage	
 
@@ -226,6 +226,7 @@ There are three ways to create a model object:
 ### validate
 For data safe, jsoncan will always validate the data automatically before save the data into the json file.
 all the validate rules are defined in field schemas object.
+the validate part is based on [validator.js][validator.js]
 
 so far, you can add these rules.
 
@@ -233,24 +234,8 @@ so far, you can add these rules.
 + isNull
 + isRequired
 + required // alias isRequired
-+ isEmail
-+ isUrl
-+ isAlpha
-+ isNumeric
-+ isUUID
-+ isURL
-+ isIP // alias isIP4
-+ isIP4
-+ isIP6
-+ isCreditCard
-+ isTimestamp
 + shouldAfter [date string]
 + shouldBefore [date string]
-+ isAlphanumeric
-+ isNumeric
-+ isAlpha
-+ isDate
-+ isPassword  // will encrypt the password value automatically
 + length
 + size // alias length
 + max // max size
@@ -304,21 +289,46 @@ except the above validate rule keys, a schema also support these keys:
 + text
 + type
 + default
-+ values // for map or enum type
++ format   // define a function which format a value for presentation. 
++ logic  // define a function to create a runtime value by other fields value.
++ decimals // used for float type.
++ values // used for enum or map fields.
++ suffix  // used for presentation
++ prefix  // used for presentation
++ validate // a custom validate function, when failed return message or return null.
++ isFake  // for field like 'passwordConfirm', it 's basically same as normal field, except it will never be saved!
 
 
-and the valid type keys are:
+field types including:
 + 'string'
-+ 'int',
-+ 'float',
-+ 'boolean',
-+ 'map',
-+ 'hash', // map alias
-+ 'enum',
-+ 'date',
-+ 'datetime',
-+ 'timestamp',
++ 'int'
++ 'float'
++ 'boolean'
++ 'map'
++ 'hash' // map alias
++ 'enum'
++ 'date'
++ 'datetime'
++ 'timestamp'
++ 'password' // will hash password automatically, and you can use Table.isValidPassword(inputedPassword) to check. see [safepass][safepass].
++ 'created' // will set a current timestamp value when record created.
++ 'modified' // will be always updated to current timestamp when record saved.
 + 'text',
++ 'primary' // only for _id field
++ 'random' // alpha number random, default length 8
++ 'alias' // a logic field, used with "logic" key.
++ 'email'
++ 'password'
++ 'url'
++ 'uuid'
++ 'alpha'
++ 'numeric'
++ 'alphanumeric'
++ 'ip' // same as ip4
++ 'ip4'
++ 'ip6'
++ 'creditCard'
++ 'credit card' // same as creditCard
 + 'object' // array, hash, function, up to you
 
 examples:
@@ -328,19 +338,40 @@ examples:
 	var schemas = {
 		id: {
 			text: 'user id',
-			type: 'string',
-			isRandom: true,
+			type: 'random',
 			isUnique: true,
-			size: 10,
-			required: true
+			size: 10
 		},
-		username: {
-			text: 'user name',
+		firstName: {
+			text: 'first name',
 			type: 'string',
-			isUnique: true,
 			max: 50,
 			min: 2,
 			required: true,
+		},
+		lastName: {
+		  type: 'alias',
+		  logic: function (data) {
+		    return [data.firstName, data.lastName].join('.');
+		  }
+		},
+		password: {
+		  type: 'password',
+		  size: 30,
+		  required: true
+		},
+		passwordConfirm: {
+		  type: 'string',
+		  size: 30,
+		  isFake: true,
+		  validate: function (value, data) {
+		    if (value == undefined || value == '' || value == null) {
+		      return 'please input password confirmation';
+		    } else if (value != data.password) {
+		      return 'twice inputed passwords are not same!';
+		    }
+		  }
+		  
 		},
 		country: {
 			text: 'country',
@@ -366,17 +397,18 @@ examples:
 		balance: {
 			text: 'cash balance',
 			type: 'float',
-			default: 0.00
+			default: 0.00,
+			prefix: '$'
 		},
 		created: {
-			text: 'created',
-			type: 'timestamp',
-			default: Date.now,
+			type: 'created',
+			format: function (t) {
+        var d = new Date(t);
+        return [d.getFullYear(), d.getMonth() + 1, d.getDate()].join('-') + ' ' + [d.getHours(), d.getMinutes(), d.getSeconds()].join(':');
+      }
 		},
 		modified: {
-			text: 'modified',
-			type: 'timestamp',
-			isCurrent: true  // will always update to current timestamp before save.
+			type: 'modified'
 		}
 		
 	};
@@ -388,3 +420,6 @@ examples:
 
 ### more detail
 Please see the test files.
+
+[validator.js]: https://github.com/chriso/validator.js
+[safepass]: https://github.com/bibig/node-safepass

@@ -32,7 +32,7 @@ var Messages = {
   218: 'Duplicated value found, <%s> already exists'
 };
 
-function create (fields, messages) {
+function create (schemas, messages) {
   
   if (messages) {
     Object.keys(messages).forEach(function (key) {
@@ -43,7 +43,7 @@ function create (fields, messages) {
   return {
     Map: {},
     Messages: Messages,
-    fields: fields,
+    schemas: schemas,
     data: {},
     isValid: function () {
       return this.getCount() == 0;
@@ -70,21 +70,29 @@ function create (fields, messages) {
 
 }
 
-function check (data, isPart) {
+function check (data, changedFields) {
   var _this = this;
-  var targets = isPart ? data : this.fields;
   this.Map = {};
   this.data = data;
   
-  Object.keys(targets).forEach(function (name) {
+  /*
+  Object.keys(this.fields).forEach(function (name) {
+    if (changedFields) { if (changedFields.indexOf(name) == -1) return; }
     _this.validate(name, _this.fields[name], _this.data[name], data);
   });
+  */
+  
+  this.schemas.forEachField(function (name, field, ctx) {
+    if (changedFields) { if (changedFields.indexOf(name) == -1) return; }
+    _this.validate(name, ctx.fields[name], _this.data[name], data);
+  });
+  
   return this;
 }
 
 function validate (name, field, value, data) {
   
-  if (field.type == 'alias') return; // alias has a logic value
+  if (this.schemas.isSystemField(field) || this.schemas.isAliasField(field)) return;
   
   this.checkNull.apply(this, arguments);
   if ( !this.isValidField(name) ) return;
@@ -113,8 +121,13 @@ function isValidField (name) {
   return this.Map[name] === undefined;
 }
 
+
+
 function checkType (name, field, value) {
   var pass;
+  if (!this.schemas.isValidType(field.type)) {
+    throw new Error('invalid field type <' + field.type + '>');
+  }
   
   switch (field.type) {
     case 'int':
@@ -132,20 +145,55 @@ function checkType (name, field, value) {
     case 'bool':
       pass = typeof value == 'boolean';
       break;
-    case 'date':
-    case 'datetime':
-      pass =  validator.isDate(value);
-      break;
     case 'enum':
     case 'hash':
     case 'map':
       pass = (typeof value == 'string' || typeof value == 'number');
       break;
+    case 'date':
+    case 'datetime':
+      if (!validator.isDate(value)) { this.addMessage(name, 208, value); }
+      return;
+    case 'email':
+      if (!validator.isEmail(value)) { this.addMessage(name, 202, value); }
+      return;
+    case 'url':
+      if (!validator.isURL(value)) { this.addMessage(name, 203, value); }
+      return;
+    case 'alpha':
+      if (!validator.isAlpha(value)) { this.addMessage(name, 204, value); }
+      return;
+    case 'numeric':
+      if (!validator.isNumeric(value)) { this.addMessage(name, 205, value);}
+      return;
+    case 'alphanumeric':
+      if (!validator.isAlphanumeric(value)) {  this.addMessage(name, 206, value); }
+      return;
+    case 'uuid':
+      if (!validator.isUUID(value)) { this.addMessage(name, 207, value); }
+      return;
+    case 'ip':
+    case 'ip4':
+      if (!validator.isIP(value, 4)) {
+        this.addMessage(name, 209, value);  
+      }
+      return;
+    case 'ip6':
+      if (!validator.isIP(value, 6)) {
+        this.addMessage(name, 210, value);
+      }
+      return;
+    case 'creditCard':
+    case 'credit card':
+      if (!validator.isCreditCard(value)) {
+        this.addMessage(name, 215, value);
+      }
+      return;
     case 'object':
       pass = typeof value == 'object';
       break;
     default:
-      throw new Error('invalid field type <' + field.type + '>');
+      pass = true;
   }
   
   if (!pass) {
@@ -196,51 +244,6 @@ function checkValue (name, field, value) {
     return;
   }
   
-  if (field.isEmail && !validator.isEmail(value)) {
-    this.addMessage(name, 202, value);
-    return;
-  }
-  
-  if (field.isUrl && !validator.isURL(value)) {
-    this.addMessage(name, 203, value);
-    return;
-  }
-  
-  if (field.isAlpha && !validator.isAlpha(value)) {
-    this.addMessage(name, 204, value);
-    return;
-  }
-
-  if (field.isNumeric && !validator.isNumeric(value)) {
-    this.addMessage(name, 205, value);
-    return;
-  } 
-  
-  if (field.isAlphanumeric && !validator.isAlphanumeric(value)) {
-    this.addMessage(name, 206, value);
-    return;
-  }
-
-  if (field.isUUID &&  !validator.isUUID(value)) {
-    this.addMessage(name, 207, value);
-    return;
-  }
-  
-  if (field.isDate && !validator.isDate(value)) {
-    this.addMessage(name, 208, value);
-    return;
-  }
-  
-  if ((field.isIP || field.isIP4) && !validator.isIP(value, 4)) {
-    this.addMessage(name, 209, value);
-    return;
-  }
-  
-  if (field.isIP6 && !validator.isIP(value, 6)) {
-    this.addMessage(name, 210, value);
-    return;
-  }
-  
   if (field.shouldAfter && !validator.isAfter(value, field.shouldAfter)) {
     this.addMessage(name, 211, field.shouldAfter);
     return;
@@ -258,11 +261,6 @@ function checkValue (name, field, value) {
   
   if ((field.type == 'hash' || field.type == 'map') && field.values[value] == undefined) {
     this.addMessage(name, 214, Object.keys(field.values));
-    return;
-  }
-  
-  if (field.isCreditCard &&  !validator.isCreditCard(value)) {
-    this.addMessage(name, 215, value);
     return;
   }
   
@@ -311,5 +309,3 @@ function isEmpty () {
   
   return false;
 }
-
-

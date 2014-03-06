@@ -61,14 +61,11 @@ var fields = {
     },
     created: {
       text: 'created at',
-      type: 'timestamp',
-      isTimestamp: true,
-      default: Date.now
+      type: 'created'
     },
     modified: {
       text: 'modified at',
-      type: 'timestamp',
-      isCurrent: true,
+      type: 'modified',
       format: function (t) {
         var d = new Date(t);
         return [d.getFullYear(), d.getMonth() + 1, d.getDate()].join('-') + ' ' + [d.getHours(), d.getMinutes(), d.getSeconds()].join(':');
