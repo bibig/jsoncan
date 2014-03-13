@@ -29,7 +29,12 @@ function create (conn, table, fields, validateMessages) {
   var validator = Validator.create(schemas, validateMessages);
   
   // build table root path and unique fields paths
-  conn.createTablePaths(table, fields);
+  conn.createTablePaths(table, schemas.getUniqueFields());
+  
+  schemas.getAutoIncrementValue = function (name) {
+    return conn.readTableUniqueAutoIncrementFile(table, name);
+  }
+  
   
   return {
     table: table,
@@ -91,6 +96,7 @@ function create (conn, table, fields, validateMessages) {
     load: load,
     loadBy: loadBy,
     // isValidPassword: isValidPassword // deprecated
+    updateAutoIncrementValues: updateAutoIncrementValues
   };
 }
 
@@ -124,6 +130,7 @@ function model (data) {
       return this;
     },
     validate: function () {
+      var data = parent.schemas.addValues(this.data);
       var check = parent.validate(this.data);
       this.messages = check.getMessages();
       this.isValid = check.isValid();
@@ -276,13 +283,15 @@ function insert (data, callback) {
 
   // 补充default值, _id值
   data = this.schemas.addValues(data);
-
+  // console.log('@insert');
+  // console.log(data);
   // this.checkEachUniqueField(data); // process moved into validator
   this.save(data, function (err, record) {
     if (err) {
       callback(err);
     } else {
       _this.linkEachUniqueField(record);
+      _this.updateAutoIncrementValues(record);
       callback(null, record);
     }
   });
@@ -303,6 +312,7 @@ function insertSync (data) {
   
   // link files
   this.linkEachUniqueField(data);
+  this.updateAutoIncrementValues(data);
   
   return data;
 }
@@ -345,10 +355,8 @@ function getTimestamp () {
  */
 function checkEachUniqueField (record, fields) {
   var _this = this;
-  this.schemas.forEachField(function (name, field) {
-    if (field.isUnique) {
-      _this.checkUniqueField(name, record[name]);
-    }
+  this.schemas.forEachUniqueField(function (name, field) {
+    _this.checkUniqueField(name, record[name]);
   }, fields);
 }
 
@@ -386,11 +394,9 @@ function checkUniqueField (name, value, isReturn) {
 function linkEachUniqueField (record, fields) {
   var _this = this;
 
-  this.schemas.forEachField(function (name, field) {
+  this.schemas.forEachUniqueField(function (name, field) {
     _this.conn.linkTableUniqueFileSync(_this.table, record._id, name, record[name]);
-  }, fields, function (field) {
-    return field.isUnique === true;
-  });
+  }, fields);
 }
 
 
@@ -402,11 +408,9 @@ function linkEachUniqueField (record, fields) {
  */
 function unlinkEachUniqueField (record, fields) {
   var _this = this;
-  this.schemas.forEachField(function (name, field) {
+  this.schemas.forEachUniqueField(function (name, field) {
     _this.conn.unlinkTableUniqueFileSync(_this.table, name, record[name]);
-  }, fields, function (field) {
-    return field.isUnique === true;
-  });
+  }, fields);
 }
 
 /** 
@@ -537,7 +541,9 @@ function _updateSync (data, record, callback) {
 
 function getChangedFields (data, record) {
   var fields = [];
-  this.schemas.forEachField(function (name, field) {
+  this.schemas.forEachField(function (name, field, _this) {
+    if (_this.isReadOnly(field)) { return; }
+    
     if (data[name] != record[name]) {
       fields.push(name);
     }
@@ -702,6 +708,7 @@ function find (_id, callback) {
 }
 
 function findBy (name, value, callback) {
+  if (!this.schemas.isUnique(name)) { throw error.create(1003, name); }
   if (Validator.isEmpty(name, value)) { return null; }
   this.conn.findBy(this.table, name, value, callback); 
 }
@@ -711,7 +718,8 @@ function findSync (_id) {
   return this.conn.findSync(this.table, _id); 
 }
 
-function findBySync (name, value) { 
+function findBySync (name, value) {
+  if (!this.schemas.isUnique(name)) { throw error.create(1003, name); }
   if (Validator.isEmpty(name, value)) { return null; }
   return this.conn.findBySync(this.table, name, value); 
 }
@@ -878,6 +886,17 @@ function readAll (options, callback) {
 
 function readAllSync (options) {
   var data = this.findAllSync(options);
-  return data.length > 0 ? this.rawsToRead(data) : data;
-  
+  return data.length > 0 ? this.rawsToRead(data) : data; 
 }
+
+function updateAutoIncrementValues (data) {
+  var _this = this;
+  this.schemas.forEachUniqueField(function (name, field, schemas) {
+    var nextValue;
+    if (schemas.isAutoIncrement(field)) {
+      nextValue = schemas.getNextAutoIncrementValue(name, data[name]);
+      _this.conn.writeTableUniqueAutoIncrementFile(_this.table, name, nextValue)
+    }
+  });
+}
+

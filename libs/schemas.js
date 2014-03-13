@@ -29,7 +29,11 @@ var ValidKeys = [
   'suffix', // for presentation
   'prefix',  // for presentation
   'validate', // a custom validate function, if failed it should return error message directly! passed return null
-  'isFake' // for field like 'passwordConfirm', it 's basically same as normal field, except it will never be saved!
+  'isFake', // for field like 'passwordConfirm', it 's basically same as normal field, except it will never be saved!
+  'isReadOnly', // cannot update value after inserted.
+  'readOnly', // alias isReadOnly
+  'step', // only for 'autoIncrement' type
+  'autoIncrement' // only for 'autoIncrement' type
 ];
 
 var RequiredKeys = ['type'];
@@ -40,6 +44,8 @@ var ValidTypes = [
   'int',
   'float',
   'boolean',
+  'autoIncrement', // auto increment id, used with 'autoIncrement' key
+  'increment', // autoIncrement alias
   'map',
   'hash', // map alias
   'enum',
@@ -92,6 +98,7 @@ function create (fields) {
     format: format,
     addPrefixAndSuffix:addPrefixAndSuffix,
     forEachField: forEachField,
+    forEachUniqueField: forEachUniqueField,
     precise: precise,
     convertEachField: convertEachField,
     convert: convert,
@@ -99,14 +106,42 @@ function create (fields) {
     addSystemValues: addSystemValues,
     addDefaultValues: addDefaultValues,
     addValues: addValues,
+    getField: getField,
     getPrimaryId: getPrimaryId,
     getTimestamp: getTimestamp,
     getRandom: getRandom,
     isValidType: isValidType,
     isValidPassword: isValidPassword,
     getFieldType: function (name) { return this.fields[name].type; },
-    isType: function (name, type) { return this.getFieldType(name) == type; }
+    isType: function (name, type) { return this.getFieldType(name) == type; },
+    isAutoIncrement: isAutoIncrement,
+    isUnique: isUnique,
+    isReadOnly: isReadOnly,
+    getUniqueFields: getUniqueFields,
+    getAutoIncrementValue: null, // need to inject
+    getNextAutoIncrementValue: getNextAutoIncrementValue
   };
+}
+
+
+function getField (v) {
+  return typeof v == 'string' ? this.fields[v] : v;
+}
+
+// notice: auto increment fields are unique too.
+function isUnique (v) {
+  var field = this.getField(v);
+  return field.isUnique === true || this.isAutoIncrement(v);
+}
+
+function isAutoIncrement (v) {
+  var field = this.getField(v);
+  return field.type === 'increment' || field.type == 'autoIncrement';
+}
+
+function isReadOnly (v) {
+  var field = this.getField(v);
+  return field.isReadOnly || field.readOnly || this.isAutoIncrement(v);
 }
 
 function isValidKey (key) {
@@ -203,7 +238,7 @@ function format (name, value, data) {
 }
 
 function isSystemField (field) {
-  return ['primary', 'created', 'modified', 'random'].indexOf(field.type) > -1;
+  return ['primary', 'created', 'modified', 'random'].indexOf(field.type) > -1 || this.isAutoIncrement(field);
 }
 
 function isAliasField (field) {
@@ -231,18 +266,22 @@ function inputFields () {
   return fields;
 }
 
+function getUniqueFields () {
+  var map = {};
+  var _this = this;
+  this.forEachUniqueField(function (name, field) {
+    // list.push(name);
+    map[name] = _this.isAutoIncrement(field) ? ( field.autoIncrement || 1 ) : 0;
+  });
+  return map;
+}
+
 /**
  * 是否有unique字段
  * @return boolean
  */
 function hasUniqueField () {
-  var result = false;
-  this.forEachField(function (name, field) {
-    if (field.isUnique) {
-      result = true;
-    }
-  });
-  return result;
+  return this.getUniqueFields().length > 0;
 }
 
 /**
@@ -269,8 +308,14 @@ function forEachField (callback, fields, filter) {
     if (typeof filter == 'function') {
       if (!filter(field)) return;
     }
-    
     callback(name, field, _this);
+  });
+}
+
+function forEachUniqueField (callback, fields) {
+  var _this = this;
+  this.forEachField(callback, fields, function (field) {
+    return _this.isUnique(field);
   });
 }
 
@@ -356,25 +401,27 @@ function getRandom (type, len) {
 
 function addDefaultValues (data) {
   var filtered = {};
-  this.forEachField(function (name, field, _this) {
+  this.forEachField(function (name, field) {
     if (data[name] !== undefined) return; // data中已经设置, 注意可以为空值，null值
     
-    if (typeof field.default == 'function') {
-      data[name] = field.default();
-    } else {
-      data[name] = field.default;
+    if (field.default !== undefined) {
+      if (typeof field.default == 'function') {
+        data[name] = field.default();
+      } else {
+        data[name] = field.default;
+      }
+    } else { // if not set default value then set value to null
+      data[name] = null;
     }
-    
-  }, null, function (field) {
-    return field.default !== undefined;
   });
   
   return data;
 }
 
 function addSystemValues (data, fields) {
-
-  this.forEachField(function (name, field, _this) {
+  var _this = this;
+  
+  this.forEachField(function (name, field) {
     switch (field.type) {
       case 'primary':
         if (!data[name]) {
@@ -386,6 +433,11 @@ function addSystemValues (data, fields) {
           data[name] = _this.getRandom();
         }
         break;
+      case 'increment':
+      case 'autoIncrement':
+        // console.log('autoIncrement: %s', _this.getAutoIncrementValue(name));
+        data[name] = parseInt(_this.getAutoIncrementValue(name) || 1, 10);
+        break;
       case 'created':
         if (!data[name]) {
           data[name] = _this.getTimestamp();
@@ -396,12 +448,11 @@ function addSystemValues (data, fields) {
         break;
     }
   }, null, function (field) {
-    return isSystemField(field);
+    return _this.isSystemField(field);
   });
   
   return data;
 }
-
 
 function addAliasValues (data) {
   this.forEachField(function (name, field, _this) {
@@ -429,4 +480,9 @@ function addValues (data, fields) {
 
 function isValidPassword (hash, pass) {
   return safepass.set(hash).isValid(pass);
+}
+
+function getNextAutoIncrementValue (name, currentValue) {
+  var step = this.fields[name].step || 1;
+  return parseInt(currentValue, 10) + parseInt(step, 10);
 }

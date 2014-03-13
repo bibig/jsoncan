@@ -12,7 +12,8 @@ describe('test table.js', function () {
       text: 'user id',
       type: 'random',
       length: 8,
-      isUnique: true
+      isUnique: true,
+      isReadOnly: true
     },
     name: {
       text: 'your name',
@@ -392,6 +393,14 @@ describe('test table.js', function () {
   it('test update all', function (done) {
     Table.updateAll({age: ['>', 20]}, {age: 100}, function (err) {
       should.not.exist(err);
+      done();
+    });
+  });
+  
+  it('test cannot update readonly fields', function (done) {
+    Table.update(record._id, {id: '111'}, function (err, newRecord) {
+      should.not.exist(err);
+      assert.equal(newRecord.id, record.id);
       done();
     });
   });

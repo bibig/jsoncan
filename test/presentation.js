@@ -100,6 +100,13 @@ describe('test presentation', function () {
     });
   });
   
+  after(function (done) {
+    var command = 'rm -rf ' + PATH;
+    exec(command, function(err, stdout, stderr) {
+      done();
+    });
+  });
+  
   it('test save', function (done) {
     memberA.save(function (e, record) {
       should.not.exist(e);

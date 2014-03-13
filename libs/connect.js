@@ -21,6 +21,9 @@ function create (_path) {
     getTableIdFile: getTableIdFile,
     getTableUniquePath: getTableUniquePath,
     getTableUniqueFile: getTableUniqueFile,
+    getTableUniqueAutoIncrementFile: getTableUniqueAutoIncrementFile,
+    readTableUniqueAutoIncrementFile: readTableUniqueAutoIncrementFile,
+    writeTableUniqueAutoIncrementFile: writeTableUniqueAutoIncrementFile,
     createTablePaths: createTablePaths,
     linkTableUniqueFile: linkTableUniqueFile,
     linkTableUniqueFileSync: linkTableUniqueFileSync,
@@ -60,15 +63,17 @@ function getTableUniqueFile (table, name, value) {
   return path.join(this.getTableUniquePath(table, name), encrypt(value) + '.js');
 }
 
+function getTableUniqueAutoIncrementFile (table, name) {
+  return path.join(this.getTableUniquePath(table, name), '.auto_increment');
+}
+
 /**
- * 连接表时的初始化任务
- * 1. 创建表的根目录
- * 2. 为schemas中定义的唯一字段创建目录
- * @table: 表名
- * @fields: 表字段的定义信息表
+ * create table data paths, including root path, unique fields paths
+ * @table: table name
+ * @uniqueFields: unique fields list
  * 
  */
-function createTablePaths (table, fields) {
+function createTablePaths (table, uniqueFields) {
   var root = this.getTablePath(table);
   var idPath = this.getTableIdPath(table);
   var _this = this;
@@ -80,22 +85,29 @@ function createTablePaths (table, fields) {
     fs.mkdirSync(idPath);
   }
   
-  Object.keys(fields).forEach(function (name) {
-    var field = fields[name];
-    var uniquePath;
-    if (field.isUnique) {
-      uniquePath = _this.getTableUniquePath(table, name);
-      // console.log(uniquePath);
-      if (!fs.existsSync(uniquePath)) {
-        fs.mkdirSync(uniquePath);   
-      }   
+  Object.keys(uniqueFields).forEach(function (name) {
+    var uniquePath = _this.getTableUniquePath(table, name);
+    var autoIncrementFromNumber = uniqueFields[name];
+    var autoIncrementFile;
+    
+    // console.log(uniquePath);
+    if (!fs.existsSync(uniquePath)) {
+      fs.mkdirSync(uniquePath);   
     }
+    
+    if (autoIncrementFromNumber > 0) {
+      autoIncrementFile = _this.getTableUniqueAutoIncrementFile(table, name);
+      if (!fs.existsSync(autoIncrementFile)) {
+        fs.writeFileSync(autoIncrementFile, autoIncrementFromNumber);
+      }
+    }
+    
   });
 }
 
-
 function encrypt (s) {
   if (s !== '' && (typeof s === 'string' || typeof s === 'number')) {
+    s = s + '';
 	  return require('crypto').createHash('sha1').update(s).digest('hex');
 	} else {
 	  throw new Error('invalid string param:' + s);
@@ -245,3 +257,22 @@ function saveSync (table, _id, data) {
   fs.writeFileSync(this.getTableIdFile(table, _id), JSON.stringify(data));
   return data;
 }
+
+function readTableUniqueAutoIncrementFile (table, name) {
+  try {
+    var autoIncrementFile = this.getTableUniqueAutoIncrementFile(table, name);
+    return fs.readFileSync(autoIncrementFile, {encoding: 'utf8'});
+  } catch (e) {
+    if (e.code === "ENOENT") {
+      return null;
+    } else {
+      return e;
+    }
+  }
+}
+
+function writeTableUniqueAutoIncrementFile (table, name, value) {
+  var autoIncrementFile = this.getTableUniqueAutoIncrementFile(table, name);
+  fs.writeFileSync(autoIncrementFile, value);
+}
+

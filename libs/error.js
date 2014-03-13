@@ -7,6 +7,7 @@ var Messages = {
   1000: 'Invalid schema element <%s> found in field <%s>.',
   1001: 'Missing basic schema element <%s> in field <%s>.',
   1002: 'Invalid field\'s type <%s> found in field <%s>.',
+  1003: '<%s> is not an unique field, cannot use findBy feature.',
   
   // table
   1100: 'Unique field <%s> should have a value.',
