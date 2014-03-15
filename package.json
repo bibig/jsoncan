@@ -1,7 +1,7 @@
 {
   "author": "Bibig <bibig@me.com> (https://twitter.com/bibig)",
   "name": "jsoncan",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "a mini but complete json based database engine",
   "preferGlobal": "true",
   "main": "index.js",
@@ -28,7 +28,8 @@
   "devDependencies": {
     "mocha": "*",
     "should": "*",
-    "assert": "*"
+    "assert": "*",
+    "faker": "*"
   },
   "engines": {
     "node": "*"

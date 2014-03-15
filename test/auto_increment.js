@@ -25,12 +25,14 @@ describe('test auto-increment field', function () {
   var data = {};
   var tableName = 'autoIncrementTestTable';
   
+  
   after(function (done) {
     var command = 'rm -rf ' + PATH;
     exec(command, function(err, stdout, stderr) {
       done();
     });
   });
+  
   
   it('test create table', function () {
     var can = new Jsoncan(PATH);
@@ -43,6 +45,7 @@ describe('test auto-increment field', function () {
     Table.insert(data, function (e, record) {
       should.not.exist(e);
       assert.equal(record.id, 100);
+      // console.log(record);
       done();
     });
   });
@@ -51,6 +54,7 @@ describe('test auto-increment field', function () {
     Table.insert(data, function (e, record) {
       should.not.exist(e);
       assert.equal(record.id, 105);
+      // console.log(record);
       done();
     });
   });
@@ -59,9 +63,26 @@ describe('test auto-increment field', function () {
     Table.insert(data, function (e, record) {
       should.not.exist(e);
       assert.equal(record.id, 110);
+      // console.log(record);
       done();
     });
   });
+  
+  it('test updateAll', function (done) {
+    Table.updateAll({id: ['>', 0]}, {name: 'new name'}, function (e) {
+      should.not.exist(e);
+      done();
+    });
+  }); 
+  
+  it('test findAll', function (done) {
+    Table.findAll({id: ['>', 0]}, function (e, records) {
+      should.not.exist(e);
+      assert.equal(records.length, 3);
+      done();
+    });
+  });
+  
   
   it('test findby, auto increment field is unique too', function (done) {
     Table.findBy('id', 100, function (e, record) {

@@ -95,6 +95,7 @@ function create (fields) {
     rawToRead: rawToRead,
     hasFormat: hasFormat,
     hasUniqueField: hasUniqueField,
+    hasAutoIncrementField: hasAutoIncrementField,
     format: format,
     addPrefixAndSuffix:addPrefixAndSuffix,
     forEachField: forEachField,
@@ -119,7 +120,8 @@ function create (fields) {
     isReadOnly: isReadOnly,
     getUniqueFields: getUniqueFields,
     getAutoIncrementValue: null, // need to inject
-    getNextAutoIncrementValue: getNextAutoIncrementValue
+    getNextAutoIncrementValue: getNextAutoIncrementValue,
+    filterData: filterData
   };
 }
 
@@ -268,8 +270,7 @@ function inputFields () {
 
 function getUniqueFields () {
   var map = {};
-  var _this = this;
-  this.forEachUniqueField(function (name, field) {
+  this.forEachUniqueField(function (name, field, _this) {
     // list.push(name);
     map[name] = _this.isAutoIncrement(field) ? ( field.autoIncrement || 1 ) : 0;
   });
@@ -282,6 +283,16 @@ function getUniqueFields () {
  */
 function hasUniqueField () {
   return this.getUniqueFields().length > 0;
+}
+
+function hasAutoIncrementField () {
+  var result = false;
+  this.forEachField(function (name, field, _this) {
+    if (result) { return; }
+    if (_this.isAutoIncrement(field)) { result = true; }
+  });
+  
+  return result;
 }
 
 /**
@@ -418,7 +429,7 @@ function addDefaultValues (data) {
   return data;
 }
 
-function addSystemValues (data, fields) {
+function addSystemValues (data) {
   var _this = this;
   
   this.forEachField(function (name, field) {
@@ -436,7 +447,9 @@ function addSystemValues (data, fields) {
       case 'increment':
       case 'autoIncrement':
         // console.log('autoIncrement: %s', _this.getAutoIncrementValue(name));
-        data[name] = parseInt(_this.getAutoIncrementValue(name) || 1, 10);
+        if (!data[name]) {
+          data[name] = parseInt(_this.getAutoIncrementValue(name) || 1, 10);
+        }
         break;
       case 'created':
         if (!data[name]) {
@@ -464,11 +477,39 @@ function addAliasValues (data) {
   return data;
 }
 
-function addValues (data, fields) {
+function addValues (data) {
+  data = clone(data); // do not dirty the param data, object param is dangerous.
   data = this.addDefaultValues(data);
-  data = this.addSystemValues(data, fields);
+  data = this.addSystemValues(data);
   data = this.addAliasValues(data);
   return data;
+}
+
+/**
+ * filter dirty data, only include those who are defined in schemas
+ * @data: ready to save
+ */
+function filterData (data) {
+  var safe = {};
+  
+  this.forEachField(function (name, field, _this) {
+    if (_this.isSystemField(field)) { return; }
+    if (data[name] !== undefined) {
+      safe[name] = data[name];
+    }
+  });
+  
+  return safe;
+}
+
+function clone (data) {
+  var _data = {};
+  
+  Object.keys(data).forEach(function (name) {
+    _data[name] = data[name];
+  });
+  
+  return _data;
 }
 
 /**

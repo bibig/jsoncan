@@ -2,6 +2,7 @@ exports.create = create;
 
 var fs = require('fs');
 var path = require('path');
+var async = require('async');
 
 // 创建connection
 function create (_path) {
@@ -33,12 +34,12 @@ function create (_path) {
     saveSync: saveSync,
     remove: remove,
     removeSync: removeSync,
-    findAll: findAll,
-    find: find,
-    findBy: findBy,
-    findAllSync: findAllSync,
-    findSync: findSync,
-    findBySync: findBySync
+    readAll: readAll,
+    read: read,
+    readBy: readBy,
+    readAllSync: readAllSync,
+    readSync: readSync,
+    readBySync: readBySync
   };
 }
 
@@ -114,7 +115,7 @@ function encrypt (s) {
 	}
 }
 
-function _findOneCallback (err, data, callback) {
+function _readOneCallback (err, data, callback) {
   if (err) {
     // record none exist
     // if (err.errno === 34) {
@@ -128,11 +129,10 @@ function _findOneCallback (err, data, callback) {
   }
 }
 
-function _find (file, callback) {
+function _read (file, callback) {
   fs.readFile(file, {encoding: 'utf8'}, function (e, data) {
     if (e) {
       // record does not exist
-      // if (e.errno === 34) {
       if (e.code === "ENOENT") {
         callback(null, null);
       } else {
@@ -144,7 +144,7 @@ function _find (file, callback) {
   });
 }
 
-function _findSync (file) {
+function _readSync (file) {
   try {
     var data = fs.readFileSync(file, {encoding: 'utf8'});
     return JSON.parse(data);
@@ -159,44 +159,73 @@ function _findSync (file) {
 
 
 // 得到原始json数据
-function find (table, id, callback) {
-  _find(this.getTableIdFile(table, id), callback);
+function read (table, id, callback) {
+  _read(this.getTableIdFile(table, id), callback);
 }
 
-function findBy (table, fieldName, fieldValue, callback) {
-  _find(this.getTableUniqueFile(table, fieldName, fieldValue), callback);
+function readBy (table, fieldName, fieldValue, callback) {
+  _read(this.getTableUniqueFile(table, fieldName, fieldValue), callback);
 }
 
 // 得到原始json数据
-function findSync (table, id) {
-  return _findSync(this.getTableIdFile(table, id));
+function readSync (table, id) {
+  return _readSync(this.getTableIdFile(table, id));
 }
 
-function findBySync (table, fieldName, fieldValue) {
-  return _findSync(this.getTableUniqueFile(table, fieldName, fieldValue));
+function readBySync (table, fieldName, fieldValue) {
+  return _readSync(this.getTableUniqueFile(table, fieldName, fieldValue));
 }
 
 
 // 将读出所有记录
-function findAll (table, callback) {
+function readAll (table, callback) {
   var list = [];
   var _path = this.getTableIdPath(table);
+  
+  function makeReadTasks (files) {
+    var tasks = [];
+    files.forEach(function (file) {
+      if (!isValidFile(file)) { return; }
+      tasks.push(function (callback) {
+        fs.readFile(path.join(_path, file), function (e, content) {
+          if (e) {
+            callback(e);
+          } else {
+            callback(null, JSON.parse(content));
+          }
+        })
+      });
+    });
+    return tasks;
+  }
+  
   fs.readdir(_path, function (err, files) {
+    var tasks;
+    
     if (err) {
       callback(err);
     } else {
+      tasks = makeReadTasks(files);
+      if (tasks.length > 0) {
+        async.parallelLimit(tasks, 150, callback);
+      } else {
+        callback(null, []);
+      }
+      /*
       // if none files found, files = []
+      // console.log('read %d files', files.length);
       files.forEach(function (file) {
         if (isValidFile(file)) {
           list.push(JSON.parse(fs.readFileSync(path.join(_path, file))));
         }
       });
       callback(null, list);
+      */
     }
   });
 }
 
-function findAllSync (table) {
+function readAllSync (table) {
   var list = [];
   var _path = this.getTableIdPath(table);
   var files = fs.readdirSync(_path);
@@ -238,15 +267,17 @@ function linkTableUniqueFile (table, _id, name, value, callback) {
 }
 
 function linkTableUniqueFileSync (table, _id, name, value) {
+  // console.log('linkTableUniqueFileSync, %s = %s', name, value);
   var idFile = this.getTableIdFile(table, _id);
   var linkFile = this.getTableUniqueFile(table, name, value);
   fs.symlinkSync(idFile, linkFile);
 }
 
 function save (table, _id, data, callback) {
-  fs.writeFile(this.getTableIdFile(table, _id), JSON.stringify(data), function (err) {
-    if (err) {
-      callback(err);
+  fs.writeFile(this.getTableIdFile(table, _id), JSON.stringify(data), function (e) {
+    if (e) {
+      // console.log(e);
+      callback(e);
     } else {
       callback(null, data);
     }
@@ -261,7 +292,9 @@ function saveSync (table, _id, data) {
 function readTableUniqueAutoIncrementFile (table, name) {
   try {
     var autoIncrementFile = this.getTableUniqueAutoIncrementFile(table, name);
-    return fs.readFileSync(autoIncrementFile, {encoding: 'utf8'});
+    var value = fs.readFileSync(autoIncrementFile, {encoding: 'utf8'});
+    // console.log('readTableUniqueAutoIncrementFile, %s = %s', name, value);
+    return value;
   } catch (e) {
     if (e.code === "ENOENT") {
       return null;
@@ -272,6 +305,7 @@ function readTableUniqueAutoIncrementFile (table, name) {
 }
 
 function writeTableUniqueAutoIncrementFile (table, name, value) {
+  // console.log('writeTableUniqueAutoIncrementFile, %s = %s', name, value);
   var autoIncrementFile = this.getTableUniqueAutoIncrementFile(table, name);
   fs.writeFileSync(autoIncrementFile, value);
 }
