@@ -11,7 +11,7 @@
  npm install jsoncan
 
 ## Version
-  1.0.3
+  1.0.4
 
 ## Usage	
 
@@ -30,9 +30,7 @@
 	var fields = {
      id: {
        text: 'user id',
-       type: 'string',
-       isRandom: true,
-       isUnique: true
+       type: 'autoIncrement'
      },
      name: {
        text: 'your name',
@@ -297,7 +295,8 @@ except the above validate rule keys, a schema also support these keys:
 + prefix  // used for presentation
 + validate // a custom validate function, when failed return message or return null.
 + isFake  // for field like 'passwordConfirm', it 's basically same as normal field, except it will never be saved!
-
++ autoIncrement // the first number for autoIncrement field, default is 1
++ step    // for autoIncrement, default is 1
 
 field types including:
 + 'string'
@@ -310,6 +309,7 @@ field types including:
 + 'date'
 + 'datetime'
 + 'timestamp'
++ 'autoIncrement'
 + 'password' // will hash password automatically, and you can use Table.isValidPassword(inputedPassword) to check. see [safepass][safepass].
 + 'created' // will set a current timestamp value when record created.
 + 'modified' // will be always updated to current timestamp when record saved.
@@ -419,7 +419,11 @@ examples:
 ```
 
 ### more detail
-Please see the test files.
+Please see the test part.
+
+### pressure test
+Please see the profiler part.
+
 
 [validator.js]: https://github.com/chriso/validator.js
 [safepass]: https://github.com/bibig/node-safepass
