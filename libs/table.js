@@ -61,8 +61,8 @@ function create (conn, table, fields, validateMessages) {
     findBy: findBy,
     findSync: findSync,
     findBySync: findBySync,
-    _findAll: function (callback) { this.conn.readAll(this.table, callback);},
-    _findAllSync: function () { return this.conn.readAllSync(this.table);},
+    _findAll: _findAll,
+    _findAllSync: _findAllSync,
     findAll: findAll,
     findAllSync: findAllSync,
     insert: insert,
@@ -96,7 +96,11 @@ function create (conn, table, fields, validateMessages) {
     load: load,
     loadBy: loadBy,
     // isValidPassword: isValidPassword // deprecated
-    updateAutoIncrementValues: updateAutoIncrementValues
+    updateAutoIncrementValues: updateAutoIncrementValues,
+    addIndexRecords: addIndexRecords,
+    removeIndexRecords: removeIndexRecords,
+    getIndexOptions: getIndexOptions,
+    getNoneIndexOptions: getNoneIndexOptions
   };
 }
 
@@ -168,7 +172,6 @@ function model (data) {
         this.isNew = false;
       } else {
         this.data = parent.updateSync(this.getPrimaryId(), this.data);
-        // console.log(this.data);
       }
       return this;
     },
@@ -203,19 +206,6 @@ function loadBy(name, value) {
   return this.model(data);
 }
 
-/*
-function clone (data) {
-  var _data = {};
-  
-  Object.keys(data).forEach(function (name) {
-    _data[name] = data[name];
-  });
-  
-  return _data;
-}
-*/
-
-
 /**
  * remove all the fake fields data
  * @data, ready to save
@@ -246,13 +236,45 @@ function rawsToRead (records) {
   return list;
 }
 
+function hasKeys (obj) {
+  return Object.keys(obj).length > 0;
+}
+
+function _findAll (options, callback) {
+  var indexOptions = this.getIndexOptions(options); 
+  if (hasKeys(indexOptions)) {  
+    this.conn.readAllByIndex(this.table, indexOptions, callback);
+  } else {
+    this.conn.readAll(this.table, callback);
+  }
+}
+
+function  _findAllSync (options) {
+  var indexOptions = this.getIndexOptions(options); 
+  // console.log(indexOptions);
+  if (hasKeys(indexOptions)) {  
+    return this.conn.readAllByIndexSync(this.table, indexOptions);
+  } else {
+    return this.conn.readAllSync(this.table);
+  }
+}
+
 /**
  * 创建查询对象
  * 所有多条查询的前提都是findAll后在过滤出符合条件的数据
  * @callback(err, Query object) 参考Query
  */
-function createQuery (callback) {
-  this._findAll(function (err, records) {
+function createQuery (/*options, callback*/) {
+  var options = {}, callback;
+  
+  if (arguments.length == 1) {
+    callback = arguments[0];
+  } else if (arguments.length == 2) {
+    options = arguments[0];
+    callback = arguments[1];
+  }
+  
+  this._findAll(options, function (err, records) {
     if (err) {
       callback(err);
     } else {
@@ -261,8 +283,14 @@ function createQuery (callback) {
   });
 }
 
-function createQuerySync () {
-  return Query.create(this._findAllSync());
+function createQuerySync (/*options*/) {
+  var options = {};
+  
+  if (arguments.length == 1) {
+    options = arguments[0];
+  }
+
+  return Query.create(this._findAllSync(options));
 }
 
 /**
@@ -280,20 +308,15 @@ function insert (_data, callback) {
   var data = this.schemas.filterData(_data); // filter data, make sure it is safe
 
   // 补充default值, _id值
-  // console.log('ready to addValues');
   data = this.schemas.addValues(data);
-  // console.log('@insert');
-  // console.log(data);
-  // this.checkEachUniqueField(data); // process moved into validator
   this.save(data, function (e, record) {
-    // console.log(record);
     if (e) {
       callback(e);
     } else {
-      // console.log('ready to linkEachUniqueField');
       _this.linkEachUniqueField(record);
-      // console.log('ready to updateAutoIncrementValues');
       _this.updateAutoIncrementValues(record);
+      // add all index records
+      _this.addIndexRecords(record);
       callback(null, record);
     }
   });
@@ -316,6 +339,8 @@ function insertSync (data) {
   // link files
   this.linkEachUniqueField(data);
   this.updateAutoIncrementValues(data);
+  // add all index records
+  this.addIndexRecords(data);
   
   return data;
 }
@@ -383,15 +408,6 @@ function checkEachUniqueField (record, fields) {
  * @throw: 1100, 1101
  */
 function checkUniqueField (name, value, isReturn) {
-  /*
-  if (value == undefined || value == null || value == '') {
-    if (isReturn) {
-      return false;
-    } else {
-      throw error.create(1100, name);
-    }
-  }
-  */
   var linkFile = this.conn.getTableUniqueFile(this.table, name, value);
   if (isReturn) {
     return !fs.existsSync(linkFile);
@@ -442,11 +458,6 @@ function update (_id, data, callback) {
     if (err) {
       callback(err);
     } else {
-      // console.log('@update');
-      // console.log('be to save');
-      // console.log(data);
-      // console.log('record in db');
-      // console.log(record);
       _this._update(data, record, callback);
     }
   });
@@ -499,22 +510,11 @@ function _update (_data, record, callback) {
   var changedFields = this.getChangedFields(data, record);
   var _this = this;
   
-  // console.log('@_unpdate');
-  // console.log('ready to save data:');
-  // console.log(data);
-  // console.log('record in db:');
-  // console.log(record);
-  // console.log('changedFields:' + changedFields);
-  
   if (changedFields.length == 0 ) { // 数据没有更改,
     return callback(null, record);
   }
   
   data = this.getRealUpdateData(data, record);
-  
-  
-  // console.log('safe data');
-  // console.log(safe);
   // 保存之前，删除掉link files
   this.unlinkEachUniqueField(record, changedFields);
   
@@ -524,10 +524,9 @@ function _update (_data, record, callback) {
       _this.linkEachUniqueField(record, changedFields);
       callback(err);
     } else {
-      // console.log('after save:');
-      // console.log(updatedRecord);
-      
       _this.linkEachUniqueField(updatedRecord, changedFields);
+      _this.removeIndexRecords(record, changedFields);
+      _this.addIndexRecords(updatedRecord, changedFields);
       callback(null, updatedRecord);
     }
   }, changedFields);
@@ -549,6 +548,8 @@ function _updateSync (_data, record, callback) {
     this.unlinkEachUniqueField(record, changedFields);
     safe = this.saveSync(this.getRealUpdateData(data, record), changedFields);
     this.linkEachUniqueField(safe, changedFields);
+    this.removeIndexRecords(record, changedFields);
+    this.addIndexRecords(safe, changedFields);
     return safe;
   } catch (e) {
     this.linkEachUniqueField(record, changedFields);
@@ -605,12 +606,12 @@ function updateAll (options, data, callback) {
     return tasks;
   }
   
-  this.createQuery(function (err, query) {
+  this.createQuery(options, function (err, query) {
     var records, tasks;
     if (err) {
       callback(err);
     } else {
-      records = query.filter(options).select();
+      records = query.filter(_this.getNoneIndexOptions(options)).select();
       if (records.length > 0) { // no data found after filter,
         tasks = makeUpdateTasks(records);
         async.parallelLimit(tasks, 150, callback);
@@ -625,7 +626,7 @@ function updateAll (options, data, callback) {
 function updateAllSync (options, data) {
   var _this = this;
   var results = [];
-  var records = this.createQuerySync().filter(options).select();
+  var records = this.createQuerySync(options).filter(this.getNoneIndexOptions(options)).select();
   records.forEach(function (record) {
     results.push(_this._updateSync(data, record));
   });
@@ -667,9 +668,8 @@ function _remove (record, callback) {
   if (!record) {
     callback();
   } else {
-    if (this.schemas.hasUniqueField()) {
-      this.unlinkEachUniqueField(record);
-    }
+    this.unlinkEachUniqueField(record);
+    this.removeIndexRecords(record);
     this.conn.remove(this.table, record._id, function (e) {
       if (e) {
         callback(e);
@@ -682,9 +682,8 @@ function _remove (record, callback) {
 
 function _removeSync (record) {
   if (!record) return;
-  if (this.schemas.hasUniqueField()) {
-    this.unlinkEachUniqueField(record);
-  }
+  this.unlinkEachUniqueField(record);
+  this.removeIndexRecords(record);
   this.conn.removeSync(this.table, record._id);
 }
 
@@ -719,13 +718,13 @@ function removeAll (options, callback) {
     return tasks;
   }
   
-  this.createQuery(function (err, query) {
+  this.createQuery(options, function (err, query) {
     var records;
     
     if (err) {
       callback(err);
     } else {
-      records = query.filter(options).select();
+      records = query.filter(_this.getNoneIndexOptions(options)).select();
       if (records.length > 0) {
         async.parallelLimit(makeRemoveTasks(records), 150, callback);
         /*
@@ -747,7 +746,7 @@ function removeAll (options, callback) {
 
 function removeAllSync (options, callback) {
   var _this = this;
-  var records = this.createQuerySync().filter(options).select();
+  var records = this.createQuerySync(options).filter(this.getNoneIndexOptions(options)).select();
   records.forEach(function (record) {
     _this._removeSync(record);
   });
@@ -803,22 +802,23 @@ function findAll (/*options, select, callback*/) {
   }
   
   if (!options && !fields) {
-    return this._findAll(callback);
+    return this._findAll({}, callback);
   }
   
-  this.createQuery(function (err, query) {
+  this.createQuery(options, function (err, query) {
     var records;
     if (err) {
       callback(err);
     } else {
-      records = query.filter(options).select(fields);
+      // console.log(query.records);
+      records = query.filter(_this.getNoneIndexOptions(options)).select(fields);
       callback(null, records);
     }
   }); 
 }
 
 function findAllSync (options, fields) {
-  return this.createQuerySync().filter(options || {}).select(fields);
+  return this.createQuerySync(options).filter(this.getNoneIndexOptions(options)).select(fields);
 }
 
 function validate (data, changedFields) {
@@ -838,7 +838,6 @@ function validate (data, changedFields) {
  *  error 1300 表示数据校验失败
  */
 function save (data, callback, changedFields) {
-  
   var e;
   var check = this.validate(data, changedFields);
   
@@ -846,7 +845,7 @@ function save (data, callback, changedFields) {
     data = this.clearFakeFields(data);
     // 对需要转换的数据进行转换
     data = this.schemas.convertEachField(data, changedFields);
-    this.conn.save(this.table, data._id, data, callback); 
+    this.conn.save(this.table, data._id, data, callback);
   } else {
     e = error.create(1300); 
     e.invalidMessages = check.getMessages();
@@ -867,9 +866,6 @@ function saveSync (data, changedFields) {
   if (check.isValid()) {
     data = this.clearFakeFields(data);
     data = this.schemas.convertEachField(data, changedFields);
-    // console.log('@saveSync, after check');
-    // console.log(changedFields);
-    // console.log(data);
     return this.conn.saveSync(this.table, data._id, data); 
   } else {
     e = error.create(1300); 
@@ -877,6 +873,22 @@ function saveSync (data, changedFields) {
     e.invalid = true;
     throw e;
   }
+}
+
+function addIndexRecords (data, targetFields) {
+  var _this = this;
+  
+  this.schemas.forEachIndexField(function (name, field) {
+    _this.conn.addIndexRecord(_this.table, name, data[name], data._id);
+  }, targetFields);
+}
+
+function removeIndexRecords (data, targetFields) {
+  var _this = this;
+  
+  this.schemas.forEachIndexField(function (name, field) {
+    _this.conn.removeIndexRecord(_this.table, name, data[name], data._id);
+  }, targetFields);
 }
 
 function read (_id, callback) {
@@ -946,3 +958,36 @@ function updateAutoIncrementValues (data) {
   });
 }
 
+function getIndexOptions (options) {
+  var indexOptions = {};
+  
+  if (!options) return {};
+  
+  this.schemas.forEachIndexField(function (name, field) {
+    indexOptions[name] = options[name];
+  }, options);
+  
+  if (hasKeys(indexOptions)) {
+    return this.schemas.convertEachField(indexOptions, indexOptions);
+  } else {
+    return {};
+  }
+}
+
+function getNoneIndexOptions (options) {
+  var noneIndexOptions = {};
+  
+  if (!options) return {};
+  
+  this.schemas.forEachField(function (name, field, that) {
+    if (!that.isIndex(field)) {
+      noneIndexOptions[name] = options[name];
+    }
+  }, options);
+  
+  if (hasKeys(noneIndexOptions)) {
+    return this.schemas.convertEachField(noneIndexOptions, noneIndexOptions);
+  } else {
+    return {};
+  }
+}

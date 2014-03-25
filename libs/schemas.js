@@ -33,7 +33,8 @@ var ValidKeys = [
   'isReadOnly', // cannot update value after inserted.
   'readOnly', // alias isReadOnly
   'step', // only for 'autoIncrement' type
-  'autoIncrement' // only for 'autoIncrement' type
+  'autoIncrement', // only for 'autoIncrement' type
+  'isIndex' // is index field
 ];
 
 var RequiredKeys = ['type'];
@@ -100,6 +101,7 @@ function create (fields) {
     addPrefixAndSuffix:addPrefixAndSuffix,
     forEachField: forEachField,
     forEachUniqueField: forEachUniqueField,
+    forEachIndexField: forEachIndexField,
     precise: precise,
     convertEachField: convertEachField,
     convert: convert,
@@ -117,6 +119,7 @@ function create (fields) {
     isType: function (name, type) { return this.getFieldType(name) == type; },
     isAutoIncrement: isAutoIncrement,
     isUnique: isUnique,
+    isIndex : isIndex,
     isReadOnly: isReadOnly,
     getUniqueFields: getUniqueFields,
     getAutoIncrementValue: null, // need to inject
@@ -134,6 +137,12 @@ function getField (v) {
 function isUnique (v) {
   var field = this.getField(v);
   return field.isUnique === true || this.isAutoIncrement(v);
+}
+
+function isIndex (v) {
+  var field = this.getField(v);
+  return field.isIndex === true;
+
 }
 
 function isAutoIncrement (v) {
@@ -330,6 +339,13 @@ function forEachUniqueField (callback, fields) {
   });
 }
 
+function forEachIndexField (callback, fields) {
+  var _this = this;
+  this.forEachField(callback, fields, function (field) {
+    return _this.isIndex(field);
+  });
+}
+
 function precise(num, decimals) {
   return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
 }
@@ -338,21 +354,9 @@ function precise(num, decimals) {
  * convert value, accoring to the field type
  */
 function convertEachField (data, fields) {
-  var targets = {};
-  // console.log(fields);
-  
-  if (fields && Array.isArray(fields)) {
-    fields.forEach(function (name) {
-      targets[name] = data[name];
-    });
-  } else {
-    targets = data;
-  }
-  
   this.forEachField(function (name, field, _this) {
     data[name] = _this.convert(field, data[name]);
-  }, targets);
- 
+  }, fields);
   return data;
 }
 
@@ -360,8 +364,12 @@ function convertEachField (data, fields) {
 function convert (field, value) {
   // console.log('convert field: %s = %s', field.type, value);
   // string to date object
-  if ((field.type == 'date' || field.type == 'datetime') && typeof (value) == 'string') {
-    return new Date(value);
+  if ((field.type == 'date' || field.type == 'datetime')) {
+    if (typeof (value) == 'string') {
+      return new Date(value).getTime();
+    } else if ( value instanceof Date) {
+      return value.getTime();
+    }
   }
 
   if ((field.type == 'int') && typeof (value) == 'string') {
@@ -372,11 +380,6 @@ function convert (field, value) {
     return precise(value, field.decimals || 2);
   }
 
-  // 始终要求为当前时间， eg: updated or modified
-  if (field.type == 'timestamp' && field.isCurrent) { 
-    return getTimestamp();
-  }
-  
   if (field.type == 'password') {
     // console.log('password: %s', value);
     return safepass.hash(value);

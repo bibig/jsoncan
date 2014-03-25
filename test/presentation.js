@@ -1,6 +1,6 @@
 var should = require('should');
 var assert = require('assert');
-var exec = require('child_process').exec;
+var utils = require('./utils');
 var Jsoncan = require('../index');
 var path = require('path');
 var PATH = path.join(__dirname, '_data');
@@ -91,8 +91,7 @@ describe('test presentation', function () {
   var memberA;
   
   before(function (done) {
-    var command = 'rm -rf ' + PATH;
-    exec(command, function(err, stdout, stderr) {
+    utils.clear(PATH, function () {
       var can = new Jsoncan(PATH);
       Table = can.open('member', fields);
       memberA = Table.create(data);
@@ -101,10 +100,7 @@ describe('test presentation', function () {
   });
   
   after(function (done) {
-    var command = 'rm -rf ' + PATH;
-    exec(command, function(err, stdout, stderr) {
-      done();
-    });
+    utils.clear(PATH, done);
   });
   
   it('test save', function (done) {

@@ -11,7 +11,7 @@
  npm install jsoncan
 
 ## Version
-  1.0.4
+  1.0.5
 
 ## Usage	
 
@@ -297,6 +297,7 @@ except the above validate rule keys, a schema also support these keys:
 + isFake  // for field like 'passwordConfirm', it 's basically same as normal field, except it will never be saved!
 + autoIncrement // the first number for autoIncrement field, default is 1
 + step    // for autoIncrement, default is 1
++ isIndex // index field
 
 field types including:
 + 'string'

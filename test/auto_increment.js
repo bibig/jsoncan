@@ -1,9 +1,9 @@
 var should = require('should');
 var assert = require('assert');
 var fs = require('fs');
-var exec = require('child_process').exec;
 var Jsoncan = require('../index');
 var path = require('path');
+var utils = require('./utils');
 var PATH = path.join(__dirname, '_data');
 
 describe('test auto-increment field', function () {
@@ -27,10 +27,7 @@ describe('test auto-increment field', function () {
   
   
   after(function (done) {
-    var command = 'rm -rf ' + PATH;
-    exec(command, function(err, stdout, stderr) {
-      done();
-    });
+    utils.clear(PATH, done);
   });
   
   

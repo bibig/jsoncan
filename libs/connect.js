@@ -3,10 +3,10 @@ exports.create = create;
 var fs = require('fs');
 var path = require('path');
 var async = require('async');
+var query = require('./query');
 
 // 创建connection
 function create (_path) {
-  // console.log(_path);
   if (!fs.existsSync(_path)) {
     try {
       fs.mkdirSync(_path);
@@ -23,6 +23,7 @@ function create (_path) {
     getTableUniquePath: getTableUniquePath,
     getTableUniqueFile: getTableUniqueFile,
     getTableUniqueAutoIncrementFile: getTableUniqueAutoIncrementFile,
+    getTableIndexFile: getTableIndexFile,
     readTableUniqueAutoIncrementFile: readTableUniqueAutoIncrementFile,
     writeTableUniqueAutoIncrementFile: writeTableUniqueAutoIncrementFile,
     createTablePaths: createTablePaths,
@@ -34,12 +35,22 @@ function create (_path) {
     saveSync: saveSync,
     remove: remove,
     removeSync: removeSync,
+    readFiles: readFiles,
+    readFilesSync: readFilesSync,
     readAll: readAll,
-    read: read,
-    readBy: readBy,
     readAllSync: readAllSync,
+    readAllByIndex: readAllByIndex,
+    readAllByIndexSync: readAllByIndexSync,
+    read: read,
     readSync: readSync,
-    readBySync: readBySync
+    readBy: readBy,
+    readBySync: readBySync,
+    addIndexRecord: addIndexRecord,
+    removeIndexRecord: removeIndexRecord,
+    indexFilter: indexFilter,
+    indexTargetsToFiles: indexTargetsToFiles,
+    getFilesByIndex: getFilesByIndex,
+    getFilesByIndexSync: getFilesByIndexSync
   };
 }
 
@@ -66,6 +77,10 @@ function getTableUniqueFile (table, name, value) {
 
 function getTableUniqueAutoIncrementFile (table, name) {
   return path.join(this.getTableUniquePath(table, name), '.auto_increment');
+}
+
+function getTableIndexFile (table, name) {
+  return path.join(this.getTablePath(table), name + '.index');
 }
 
 /**
@@ -176,28 +191,11 @@ function readBySync (table, fieldName, fieldValue) {
   return _readSync(this.getTableUniqueFile(table, fieldName, fieldValue));
 }
 
-
 // 将读出所有记录
 function readAll (table, callback) {
   var list = [];
+  var _this = this;
   var _path = this.getTableIdPath(table);
-  
-  function makeReadTasks (files) {
-    var tasks = [];
-    files.forEach(function (file) {
-      if (!isValidFile(file)) { return; }
-      tasks.push(function (callback) {
-        fs.readFile(path.join(_path, file), function (e, content) {
-          if (e) {
-            callback(e);
-          } else {
-            callback(null, JSON.parse(content));
-          }
-        })
-      });
-    });
-    return tasks;
-  }
   
   fs.readdir(_path, function (err, files) {
     var tasks;
@@ -205,22 +203,23 @@ function readAll (table, callback) {
     if (err) {
       callback(err);
     } else {
-      tasks = makeReadTasks(files);
-      if (tasks.length > 0) {
-        async.parallelLimit(tasks, 150, callback);
-      } else {
-        callback(null, []);
-      }
-      /*
-      // if none files found, files = []
-      // console.log('read %d files', files.length);
-      files.forEach(function (file) {
-        if (isValidFile(file)) {
-          list.push(JSON.parse(fs.readFileSync(path.join(_path, file))));
-        }
+      files = files.map(function (file) {
+        return path.join(_path, file);
       });
-      callback(null, list);
-      */
+      
+      _this.readFiles(files, callback);
+    }
+  });
+}
+
+function readAllByIndex (table, options, callback) {
+  var _this = this;
+  
+  this.getFilesByIndex (table, options, function (e, files) {
+    if (e) {
+      callback(e);
+    } else {
+      _this.readFiles(files, callback);
     }
   });
 }
@@ -230,18 +229,55 @@ function readAllSync (table) {
   var _path = this.getTableIdPath(table);
   var files = fs.readdirSync(_path);
   
+  files = files.map(function (file) {
+    return path.join(_path, file);
+  });
+  
+  return this.readFilesSync(files);
+}
+
+function readAllByIndexSync (table, options) {
+  var files = this.getFilesByIndexSync(table, options);
+  return this.readFilesSync(files);
+}
+
+function readFiles (files, callback) {
+  var tasks = [];
+
+  files.forEach(function (file) {
+    if (!isValidFile(file)) { return; }
+    tasks.push(function (callback) {
+      fs.readFile(file, function (e, content) {
+        if (e) {
+          callback(e);
+        } else {
+          callback(null, JSON.parse(content));
+        }
+      })
+    });
+  });
+  
+  if (tasks.length > 0) {
+    async.parallelLimit(tasks, 150, callback);
+  } else {
+    callback(null, []);
+  }
+}
+
+function readFilesSync (files) {
+  var list = [];
+  
   files.forEach(function (file) {
     if (isValidFile(file)) {
-      list.push(JSON.parse(fs.readFileSync(path.join(_path, file))));
+      list.push(JSON.parse(fs.readFileSync(file)));
     }
   });
   
   return list;
-  
 }
 
 function isValidFile (file) {
-  return file.split('.')[1] == 'js';
+  return file.split('.').pop() == 'js';
 }
 
 function remove (table, _id, callback) {
@@ -310,3 +346,150 @@ function writeTableUniqueAutoIncrementFile (table, name, value) {
   fs.writeFileSync(autoIncrementFile, value);
 }
 
+/**
+ * @table
+ * @name: field name
+ * @value: field value
+ * @_id:  primary key value
+ */
+function addIndexRecord (table, name, value, _id) {
+  var indexFile = this.getTableIndexFile(table, name);
+  fs.appendFileSync(indexFile, indexRecordFormatedString(['+', value + '', _id]));
+}
+
+function removeIndexRecord  (table, name, value, _id) {
+  var indexFile = this.getTableIndexFile(table, name);
+  fs.appendFileSync(indexFile, indexRecordFormatedString(['-', value + '', _id]));
+}
+
+
+function indexRecordFormatedString (arr) {
+  return arr.join(getIndexRecordSplitor()) + "\n";
+}
+
+function getIndexRecordSplitor () {
+  return "\t\t";
+}
+
+// line format: [+-] indexValue <_id>
+function indexFilter (content, filter) {
+  var splitor = getIndexRecordSplitor();
+  var re = new RegExp('^([+-])' + splitor + '(.*?)' + splitor + '(.*?)$', "mg");
+  var line;
+  var targets = [];
+  var operator, value;
+  var indexValue, sign, _id;
+  
+  if (Array.isArray(filter)) {
+    operator = filter[0];
+    value = filter[1];
+  } else {
+    operator = '=';
+    value = filter;
+  }
+  
+  while (line = re.exec(content)) {
+    sign = line[1];
+    indexValue = line[2];
+    _id = line[3];
+    if (query.compare(indexValue, operator, value)) {
+      if (sign == '+') {
+        targets.push(_id);
+      } else if (sign == '-') {
+        targets.splice(targets.indexOf(_id), 1);
+      }
+    }
+  }
+
+  return targets;
+}
+
+function indexTargetsToFiles (table, targets) {
+  var files = [];
+  var _this = this;
+  
+  targets.forEach(function (_id) {
+    files.push(_this.getTableIdFile(table, _id));
+  });
+  
+  return files;
+}
+
+function getFilesByIndex (table, options, callback) {
+  var tasks = [];
+  var _this = this;
+  var noFileFoundErrorCode = 'NoFiles';
+  
+  Object.keys(options).forEach(function (name) {
+    tasks.push(function (callback) {
+      var file = _this.getTableIndexFile(table, name);
+      fs.readFile(file, function (e, content) {
+        var results, noFileFoundError;
+        if (e) {
+          callback(e);
+        } else {
+          results = _this.indexFilter(content, options[name]);
+          if (results.length == 0) {
+            noFileFoundError = new Error();
+            noFileFoundError.code = noFileFoundErrorCode;
+            callback(noFileFoundError);
+          } else {
+            callback(null, results);
+          }
+        }
+      });    
+    });
+  });
+
+  async.series(tasks, function (e, results) {
+    if (e) {
+      if (e.code == noFileFoundErrorCode) {
+        callback(null, []);
+      } else {
+        callback(e);
+      }
+    } else {
+      callback(null, _this.indexTargetsToFiles(table, getAllIntersection(results)));
+    }
+  });  
+}
+
+function getFilesByIndexSync (table, options) {
+  var results = [];
+  var _this = this;
+  var names = Object.keys(options);
+  
+  for (var i = 0; i < names.length; i++) {
+    var file = _this.getTableIndexFile(table, names[i]);
+    var content = fs.readFileSync(file);
+    var target = _this.indexFilter(content, options[names[i]]);
+    if (target.length == 0) {
+      return [];
+    } else {
+      results.push(target);
+    }
+  }
+
+  return this.indexTargetsToFiles(table, getAllIntersection(results));
+}
+
+function getAllIntersection (targets) {
+  var result = targets.shift();
+  targets.forEach(function (target) {
+    result = getIntersection(result, target);
+  });
+  
+  return result;
+}
+
+function getIntersection (a, b) {
+  var c = [];
+  
+  for (var i = 0; i < a.length; i++) {
+    if (b.indexOf(a[i]) > -1) {
+      c.push(a[i]);
+    }
+  }
+  
+  return c;
+}

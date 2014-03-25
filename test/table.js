@@ -3,7 +3,7 @@ var assert = require('assert');
 var Jsoncan = require('../index');
 var path = require('path');
 var fs = require('fs');
-var exec = require('child_process').exec;
+var utils = require('./utils');
 
 describe('test table.js', function () {
   
@@ -94,10 +94,7 @@ describe('test table.js', function () {
   var record;
   
   after(function (done) {
-    var command = 'rm -rf ' + PATH;
-    exec(command, function(err, stdout, stderr) {
-      done();
-    });
+    utils.clear(PATH, done);
   });
   
   it('create a Table Object', function () {

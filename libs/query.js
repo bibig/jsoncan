@@ -9,6 +9,7 @@
 
 
 exports.create = create;
+exports.compare = compare;
 
 var util = require('util');
 var error = require('./error');
@@ -174,7 +175,12 @@ function skip (n) {
  */
 function order (field, isDescend) {
   this.records.sort(function (a, b) {
-    return isDescend ? ( a[field] < b[field] ) : ( a[field] > b[field] );
+    // return isDescend ? ( a[field] - b[field] ) : ( a[field] - b[field] );
+    if (a[field] < b[field])
+       return isDescend ? 1 : -1;
+    if (a[field] > b[field])
+      return isDescend ? -1 : 1;
+    return 0;
   });
   
   return this;

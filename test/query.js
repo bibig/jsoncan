@@ -77,7 +77,8 @@ describe('test Query object', function () {
   
   it('test order descend, select chain', function () {
     var query = Query.create(records);
-    var results = query.order('age', 1).select();
+    var results = query.order('age', true).select();
+    // console.log(results);
     assert.ok(results[0].age == 14);
   });
   

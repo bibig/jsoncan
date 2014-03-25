@@ -3,7 +3,7 @@ var assert = require('assert');
 var path = require('path');
 var Jsoncan = require('../index');
 var fs = require('fs');
-var exec = require('child_process').exec;
+var utils = require('./utils');
 
 describe('test sync actions in table.js', function () {
   
@@ -93,10 +93,7 @@ describe('test sync actions in table.js', function () {
   });
   
   after(function (done) {
-    var command = 'rm -rf ' + PATH;
-    exec(command, function(err, stdout, stderr) {
-      done();
-    });
+    utils.clear(PATH, done);
   });
   
   it('should create all unique fields folds', function () {
