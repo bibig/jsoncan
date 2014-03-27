@@ -7,7 +7,6 @@
  *
  */
 
-
 exports.create = create;
 exports.compare = compare;
 
@@ -289,7 +288,7 @@ function compare (fieldValue, operator, value) {
       if (util.isRegExp(value)) {
         return value.test(fieldValue);  
       } else {
-        throw error.create(1201, value);
+        throw error(1201, value);
       }
       
     case 'like': // 必须包含%
@@ -311,8 +310,8 @@ function compare (fieldValue, operator, value) {
         return index > -1;
       }
       
-      throw error.create(1202, value);
+      throw error(1202, value);
     default:
-      throw error.create(1200, operator);
+      throw error(1200, operator);
   }
 }

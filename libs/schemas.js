@@ -92,12 +92,12 @@ function create (fields) {
     isAliasField: isAliasField,
     isSystemField: isSystemField,
     mapIdToDesc: mapIdToDesc,
-    read: read, // read a field
-    rawToRead: rawToRead,
+    present: present,
+    presentAll: presentAll,
     hasFormat: hasFormat,
     hasUniqueField: hasUniqueField,
     hasAutoIncrementField: hasAutoIncrementField,
-    format: format,
+    formatField: formatField,
     addPrefixAndSuffix:addPrefixAndSuffix,
     forEachField: forEachField,
     forEachUniqueField: forEachUniqueField,
@@ -192,25 +192,24 @@ function checkField (name, field) {
 }
 
 // 将原始的数据转换为可以放入表示层阅读的数据
-function rawToRead (data) {
-  var keys = Object.keys(this.fields);
+function presentAll (data) {
   data = data || {};
   var presentations = {};
   
   this.forEachField(function (name, field, _this) {
-    presentations[name] = _this.read(name, data[name], data);
-  });
+    presentations[name] = _this.present(name, data[name], data);
+  }, data);
   
   return presentations;
 }
 
-function read (name, value, data) {
+function present (name, value, data) {
   if (this.isMap(name)) {
     value = this.mapIdToDesc(name, value);
   }
   
   if (this.hasFormat(name)) {
-    value = this.format(name, value, data);
+    value = this.formatField(name, value, data);
   }
 
   value = this.addPrefixAndSuffix(name, value);
@@ -243,7 +242,7 @@ function addPrefixAndSuffix(name, value) {
 }
 
 // invoke the format function defined in schema.
-function format (name, value, data) {
+function formatField (name, value, data) {
   // console.log(arguments);
   return this.fields[name].format(value, data); 
 }

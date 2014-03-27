@@ -1,7 +1,9 @@
-exports.create = create;
+/**
+ * Expose `createError()`
+ */
+exports = module.exports = createError;
 
 var util = require('util');
-
 var Messages = {
   //schemas
   1000: 'Invalid schema element <%s> found in field <%s>.',
@@ -22,10 +24,20 @@ var Messages = {
   1300: 'invalid data found, save failed!',
   1400: 'no data found, find by <%s=%s>'
 };
+
+
     
-function create (code/*,var1, var2*/) {
+function createError (code/*,var1, var2*/) {
   var error, message, params = [];
-  checkErrorCode(code);
+  
+  if (!code) {
+    throw new Error('Missing error code !');
+  }
+  
+  if (!Messages[code]) {
+    throw new Error('Invalid error code <' + code + '>');
+  }
+  
   params.push(Messages[code]);
   
   for (var i = 1; i < arguments.length; i++) {
@@ -37,14 +49,4 @@ function create (code/*,var1, var2*/) {
   error = new Error(message);
   error.code = code;
   return error;
-}
-
-function checkErrorCode (code) {
-  if (!code) {
-    throw new Error('Missing error code !');
-  }
-  
-  if (!Messages[code]) {
-    throw new Error('Invalid error code <' + code + '>');
-  }
 }

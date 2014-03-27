@@ -46,9 +46,9 @@ function create (ctx, table) {
     getChangedFields: getChangedFields,
     getRealUpdateData: getRealUpdateData,
     linkEachUniqueField: linkEachUniqueField,
-    readField: function (name, value, data) { return this.schemas.read(name, value, data); },
-    rawToRead: function (data) { return this.schemas.rawToRead(data);},
-    rawsToRead: rawsToRead,
+    present: function (name, value, data) { return this.schemas.present(name, value, data); },
+    format: function (data) { return this.schemas.presentAll(data);},
+    formatAll: formatAll,
     createQuery: createQuery,
     createQuerySync: createQuerySync,
     read: read,
@@ -113,9 +113,9 @@ function model (data) {
     get: function (name) { return this.data[name]; },
     read: function (name) {
       if (name) {
-        return parent.readField(name, this.data[name], this.data);
+        return parent.present(name, this.data[name], this.data);
       } else {
-        return parent.rawToRead(this.data);
+        return parent.format(this.data);
       }
     },
     set: function (/*name, value | hash*/) { 
@@ -227,11 +227,11 @@ function clearFakeFields (data) {
  * @records: 记录列表
  * @return 转换好的列表
  */
-function rawsToRead (records) {
+function formatAll (records) {
   var list = [];
   var _this = this;
   records.forEach(function (record) {
-    list.push(_this.rawToRead(record));
+    list.push(_this.format(record));
   });
   return list;
 }
@@ -412,7 +412,7 @@ function checkUniqueField (name, value, isReturn) {
   if (isReturn) {
     return !fs.existsSync(linkFile);
   } else if (fs.existsSync(linkFile)) {
-    throw error.create(1101, value, name);
+    throw error(1101, value, name);
   }
 }
 
@@ -478,7 +478,7 @@ function updateBy (field, value, data, callback) {
     if (err) {
       callback(err);
     } else if (!record) {
-      callback(error.create(1400, field, value));
+      callback(error(1400, field, value));
     } else {
       _this._update(data, record, callback);
     }
@@ -492,7 +492,7 @@ function updateBy (field, value, data, callback) {
 function updateBySync (field, value, data) {
   var record = this.findBySync(field, value);
   if (!record) {
-    throw error.create(1400, field, value);
+    throw error(1400, field, value);
   }
   return this._updateSync(data, record);
 }
@@ -759,7 +759,7 @@ function find (_id, callback) {
 }
 
 function findBy (name, value, callback) {
-  if (!this.schemas.isUnique(name)) { throw error.create(1003, name); }
+  if (!this.schemas.isUnique(name)) { throw error(1003, name); }
   if (Validator.isEmpty(name, value)) { return null; }
   this.conn.readBy(this.table, name, value, callback); 
 }
@@ -770,12 +770,12 @@ function findSync (_id) {
 }
 
 function findBySync (name, value) {
-  if (!this.schemas.isUnique(name)) { throw error.create(1003, name); }
+  if (!this.schemas.isUnique(name)) { throw error(1003, name); }
   if (Validator.isEmpty(name, value)) { return null; }
   return this.conn.readBySync(this.table, name, value); 
 }
 
-function findAll (/*options, select, callback*/) {
+function findAll (/*options, fields, callback*/) {
   var _this = this;
   var options;
   var fields;
@@ -847,7 +847,7 @@ function save (data, callback, changedFields) {
     data = this.schemas.convertEachField(data, changedFields);
     this.conn.save(this.table, data._id, data, callback);
   } else {
-    e = error.create(1300); 
+    e = error(1300); 
     e.invalidMessages = check.getMessages();
     e.invalid = true;
     callback(e);
@@ -868,7 +868,7 @@ function saveSync (data, changedFields) {
     data = this.schemas.convertEachField(data, changedFields);
     return this.conn.saveSync(this.table, data._id, data); 
   } else {
-    e = error.create(1300); 
+    e = error(1300); 
     e.invalidMessages = check.getMessages();
     e.invalid = true;
     throw e;
@@ -897,7 +897,7 @@ function read (_id, callback) {
     if (e) {
       callback(e);
     } else if (record) {
-      callback(null, _this.rawToRead(record));
+      callback(null, _this.format(record));
     } else { // no data found
       callback(null, null);
     }
@@ -906,7 +906,7 @@ function read (_id, callback) {
 
 function readSync (_id) {
   var data = this.findSync(_id);
-  return data ? this.rawToRead(data): null;
+  return data ? this.format(data): null;
 }
 
 function readBy (name, value, callback) {
@@ -915,7 +915,7 @@ function readBy (name, value, callback) {
     if (e) {
       callback(e);
     } else if (record) {
-      callback(null, _this.rawToRead(record));
+      callback(null, _this.format(record));
     } else {
       callback(null, null);
     }
@@ -924,27 +924,51 @@ function readBy (name, value, callback) {
 
 function readBySync (name, value) {
   var data = this.findBySync(name, value);
-  return data ? this.rawToRead(data) : null;
+  return data ? this.format(data) : null;
 }
 
-function readAll (options, callback) {
+// should keep params same with findAll
+function readAll (/*options, callback*/) {
   var _this = this;
+  var last = arguments.length - 1;
+  var callback = arguments[last];
+  var args = [];
   
+  for (var i = 0; i < last; i++) {
+    args.push(arguments[i]);
+  }
+  
+  args.push(function (e, records) {
+    if (e) {
+      callback(e);
+    } else if (records.length > 0) {
+      records = _this.formatAll(records);
+      callback(null, records);
+    } else {
+      callback(null, [])
+    }
+  });
+  
+  this.findAll.apply(this, args);
+  
+  /*
   this.findAll(options, function (e, records) {
     if (e) {
       callback(e);
     } else if (records.length > 0) {
-      callback(null, _this.rawsToRead(records));    
+      records = _this.formatAll(records);
+      console.log(callback);
+      callback(null, records);
     } else {
-      callback(null, records)
+      callback(null, [])
     }
   });
-
+  */
 }
 
 function readAllSync (options) {
   var data = this.findAllSync(options);
-  return data.length > 0 ? this.rawsToRead(data) : data; 
+  return data.length > 0 ? this.formatAll(data) : data; 
 }
 
 function updateAutoIncrementValues (data) {
