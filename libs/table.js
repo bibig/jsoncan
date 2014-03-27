@@ -23,21 +23,21 @@ var safepass = require('safepass');
  * @fields: schemas
  * @return Object
  */
-function create (conn, table, fields, validateMessages) {
-  var schemas = Schemas.create(fields);
-  var validator = Validator.create(schemas, validateMessages);
+function create (ctx, table) {
+  var schemas = Schemas.create(ctx.tables[table]);
+  var validator = Validator.create(schemas, ctx.validateMessages);
   
   // build table root path and unique fields paths
-  conn.createTablePaths(table, schemas.getUniqueFields());
+  ctx.conn.createTablePaths(table, schemas.getUniqueFields());
   
   schemas.getAutoIncrementValue = function (name) {
-    return conn.readTableUniqueAutoIncrementFile(table, name);
+    return ctx.conn.readTableUniqueAutoIncrementFile(table, name);
   }
   
   
   return {
     table: table,
-    conn: conn,
+    conn: ctx.conn,
     schemas: schemas,
     validator: validator,
     validate: validate,

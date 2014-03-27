@@ -70,20 +70,19 @@ describe('test table.js', function () {
   var PATH = path.join(__dirname, '_data');
   var tableName = 'user';
   var Table;
+  
   var people1 = {
     email: 'tom@hello.com',
     mobile: 'tom_mobile',
     name: 'Tom',
     age: 18
   };
-  
   var people2 = {
     email: 'david@hello.com',
     mobile: 'david_mobile',
     name: 'David',
     age: 22
   };
-  
   var people3 = {
     email: 'cici@hello.com',
     mobile: 'cici_mobile',
@@ -99,6 +98,7 @@ describe('test table.js', function () {
   
   it('create a Table Object', function () {
     var can = new Jsoncan(PATH);
+    
     Table = can.open(tableName, fields);
     assert.ok(typeof Table == 'object');
   });
