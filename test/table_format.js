@@ -52,34 +52,33 @@ describe('table.read feature unit test', function () {
   });
   */
   
-  it('check readAll(callback)', function (done) {
-    Table.readAll(function (e, records) {
+  it('check query.format()', function (done) {
+    Table.query().format().exec(function (e, records) {
       should.not.exist(e);
       assert.equal(records[0].id[0], '#');
       done();
     });
   });
   
-  it('check readAll(fields, callback)', function (done) {
-    Table.readAll('created', function (e, records) {
+  it('check query.format(fields, callback)', function (done) {
+    Table.query().select('created').format().exec(function (e, records) {
       should.not.exist(e);
       assert.equal(records[0].created.split('-').length, 3);
       done();
     });
   });
 
-  it('check readAll(options, fields, callback)', function (done) {
-    Table.readAll({age: 1}, 'created', function (e, records) {
+  it('check query(options).select(fields).format().exec())', function (done) {
+    Table.query({age: 1}).select('created').format().exec(function (e, records) {
       should.not.exist(e);
       assert.equal(records[0].created.split('-').length, 3);
       done();
     });
   });
   
-  it('check readAllSync()', function () {
-    var records = Table.readAllSync();
+  it('check query().format().execSync()', function () {
+    var records = Table.query().format().execSync();
     assert.equal(records[0].id[0], '#');
-    // console.log(records);
   });
   
 });

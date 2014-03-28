@@ -192,10 +192,10 @@ describe('test model way', function () {
     var p1 = Table.create(people1).saveSync();
     var p2 = Table.create(people2).saveSync();
     var p3 = Table.create(people3).saveSync();
-    var query = Table.createQuerySync();
+    var records = Table.query().execSync();
     assert.ok(p1.get('name') == people1.name);
     assert.ok(p2.get('name') == people2.name);
-    assert.ok(query.count() == 4);
+    assert.equal(records.length, 4);
     assert.ok(p1.isValidPassword('123'));
     assert.ok(p2.isValidPassword('123'));
     assert.ok(p3.isValidPassword('123'));

@@ -9,6 +9,7 @@
 
 exports.create = create;
 exports.compare = compare;
+exports.checkHash = checkHash;
 
 var util = require('util');
 var error = require('./error');
@@ -34,6 +35,7 @@ function create (records) {
     filter: filter
   };
 }
+
 
 // 是否有记录存在
 function isEmpty () {
@@ -204,15 +206,17 @@ function where (field/*, operator, value|values*/) {
   var list = [];
   
   if (arguments.length == 2) {
-    operator = '=';
-    value = arguments[1];
+    if (Array.isArray(arguments[1])) {
+      operator = arguments[1][0];
+      value = arguments[1][1];
+    } else {
+      operator = '=';
+      value = arguments[1];
+    }
   } else if (arguments.length == 3) {
     operator = arguments[1];
-    if (util.isArray(arguments[2])) {
-      value = arguments[2];
-    } else {
-      value = arguments[2];
-    }
+    value = arguments[2];
+    
   } else {
     return this;
   }
@@ -225,6 +229,30 @@ function where (field/*, operator, value|values*/) {
   
   this.records = list;
   return this;
+}
+
+function checkValue (value, options) {
+  var operator, compareValue;
+  
+  if (Array.isArray(options)) {
+    operator = options[0];
+    compareValue = options[1];
+  } else {
+    operator = '=';
+    compareValue = options;
+  }
+  // console.log('%s %s %s', value, operator, compareValue);
+  return compare(value, operator, compareValue);
+}
+
+function checkHash (hash, options) {
+  var keys = Object.keys(options  || {});
+  for (var i = 0; i < keys.length; i++) {
+    if ( ! checkValue(hash[keys[i]], options[keys[i]])) {
+      return false;
+    }
+  }
+  return true;  
 }
 
 function filter (options) {

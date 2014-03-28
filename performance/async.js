@@ -55,7 +55,7 @@
 
 var faker = require('faker');
 var util = require('./util');
-var max = 100;
+var max = 1000;
 
 var Table;
 
@@ -85,7 +85,7 @@ function insertAll () {
 function findAll () {
   // console.log('ready to findAll in async way');
   util.setTime();
-  Table.findAll(function (e, records) {
+  Table.query().exec(function (e, records) {
     // console.log(records);
     util.report('2. finded %d records', records.length);
     updateAll();

@@ -32,7 +32,7 @@
 
 var util = require('./util');
 var faker = require('faker');
-var max = 100;
+var max = 1000;
 var Table;
 
 util.run(function () {
@@ -58,7 +58,7 @@ function insertAll () {
 function findAll () {
   var records;
   util.setTime();
-  records = Table.findAllSync();
+  records = Table.query().execSync();
   util.report('2. finded %d records', records.length);
 }
 

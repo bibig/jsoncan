@@ -1,6 +1,6 @@
 # node-jsoncan
 
-+ A tiny but complete json based database.
++ An agile json based database.
 + load seamlessly with zero config.
 + if you are developing a project demo or a static site, or based on small data project like company offical sites, jsoncan is quite useful.
 + all the data is saved in json files, it's like a cache system, and it works the way.
@@ -11,7 +11,7 @@
  npm install jsoncan
 
 ## Version
-  1.0.5
+  1.0.6
 
 ## Usage	
 
@@ -23,28 +23,28 @@
 	// db root, the json files will save here, make sure the path does exist. if not, jsoncan will try to create it.
 	var PATH = path.join(__dirname, 'data'); 
 	
-	// create a new db, if exists, connect it.
-	var can = new Jsoncan(PATH);
-	
-	// define table schemas
-	var fields = {
-     id: {
-       text: 'user id',
-       type: 'autoIncrement'
-     },
-     name: {
-       text: 'your name',
-       type: 'string',
-       max: 30,
-       min: 2,
-       required: true
+	// define tables schemas
+	var tables = {
+	  people: {
+      id: {
+        text: 'user id',
+        type: 'autoIncrement'
+      },
+       name: {
+        text: 'your name',
+        type: 'string',
+        max: 30,
+        min: 2,
+        required: true
+      }
     }
-	};
+  };
 	
-	var tableName = 'people';
-	    
+	// create a new db, if exists, connect it.
+	var can = new Jsoncan(PATH, tables);
+		    
 	// create or open a table.
-	var People = can.open(tableName, fields); // can.table(...) do the same thing.
+	var People = can.open('people'); // can.table('people') do the same thing.
 	
 ```
 
@@ -68,47 +68,41 @@ when a record inserted, it will be automatically added an "_id" field as the pri
 ```
 
 ### find	
-
 find and findBy only return one record, when no data found, they will return null value;
-
-findAll return mulitply records, if no arguments given, will return the whole records. no data found, return an empty array [].
 
 ```javascript
 
 	// find by primary id
 	People.find(Tom._id, function (e, record) {...});
+	// sync way
+  var man = People.findSync(_id);
 	
 	// find by unique id, only used for the uniqued fields.
 	People.findBy('id', Tom.id, function (e, record) {...});
-	
-	// find all
-	Product.findAll({price: ['>', 100], name: ['like', '%haha%']}, function (e, records) {...} );
-
-  // sync way
-  var man = People.findSync(_id);
-  var otherMan = People.findBySync('name', 'xxx');
-  var men = People.findAll({age: ['between', 18, 36]}, "id, name, age");
-  
+	// sync way
+	var otherMan = People.findBySync('name', 'xxx');  
 ```
 
-
-
-### query way
-
-query data in more natural and intuitive way.
- 
+### query
+find multiply records in natural and intuitive way. 
 
 ```javascript
 
-	// only 'select()' will return the results, so make sure it's at the tail.
-	People.createQuery(function (e, query) {
-		var result = query.where(age, '>=', 18)
-					.order(name)
-					.limit(100)
-					.select('id', 'name');
-	});
+  // eg:
+	Product.query({price: ['>', 100], name: ['like', '%haha%']}).exec(function (e, records) {...} );
+	// or
+	Product.query()
+	  .where('price', '>', 100)
+	  .where('name', 'like', '%haha%')
+	  .exec(callback);
 	
-	// where ways
+  // sync way
+  var men = People.query({age: ['between', 18, 36]}).execSync();
+  
+  // chain skip, limit and select
+	People.query().where(age, ['>=', 18]).order('name').skip(100).limit(10).select('id, name').exec(callback);
+	
+	// where
 	// support operators: =, >, <=, <>, !=, in, not in,  between, like, pattern.
 	query.where('age', 8).select();
 	query.where('age', '>', 8).select();
@@ -130,21 +124,18 @@ query data in more natural and intuitive way.
 	
 	// order ways
 	// default is ascend
-	query.order(age).select();
+	query.order(age);
 	// in descend
-	query.order(age, true).select();
+	query.order(age, true);
 	
 	// skip and limit
-	query.order('id').skip(3).limit(10).select();
+	query.order('id').skip(3).limit(10);
 	
-	// count, sum and avarge
-	query.count(); // will return the records count.
-	query.sum('age');
-	query.average('age');
+	// exec
+	query().exec(function (e, records) { ... });
+	// exec in sync
+	var records = query().execSync();
 	
-	// sync way
-	var query = People.createQuerySync();
-	var men = Query.where('age', 18).order(age).select();
 	
 ```
 
@@ -195,7 +186,7 @@ There are three ways to create a model object:
 
 ```javascript
 
-	var Product = can.open(path, fields);
+	var Product = can.open('product');
 	
 	// create a new one
 	var productA = Product.model({name: 'xxx'}); // or Product.create({...});
@@ -422,8 +413,8 @@ examples:
 ### more detail
 Please see the test part.
 
-### pressure test
-Please see the profiler part.
+### performance test
+Please see the performance part.
 
 
 [validator.js]: https://github.com/chriso/validator.js

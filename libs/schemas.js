@@ -279,9 +279,10 @@ function inputFields () {
 function getUniqueFields () {
   var map = {};
   this.forEachUniqueField(function (name, field, _this) {
-    // list.push(name);
     map[name] = _this.isAutoIncrement(field) ? ( field.autoIncrement || 1 ) : 0;
   });
+  // console.log('in schemas.getUniqueFields()');
+  // console.log(map);
   return map;
 }
 
@@ -290,7 +291,7 @@ function getUniqueFields () {
  * @return boolean
  */
 function hasUniqueField () {
-  return this.getUniqueFields().length > 0;
+  return Object.keys(this.getUniqueFields()).length > 0;
 }
 
 function hasAutoIncrementField () {

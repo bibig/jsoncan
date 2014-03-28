@@ -97,56 +97,90 @@ describe('test index fields', function () {
     });
   });
   
+  it('test query all records', function (done) {
+    table.query().exec(function (e, records) {
+      should.not.exists(e);
+      assert.equal(records.length, pastCount + todayCount + todayInLastYearCount);
+      done();
+    });
+  });
   
+  it('test query all records sync way', function () {
+    var records = table.query().execSync();
+    assert.equal(records.length, pastCount + todayCount + todayInLastYearCount);
+  });
   
-  it('test findAllSync', function () {
-    var records = table.findAllSync({date: getToday()});
+  it('test query().where().exec()', function (done) {
+    table.query().where('date', getToday()).exec(function (e, records) {
+      should.not.exists(e);
+      assert.equal(records.length, todayCount);
+      done();
+    });
+  });
+  
+  it('test query(filters).exec()', function (done) {
+    table.query({date: getToday()}).exec(function (e, records) {
+      should.not.exists(e);
+      assert.equal(records.length, todayCount);
+      done();
+    });
+  });
+  
+  it('test query().execSync()', function () {
+    var records = table.query({date: getToday()}).execSync();
+    var records2 = table.query().where('date', getToday()).execSync();
     // console.log(records);
     assert.equal(records.length, todayCount);
+    assert.equal(records2.length, todayCount);
   });
-
-  it('test findAll', function (done) {
-    table.findAll({date: getToday()}, function (e, records) {
+  
+  it('test query date by timestamp', function (done) {
+    table.query({date: getToday().getTime()}).exec(function (e, records) {
       should.not.exists(e);
       assert.equal(records.length, todayCount);
       done();
     });
   });
   
-  it('test findAll, with timestamp', function (done) {
-    table.findAll({date: getToday().getTime()}, function (e, records) {
+  it('test query filter with >=', function (done) {
+    table.query({date: ['>=', getToday()]}).exec(function (e, records) {
       should.not.exists(e);
       assert.equal(records.length, todayCount);
       done();
     });
   });
   
-  it('test findAll with >=', function (done) {
-    table.findAll({date: ['>=', getToday()]}, function (e, records) {
-      should.not.exists(e);
-      assert.equal(records.length, todayCount);
-      done();
-    });
-  });
   
-  it('test findAll with <', function (done) {
-    table.findAll({date: ['<', getToday()]}, function (e, records) {
+  
+  it('test query filter with <', function (done) {
+    table.query({date: ['<', getToday()]}).exec(function (e, records) {
       should.not.exists(e);
       assert.ok(records.length, todayInLastYearCount + pastCount);
       done();
     });
   });
   
-  it('test findAll by multi index filters', function (done) {
-    table.findAll({date: getToday(), name: 'steve'}, function (e, records) {
+  
+  it('test query filter by multi index filters', function (done) {
+    table.query({date: getToday(), name: 'steve'}).exec(function (e, records) {
+      should.not.exists(e);
+      assert.equal(records.length, steveCount);
+      done();
+    });
+  });
+  
+  it('test query.where by multi index filters', function (done) {
+    table.query()
+    .where('date', getToday())
+    .where('name', 'steve').exec(function (e, records) {
       should.not.exists(e);
       assert.equal(records.length, steveCount);
       done();
     });
   });
 
-  it('test findAll by mixed filters', function (done) {
-    table.findAll({date: getToday(), name: 'steve', age: 1}, function (e, records) {
+  it('test query by mixed filters( including index filters and noneIndex filters)', function (done) {
+    table.query({date: getToday(), name: 'steve', age: 1}).exec(function (e, records) {
       should.not.exists(e);
       assert.equal(records.length, babyCount);
       done();
@@ -156,14 +190,13 @@ describe('test index fields', function () {
   it('test updateAll', function () {
     var records = table.updateAllSync({date: getToday(), name: ['<>', 'steve']}, {name: 'NoneExist'});
     // console.log(records.length);
-    assert.equal(table.findAllSync({date: getToday(), name: 'NoneExist'}).length, todayCount - steveCount);
+    assert.equal(table.query({date: getToday(), name: 'NoneExist'}).execSync().length, todayCount - steveCount);
   });
 
   it('test removeAll', function () {
     table.removeAllSync({date: getToday(), name: 'steve'});
-    assert.equal(table.findAllSync({date: getToday()}).length, todayCount - steveCount);
-    assert.equal(table.findAllSync({date: getToday(), age: 1}).length, 0);
-  });
-  
+    assert.equal(table.query({date: getToday()}).execSync().length, todayCount - steveCount);
+    assert.equal(table.query({date: getToday(), age: 1}).execSync().length, 0);
+  }); 
 
 });

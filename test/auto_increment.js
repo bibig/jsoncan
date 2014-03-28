@@ -72,8 +72,8 @@ describe('test auto-increment field', function () {
     });
   }); 
   
-  it('test findAll', function (done) {
-    Table.findAll({id: ['>', 0]}, function (e, records) {
+  it('test query all', function (done) {
+    Table.query({id: ['>', 0]}).exec(function (e, records) {
       should.not.exist(e);
       assert.equal(records.length, 3);
       done();

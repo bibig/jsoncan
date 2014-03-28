@@ -152,16 +152,11 @@ describe('test sync actions in table.js', function () {
     list[1].should.have.property('modified');
   });
   
-  it('test count', function () {
-    var query = Table.createQuerySync();
-    assert.equal(query.count(), 3);
-  })
   
   it('test query skip,limit', function () {
-    var query = Table.createQuerySync();
-    var list = query.order('age').skip(2).limit(1).select('name, age');
-    assert.ok(list.length==1);
-    assert.ok(list[0].name == 'Cici');
+    var list = Table.query().order('age').skip(2).limit(1).select('name, age').execSync();
+    assert.equal(list.length, 1);
+    assert.equal(list[0].name, 'Cici');
   });
   
   it('test insert invalid data, validate shoule work', function () {
@@ -218,8 +213,8 @@ describe('test sync actions in table.js', function () {
     data.should.have.property('_id', record._id);
   });
   
-  it('test findAll', function () {
-    var records = Table.findAllSync(record, ['id', 'email', 'name']);
+  it('test query.execSync', function () {
+    var records = Table.query(record).select(['id', 'email', 'name']).execSync();
     assert.ok(records.length == 1);
     records[0].should.have.property('id', record.id);
     records[0].should.have.property('email', record.email);
@@ -237,15 +232,7 @@ describe('test sync actions in table.js', function () {
     var data = Table.readBySync('id', record.id);
     data.should.have.property('_id', record._id);
   });
-  
-  it('test readAll', function () {
-    var records = Table.readAllSync(record);
-    assert.ok(records.length == 1);
-    records[0].should.have.property('id', record.id);
-    records[0].should.have.property('email', record.email);
-    records[0].should.have.property('name', record.name);
-  });
-  
+    
   it('test update', function () {
     var email = 'yyy@hello.com';
     var mobile = '1111';
@@ -283,7 +270,7 @@ describe('test sync actions in table.js', function () {
   
   it('test update all', function () {
     Table.updateAllSync({age: ['>', 20]}, {age: 100});
-    assert.equal(Table.createQuerySync().where('age', 100).count(), 2);
+    assert.equal(Table.query().where('age', 100).execSync().length, 2);
   });
   
   it('test removeSync', function () {
@@ -313,7 +300,7 @@ describe('test sync actions in table.js', function () {
   
   it('test remove all', function () {
     Table.removeAllSync({age: ['>', 10]});
-    assert.ok(Table.createQuerySync().count() == 0);
+    assert.ok(Table.query().execSync().length == 0);
   });
   
   it('test find one none exist', function () {
@@ -322,7 +309,7 @@ describe('test sync actions in table.js', function () {
   });
   
   it('test find all none exist', function () {
-    records = Table.findAllSync({age: ['>', 10]});
+    records = Table.query({age: ['>', 10]}).execSync();
     assert.ok(records.length == 0);
   });
 

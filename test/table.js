@@ -146,6 +146,12 @@ describe('test table.js', function () {
     assert.ok(idLink);
     
   });
+  
+  it('primary ids index file should be created', function () {
+    var exist = fs.existsSync(Table.conn.getTableIndexFile(tableName, '_id'));
+    // console.log(fs.readFileSync(Table.conn.getTableIndexFile(tableName, '_id'), {encoding: 'utf8'}));
+    assert.ok(exist);
+  });
 
   it('test insertAll', function (done) {
     var records = [people2, people3];
@@ -172,24 +178,37 @@ describe('test table.js', function () {
     });
   });
   
-  it('test count', function (done) {
-    Table.createQuery(function (err, query) {
-      should.not.exist(err);
-      assert.ok(query.count() == 3);
-      done();
-    });
-  })
+  // now, three people in db
+  it('primary ids should be appended info index file', function () {
+    var exist = fs.existsSync(Table.conn.getTableIndexFile(tableName, '_id'));
+    var raw = fs.readFileSync(Table.conn.getTableIndexFile(tableName, '_id'), {encoding: 'utf8'});
+    var ids = Table.conn.extortIds(raw);
+    // console.log(ids);
+    assert.equal(ids.length, 3);
+  });
   
   it('test query skip,limit', function (done) {
-    Table.createQuery(function (err, query) {
-      should.not.exist(err);
-      var list = query.order('age').skip(2).limit(1).select('name, age');
-      // console.log(list);
-      assert.ok(list.length==1);
-      assert.ok(list[0].name == 'Cici');
+    
+    Table.query().order('age').skip(2).limit(1).select('name, age').exec(function (e, records) {
+      // console.log(records);
+      assert.equal(records.length, 1);
+      assert.equal(records[0].name, 'Cici');
+      records[0].should.not.have.property('created');
+      records[0].should.have.property('name');
+      records[0].should.have.property('age');
       done();
     });
   });
+  
+  /*
+  it('test count', function (done) {
+    Table.query().exec(function (e, records) {
+      should.not.exist(e);
+      assert.equal(records.length, 3);
+      done();
+    });
+  });
+  */
   
   it('test insert invalid data, validate shoule work', function (done) {
     Table.insert({}, function (err, _record) {
@@ -260,10 +279,10 @@ describe('test table.js', function () {
     })
   });
   
-  it('test findAll', function (done) {
-    Table.findAll(record, ['id', 'email', 'name'], function (err, records) {
+  it('test query.select', function (done) {
+    Table.query(record).select(['id', 'email', 'name']).exec(function (e, records) {
       // console.error(err);
-      should.not.exist(err);
+      should.not.exist(e);
       assert.ok(records.length == 1);
       records[0].should.have.property('id', record.id);
       records[0].should.have.property('email', record.email);
@@ -273,8 +292,8 @@ describe('test table.js', function () {
     });
   });
   
-  it('test findAll with no options', function (done) {
-    Table.findAll(function (err, records) {
+  it('test query with no options', function (done) {
+    Table.query().exec(function (err, records) {
       // console.error(err);
       should.not.exist(err);
       // console.log(records);
@@ -283,8 +302,8 @@ describe('test table.js', function () {
     });
   });
   
-  it('test findAll with select filter sting', function (done) {
-    Table.findAll("id, name", function (err, records) {
+  it('test query with select filter sting', function (done) {
+    Table.query().select("id, name").exec(function (err, records) {
       // console.error(err);
       should.not.exist(err);
       // console.log(records);
@@ -294,7 +313,7 @@ describe('test table.js', function () {
   });
   
   it('test findAll with select filter array', function (done) {
-    Table.findAll(["id", "age"], function (err, records) {
+    Table.query().select(["id", "age"]).exec(function (err, records) {
       // console.error(err);
       should.not.exist(err);
       // console.log(records);
@@ -307,7 +326,7 @@ describe('test table.js', function () {
     Table.read(record._id, function (err, data) {
       var re = /\d{4}\-\d{1,2}\-\d{1,2}\s+\d{1,2}:\d{1,2}:\d{1,2}/i;
       should.not.exist(err);
-      data.should.have.property('id', record.id);
+      // data.should.have.property('id', record.id);
       // console.log(data);
       assert.ok(re.test(data.modified));
       assert.ok(/\$[\d\.]+\*/.test(data.balance));
@@ -315,18 +334,19 @@ describe('test table.js', function () {
     });
   });
   
-  it('test readAll', function (done) {
-    Table.readAll(null, function (err, records) {
+  it('test query.format', function (done) {
+    Table.query().format().exec(function (err, records) {
       // console.error(err);
       should.not.exist(err);
       // console.log(records);
+      assert.ok(/\$[\d\.]+\*/.test(records[0].balance));
       assert.equal(records.length, 3);
       done();
     });
   });
   
-  it('test readAll with options and fields', function (done) {
-    Table.readAll(record, function (err, records) {
+  it('test query.format with options and fields', function (done) {
+    Table.query(record).format().exec(function (err, records) {
       // console.error(err);
       // console.log(records);
       // console.log(records);
@@ -404,8 +424,9 @@ describe('test table.js', function () {
   
   
   it('test remove', function (done) {
+    // console.log('ready to remove %s', record._id);
+    // console.log(record);
     Table.remove(record._id, function (err) {
-      // console.log(Table.conn.getTableIdFile(tableName, ));
       var primaryIdExists = fs.existsSync(Table.conn.getTableIdFile(tableName, record._id));
       var idExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'id', record.id));
       var emailExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'email', record.email));
@@ -432,12 +453,25 @@ describe('test table.js', function () {
     
   });
   
+  
+  it('primary id should be delete in the index file', function () {
+    var raw = fs.readFileSync(Table.conn.getTableIndexFile(tableName, '_id'), {encoding: 'utf8'});
+    var ids = Table.conn.extortIds(raw);
+    // console.log(raw);
+    // console.log(ids);
+    assert.equal(ids.length, 2);
+  });
+  
+  // now, remain two people in db
   it('test remove all', function (done) {
+    // console.log(Table.findAllSync({age: ['>', 10]}));
     Table.removeAll({age: ['>', 10]}, function (err) {
       should.not.exist(err);
       done();
     });
   });
+  
+  
   
   it('test find one none exist', function (done) {
     Table.findBy('email', 'nonexist', function (err, data) {
@@ -448,9 +482,10 @@ describe('test table.js', function () {
   });
   
   it('test find all none exist', function (done) {
-    Table.findAll({age: ['>', 10]}, function (err, data) {
+    Table.query().where('age', '>', 10).exec(function (err, records) {
       should.not.exist(err);
+      assert.equal(records.length, 0);
       done();
-    })
+    });
   });
 });

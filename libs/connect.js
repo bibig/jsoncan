@@ -3,7 +3,7 @@ exports.create = create;
 var fs = require('fs');
 var path = require('path');
 var async = require('async');
-var query = require('./query');
+var Query = require('./query');
 
 // 创建connection
 function create (_path) {
@@ -35,22 +35,24 @@ function create (_path) {
     saveSync: saveSync,
     remove: remove,
     removeSync: removeSync,
-    readFiles: readFiles,
-    readFilesSync: readFilesSync,
-    readAll: readAll,
-    readAllSync: readAllSync,
-    readAllByIndex: readAllByIndex,
-    readAllByIndexSync: readAllByIndexSync,
+    readIdFiles: readIdFiles,
+    readIdFilesSync: readIdFilesSync,
+    readAllIds: readAllIds,
+    readAllIdsSync: readAllIdsSync,
     read: read,
     readSync: readSync,
     readBy: readBy,
     readBySync: readBySync,
+    queryAll: queryAll,
+    queryAllSync: queryAllSync,
     addIndexRecord: addIndexRecord,
     removeIndexRecord: removeIndexRecord,
+    addIdRecord: addIdRecord,
+    removeIdRecord: removeIdRecord,
     indexFilter: indexFilter,
-    indexTargetsToFiles: indexTargetsToFiles,
-    getFilesByIndex: getFilesByIndex,
-    getFilesByIndexSync: getFilesByIndexSync
+    getRecordsByIndex: getRecordsByIndex,
+    getRecordsByIndexSync: getRecordsByIndexSync,
+    extortIds: extortIds
   };
 }
 
@@ -106,7 +108,6 @@ function createTablePaths (table, uniqueFields) {
     var autoIncrementFromNumber = uniqueFields[name];
     var autoIncrementFile;
     
-    // console.log(uniquePath);
     if (!fs.existsSync(uniquePath)) {
       fs.mkdirSync(uniquePath);   
     }
@@ -130,19 +131,6 @@ function encrypt (s) {
 	}
 }
 
-function _readOneCallback (err, data, callback) {
-  if (err) {
-    // record none exist
-    // if (err.errno === 34) {
-    if (err.code === "ENOENT") {
-      callback(null, null);
-    } else {
-      callback(err);
-    }
-  } else {
-    callback(null, JSON.parse(data));
-  }
-}
 
 function _read (file, callback) {
   fs.readFile(file, {encoding: 'utf8'}, function (e, data) {
@@ -191,63 +179,49 @@ function readBySync (table, fieldName, fieldValue) {
   return _readSync(this.getTableUniqueFile(table, fieldName, fieldValue));
 }
 
-// 将读出所有记录
-function readAll (table, callback) {
-  var list = [];
+function readAllIds (table, callback) {
   var _this = this;
-  var _path = this.getTableIdPath(table);
-  
-  fs.readdir(_path, function (err, files) {
-    var tasks;
-    
-    if (err) {
-      callback(err);
-    } else {
-      files = files.map(function (file) {
-        return path.join(_path, file);
-      });
-      
-      _this.readFiles(files, callback);
-    }
-  });
-}
-
-function readAllByIndex (table, options, callback) {
-  var _this = this;
-  
-  this.getFilesByIndex (table, options, function (e, files) {
+  var idsFile = this.getTableIndexFile(table, '_id');
+  fs.readFile(idsFile, function (e, raw) {
+    var ids;
     if (e) {
       callback(e);
     } else {
-      _this.readFiles(files, callback);
+      ids = _this.extortIds(raw);
+      callback(null, ids);
     }
   });
 }
 
-function readAllSync (table) {
-  var list = [];
-  var _path = this.getTableIdPath(table);
-  var files = fs.readdirSync(_path);
-  
-  files = files.map(function (file) {
-    return path.join(_path, file);
-  });
-  
-  return this.readFilesSync(files);
+
+function readAllIdsSync (table, callback) {
+  var idsFile = this.getTableIndexFile(table, '_id');
+  var raw, ids;
+  try {
+    raw = fs.readFileSync(idsFile, {encoding: 'utf8'});
+    return this.extortIds(raw);
+  } catch (e) {
+    if (e.code === "ENOENT") {
+      return [];
+    } else {
+      throw e;
+    }
+  }
 }
 
 function readAllByIndexSync (table, options) {
-  var files = this.getFilesByIndexSync(table, options);
-  return this.readFilesSync(files);
+  var records = this.getRecordsByIndexSync(table, options);
+  var ids = getIdsInRecords(records);
+  return this.readIdFilesSync(table, ids);
 }
 
-function readFiles (files, callback) {
+function readIdFiles (table, ids, callback) {
   var tasks = [];
-
-  files.forEach(function (file) {
-    if (!isValidFile(file)) { return; }
+  var _this = this;
+  
+  ids.forEach(function (_id) {
     tasks.push(function (callback) {
-      fs.readFile(file, function (e, content) {
+      fs.readFile(_this.getTableIdFile(table, _id), function (e, content) {
         if (e) {
           callback(e);
         } else {
@@ -264,13 +238,14 @@ function readFiles (files, callback) {
   }
 }
 
-function readFilesSync (files) {
+function readIdFilesSync (table, ids) {
   var list = [];
+  var _this = this;
   
-  files.forEach(function (file) {
-    if (isValidFile(file)) {
-      list.push(JSON.parse(fs.readFileSync(file)));
-    }
+  ids.forEach(function (_id) {
+    var file = _this.getTableIdFile(table, _id);
+    var string = fs.readFileSync(file);
+    list.push(JSON.parse(string));
   });
   
   return list;
@@ -303,7 +278,6 @@ function linkTableUniqueFile (table, _id, name, value, callback) {
 }
 
 function linkTableUniqueFileSync (table, _id, name, value) {
-  // console.log('linkTableUniqueFileSync, %s = %s', name, value);
   var idFile = this.getTableIdFile(table, _id);
   var linkFile = this.getTableUniqueFile(table, name, value);
   fs.symlinkSync(idFile, linkFile);
@@ -312,7 +286,6 @@ function linkTableUniqueFileSync (table, _id, name, value) {
 function save (table, _id, data, callback) {
   fs.writeFile(this.getTableIdFile(table, _id), JSON.stringify(data), function (e) {
     if (e) {
-      // console.log(e);
       callback(e);
     } else {
       callback(null, data);
@@ -329,7 +302,6 @@ function readTableUniqueAutoIncrementFile (table, name) {
   try {
     var autoIncrementFile = this.getTableUniqueAutoIncrementFile(table, name);
     var value = fs.readFileSync(autoIncrementFile, {encoding: 'utf8'});
-    // console.log('readTableUniqueAutoIncrementFile, %s = %s', name, value);
     return value;
   } catch (e) {
     if (e.code === "ENOENT") {
@@ -341,7 +313,6 @@ function readTableUniqueAutoIncrementFile (table, name) {
 }
 
 function writeTableUniqueAutoIncrementFile (table, name, value) {
-  // console.log('writeTableUniqueAutoIncrementFile, %s = %s', name, value);
   var autoIncrementFile = this.getTableUniqueAutoIncrementFile(table, name);
   fs.writeFileSync(autoIncrementFile, value);
 }
@@ -354,12 +325,22 @@ function writeTableUniqueAutoIncrementFile (table, name, value) {
  */
 function addIndexRecord (table, name, value, _id) {
   var indexFile = this.getTableIndexFile(table, name);
-  fs.appendFileSync(indexFile, indexRecordFormatedString(['+', value + '', _id]));
+  fs.appendFileSync(indexFile, indexRecordFormatedString(['+', _id, value + '']));
 }
 
 function removeIndexRecord  (table, name, value, _id) {
   var indexFile = this.getTableIndexFile(table, name);
-  fs.appendFileSync(indexFile, indexRecordFormatedString(['-', value + '', _id]));
+  fs.appendFileSync(indexFile, indexRecordFormatedString(['-', _id, value + '']));
+}
+
+function addIdRecord (table, _id) {
+  var indexFile = this.getTableIndexFile(table, '_id');
+  fs.appendFileSync(indexFile, indexRecordFormatedString(['+', _id]));
+}
+
+function removeIdRecord (table, _id) {
+  var indexFile = this.getTableIndexFile(table, '_id');
+  fs.appendFileSync(indexFile, indexRecordFormatedString(['-', _id]));
 }
 
 
@@ -371,14 +352,35 @@ function getIndexRecordSplitor () {
   return "\t\t";
 }
 
+function extortIds (content) {
+  var splitor = getIndexRecordSplitor();
+  var re = new RegExp('^([+-])' + splitor + '(.*?)$', "mg");
+  var line;
+  var targets = [];
+  var sign, _id;
+  
+  while (line = re.exec(content)) {
+    sign = line[1];
+    _id = line[2];
+    if (sign == '+') {
+      targets.push(_id);
+    } else if (sign == '-') {
+      targets.splice(targets.indexOf(_id), 1);
+    }
+  }
+  
+  return targets;
+}
+
 // line format: [+-] indexValue <_id>
-function indexFilter (content, filter) {
+function indexFilter (name, content, filter) {
   var splitor = getIndexRecordSplitor();
   var re = new RegExp('^([+-])' + splitor + '(.*?)' + splitor + '(.*?)$', "mg");
   var line;
   var targets = [];
+  var records = {};
   var operator, value;
-  var indexValue, sign, _id;
+  var sign, _id, indexValue;
   
   if (Array.isArray(filter)) {
     operator = filter[0];
@@ -390,9 +392,11 @@ function indexFilter (content, filter) {
   
   while (line = re.exec(content)) {
     sign = line[1];
-    indexValue = line[2];
-    _id = line[3];
-    if (query.compare(indexValue, operator, value)) {
+    _id = line[2];
+    indexValue = line[3];
+    records[_id] = {};
+    records[_id][name] = indexValue;
+    if (Query.compare(indexValue, operator, value)) {
       if (sign == '+') {
         targets.push(_id);
       } else if (sign == '-') {
@@ -400,41 +404,49 @@ function indexFilter (content, filter) {
       }
     }
   }
-
-  return targets;
+  return clone(records, targets);
 }
 
-function indexTargetsToFiles (table, targets) {
-  var files = [];
-  var _this = this;
+function clone (source, keys) {
+  var copycat = {};
+  keys = keys || Object.keys(source);
+  keys.forEach(function (key) {
+    copycat[key] = source[key];
+  });
+  return copycat;
+}
+
+function merge (a, b) {
+  var c = clone(a);
   
-  targets.forEach(function (_id) {
-    files.push(_this.getTableIdFile(table, _id));
+  Object.keys(b).forEach(function (key) {
+    c[key] = b[key];
   });
   
-  return files;
+  return c;
 }
 
-function getFilesByIndex (table, options, callback) {
+function getRecordsByIndex (table, filters, callback) {
   var tasks = [];
   var _this = this;
   var noFileFoundErrorCode = 'NoFiles';
+  var keys = Object.keys(filters);
   
-  Object.keys(options).forEach(function (name) {
+  keys.forEach(function (name) {
     tasks.push(function (callback) {
       var file = _this.getTableIndexFile(table, name);
       fs.readFile(file, function (e, content) {
-        var results, noFileFoundError;
+        var records, noFileFoundError;
         if (e) {
           callback(e);
         } else {
-          results = _this.indexFilter(content, options[name]);
-          if (results.length == 0) {
+          records = _this.indexFilter(name, content, filters[name]);
+          if (Object.keys(records).length == 0) {
             noFileFoundError = new Error();
             noFileFoundError.code = noFileFoundErrorCode;
             callback(noFileFoundError);
           } else {
-            callback(null, results);
+            callback(null, records);
           }
         }
       });    
@@ -449,12 +461,15 @@ function getFilesByIndex (table, options, callback) {
         callback(e);
       }
     } else {
-      callback(null, _this.indexTargetsToFiles(table, getAllIntersection(results)));
+      callback(null, getAllIntersection(results));
     }
   });  
 }
 
-function getFilesByIndexSync (table, options) {
+/**
+ * @return _ids
+ */
+function getRecordsByIndexSync (table, options) {
   var results = [];
   var _this = this;
   var names = Object.keys(options);
@@ -462,34 +477,124 @@ function getFilesByIndexSync (table, options) {
   for (var i = 0; i < names.length; i++) {
     var file = _this.getTableIndexFile(table, names[i]);
     var content = fs.readFileSync(file);
-    var target = _this.indexFilter(content, options[names[i]]);
-    if (target.length == 0) {
+    var records = _this.indexFilter(names[i], content, options[names[i]]);
+    if (Object.keys(records).length == 0) {
       return [];
     } else {
-      results.push(target);
+      results.push(records);
     }
   }
-
-  return this.indexTargetsToFiles(table, getAllIntersection(results));
+  return getAllIntersection(results);
 }
 
 function getAllIntersection (targets) {
   var result = targets.shift();
-  targets.forEach(function (target) {
-    result = getIntersection(result, target);
+  if (targets.length > 0) {
+    targets.forEach(function (target) {
+      result = getIntersection(result, target);
+    });
+  } else {
+    result = idsMapToRecords(result);
+  }
+  return result;
+}
+
+function idsMapToRecords (map) {
+  var records = [];
+  Object.keys(map || {}).forEach(function (_id) {
+    var record = map[_id];
+    record._id = _id;
+    records.push(record);
   });
   
-  return result;
+  return records;
 }
 
 function getIntersection (a, b) {
   var c = [];
-  
-  for (var i = 0; i < a.length; i++) {
-    if (b.indexOf(a[i]) > -1) {
-      c.push(a[i]);
+  Object.keys(a).forEach(function (key) {
+    var d;
+    if (b[key] !== undefined) {
+      d = merge(a[key], b[key]);
+      d._id = key;
+      c.push(d);
     }
-  }
+  });
   
   return c;
+}
+
+function getIdsInRecords (records) {
+  var ids = [];
+  records.forEach(function (record) {
+    ids.push(record._id);
+  });
+  return ids;
+}
+
+function queryAll (table, ids, options, callback) {
+  var limit = options.limit || ids.length;
+  var skip = options.skip || 0;
+  var filters = options.filters;
+  var count = 0;
+  var records = [];
+  var _this = this;
+  
+  async.whilst(
+    function () {
+      return ids.length > 0 && count < limit;
+    },
+    function (callback) {
+      var _id = ids.shift();
+      _this.read(table, _id, function (e, record) {
+        if (e) {
+          callback(e);
+        } else {
+          if (Query.checkHash(record, filters)) {
+            if (skip > 0) {
+              skip--;
+            } else {
+              records.push(record);
+              count++;
+            }
+          }
+          callback();
+        }
+      });
+    
+    },
+    function (e) {
+      if (e) {
+        callback(e);
+      } else {
+        callback(null, records);
+      }
+    }
+  );
+}
+
+function queryAllSync (table, ids, options) {
+  var max = ids.length;
+  var limit = options.limit || max;
+  var skip = options.skip || 0;
+  var filters = options.filters;
+  var record, records = [];
+  var _this = this;
+  
+  for (var i = 0; i < limit; i++) {
+    if (max < 1) { break; }
+    record = _this.readSync(table, ids[i]);
+    if (Query.checkHash(record, filters)) {
+      if (skip > 0) {
+        skip--;
+      } else {
+        records.push(record);
+      }
+    }
+    
+    max--;
+  }
+  
+  return records;
+  
 }

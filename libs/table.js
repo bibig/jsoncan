@@ -14,7 +14,6 @@ var error = require('./error');
 var Validator = require('./validator');
 var safepass = require('safepass');
 
-
 /**
  * create table object
  *  
@@ -49,22 +48,14 @@ function create (ctx, table) {
     present: function (name, value, data) { return this.schemas.present(name, value, data); },
     format: function (data) { return this.schemas.presentAll(data);},
     formatAll: formatAll,
-    createQuery: createQuery,
-    createQuerySync: createQuerySync,
     read: read,
     readSync: readSync,
     readBy: readBy,
     readBySync: readBySync,
-    readAll: readAll,
-    readAllSync: readAllSync,
     find: find,
     findBy: findBy,
     findSync: findSync,
     findBySync: findBySync,
-    _findAll: _findAll,
-    _findAllSync: _findAllSync,
-    findAll: findAll,
-    findAllSync: findAllSync,
     insert: insert,
     insertSync: insertSync,
     insertAll: insertAll,
@@ -95,103 +86,129 @@ function create (ctx, table) {
     create: model, // alias model
     load: load,
     loadBy: loadBy,
-    // isValidPassword: isValidPassword // deprecated
     updateAutoIncrementValues: updateAutoIncrementValues,
     addIndexRecords: addIndexRecords,
     removeIndexRecords: removeIndexRecords,
-    getIndexOptions: getIndexOptions,
-    getNoneIndexOptions: getNoneIndexOptions
+    addIdRecord: addIdRecord,
+    removeIdRecord: removeIdRecord,
+    getIndexFilters: getIndexFilters,
+    getNoneIndexFilters: getNoneIndexFilters,
+    getIndexOrders: getIndexOrders,
+    getNoneIndexOrders: getNoneIndexOrders,
+    getIdsOrderedByIndex: getIdsOrderedByIndex,
+    queryAll: queryAll,
+    queryAllSync: queryAllSync,
+    query: query,
+    localQuery: localQuery
   };
 }
 
+/**
+ * model way
+ */
+
 function model (data) {
   var parent = this; // Table
-  var _model = {
-    isNew: (data._id ? false : true),
-    data: data,
-    messages: null, // validate messages
-    get: function (name) { return this.data[name]; },
-    read: function (name) {
-      if (name) {
-        return parent.present(name, this.data[name], this.data);
-      } else {
-        return parent.format(this.data);
-      }
-    },
-    set: function (/*name, value | hash*/) { 
-      var _this = this;
-      var map;
-      
-      if (arguments.length == 2) {
-        this.data[arguments[0]] = arguments[1]; 
-      } else if (arguments.length == 1 && typeof arguments[0] == 'object') {
-        map = arguments[0];
-        Object.keys(map).forEach(function (name) {
-          _this.data[name] = map[name];
-        });
-      }
+  var m = {};
+  
+  m.isNew = data._id ? false : true;
+  
+  m.data = data;
+  
+  m.messages = null;
+  
+  m.get = function (name) { 
+    return this.data[name]; 
+  };
+  
+  m.set = function (/*name, value | hash*/) { 
+    var _this = this;
+    var map;
+    
+    if (arguments.length == 2) {
+      this.data[arguments[0]] = arguments[1]; 
+    } else if (arguments.length == 1 && typeof arguments[0] == 'object') {
+      map = arguments[0];
+      Object.keys(map).forEach(function (name) {
+        _this.data[name] = map[name];
+      });
+    }
 
-      return this;
-    },
-    validate: function () {
-      var data = parent.schemas.addValues(this.data);
-      var check = parent.validate(this.data);
-      this.messages = check.getMessages();
-      this.isValid = check.isValid();
-      return this.isValid;
-    },
-    getPrimaryId: function () { return this.get('_id'); },
-    save: function (callback) {
-      var _this = this;
-      
-      if (this.isNew) { // update
-        parent.insert(this.data, function (e, record) {
-          if (e) {
-            callback(e);
-          } else {
-            _this.data = record;
-            _this.isNew = false;
-            callback(null, record);
-          }  
-        });        
-      } else {
-        parent.update(this.getPrimaryId(), this.data, function (e, record) {
-          if (e) {
-            callback(e);
-          } else {
-            _this.data = record;
-            callback(null, record);
-          }  
-        });
-      }
-    },
-    saveSync: function () {
-      var _this = this;
-      if (this.isNew) { // update
-        this.data = parent.insertSync(this.data);        
-        this.isNew = false;
-      } else {
-        this.data = parent.updateSync(this.getPrimaryId(), this.data);
-      }
-      return this;
-    },
-    remove: function (callback) {
-      parent.remove(this.getPrimaryId(), callback);
-    },
-    removeSync: function () {
-      parent.removeSync(this.getPrimaryId());
-    },
-    isValidPassword: function (pass, passwordFieldName) {
-      passwordFieldName = passwordFieldName || 'password';
-      if (parent.schemas.isType(passwordFieldName, 'password')) { // check whether the field is password
-        return parent.schemas.isValidPassword(this.data[passwordFieldName], pass);
-      } else {
-        return false;
-      }
+    return this;
+  };
+  
+  m.read = function (name) {
+    if (name) {
+      return parent.present(name, this.data[name], this.data);
+    } else {
+      return parent.format(this.data);
     }
   };
   
-  return _model;
+  m.validate = function () {
+    var data = parent.schemas.addValues(this.data);
+    var check = parent.validate(this.data);
+    this.messages = check.getMessages();
+    this.isValid = check.isValid();
+    return this.isValid;
+  };
+  
+  m.getPrimaryId = function () { return this.get('_id'); };
+  
+  m.save = function (callback) {
+    var _this = this;
+    
+    if (this.isNew) { // update
+      parent.insert(this.data, function (e, record) {
+        if (e) {
+          callback(e);
+        } else {
+          _this.data = record;
+          _this.isNew = false;
+          callback(null, record);
+        }  
+      });        
+    } else {
+      parent.update(this.getPrimaryId(), this.data, function (e, record) {
+        if (e) {
+          callback(e);
+        } else {
+          _this.data = record;
+          callback(null, record);
+        }  
+      });
+    }
+  };
+  
+  m.saveSync = function () {
+    var _this = this;
+    if (this.isNew) { // update
+      this.data = parent.insertSync(this.data);        
+      this.isNew = false;
+    } else {
+      this.data = parent.updateSync(this.getPrimaryId(), this.data);
+    }
+    return this;
+  };
+  
+  m.remove = function (callback) {
+    parent.remove(this.getPrimaryId(), callback);
+  };
+  
+  m.removeSync = function () {
+    parent.removeSync(this.getPrimaryId());
+  };
+
+  m.isValidPassword = function (pass, passwordFieldName) {
+    passwordFieldName = passwordFieldName || 'password';
+    if (parent.schemas.isType(passwordFieldName, 'password')) { // check whether the field is password
+      return parent.schemas.isValidPassword(this.data[passwordFieldName], pass);
+    } else {
+      return false;
+    }
+  };
+  
+  return m;
 }
 
 function load (_id) {
@@ -240,59 +257,6 @@ function hasKeys (obj) {
   return Object.keys(obj).length > 0;
 }
 
-function _findAll (options, callback) {
-  var indexOptions = this.getIndexOptions(options); 
-  if (hasKeys(indexOptions)) {  
-    this.conn.readAllByIndex(this.table, indexOptions, callback);
-  } else {
-    this.conn.readAll(this.table, callback);
-  }
-}
-
-function  _findAllSync (options) {
-  var indexOptions = this.getIndexOptions(options); 
-  // console.log(indexOptions);
-  if (hasKeys(indexOptions)) {  
-    return this.conn.readAllByIndexSync(this.table, indexOptions);
-  } else {
-    return this.conn.readAllSync(this.table);
-  }
-}
-
-/**
- * 创建查询对象
- * 所有多条查询的前提都是findAll后在过滤出符合条件的数据
- * @callback(err, Query object) 参考Query
- */
-function createQuery (/*options, callback*/) {
-  var options = {}, callback;
-  
-  if (arguments.length == 1) {
-    callback = arguments[0];
-  } else if (arguments.length == 2) {
-    options = arguments[0];
-    callback = arguments[1];
-  }
-  
-  this._findAll(options, function (err, records) {
-    if (err) {
-      callback(err);
-    } else {
-      callback(null, Query.create(records));
-    }
-  });
-}
-
-function createQuerySync (/*options*/) {
-  var options = {};
-  
-  if (arguments.length == 1) {
-    options = arguments[0];
-  }
-
-  return Query.create(this._findAllSync(options));
-}
-
 /**
  * 插入一条记录
  * 步骤：
@@ -317,6 +281,7 @@ function insert (_data, callback) {
       _this.updateAutoIncrementValues(record);
       // add all index records
       _this.addIndexRecords(record);
+      _this.addIdRecord(record._id);
       callback(null, record);
     }
   });
@@ -326,7 +291,6 @@ function insert (_data, callback) {
  * sync way of insert
  */
 function insertSync (data) {
-
   // filter data, make sure it is safe
   data = this.schemas.filterData(data);
   
@@ -341,6 +305,7 @@ function insertSync (data) {
   this.updateAutoIncrementValues(data);
   // add all index records
   this.addIndexRecords(data);
+  this.addIdRecord(data._id);
   
   return data;
 }
@@ -578,7 +543,6 @@ function getChangedFields (data, record) {
  */ 
 function getRealUpdateData (data, record) {
   var target = {}; // 避免data中夹杂schemas没有定义的数据
-  // console.log(changedFields);
   this.schemas.forEachField(function (name, field) {
     if (data[name] == undefined) {
       target[name] = record[name];
@@ -606,12 +570,11 @@ function updateAll (options, data, callback) {
     return tasks;
   }
   
-  this.createQuery(options, function (err, query) {
-    var records, tasks;
+  this.query(options).exec(function (err, records) {
+    var tasks;
     if (err) {
       callback(err);
     } else {
-      records = query.filter(_this.getNoneIndexOptions(options)).select();
       if (records.length > 0) { // no data found after filter,
         tasks = makeUpdateTasks(records);
         async.parallelLimit(tasks, 150, callback);
@@ -621,12 +584,14 @@ function updateAll (options, data, callback) {
     }
     
   });
+
 }
 
 function updateAllSync (options, data) {
   var _this = this;
   var results = [];
-  var records = this.createQuerySync(options).filter(this.getNoneIndexOptions(options)).select();
+  // var records = this.createQuerySync(options).filter(this.getNoneIndexFilters(options)).select();
+  var records = this.query(options).execSync();
   records.forEach(function (record) {
     results.push(_this._updateSync(data, record));
   });
@@ -639,20 +604,16 @@ function updateAllSync (options, data) {
  * @_id: primary id
  * @callback(err)
  */
+
 function remove (_id, callback) { 
   var _this = this;
-  
-  if (this.schemas.hasUniqueField()) {
-    this.find(_id, function (err, record) {
-      if (err) {
-        callback(err);
-      } else {
-        _this._remove(record, callback);
-      }
-    });
-  } else {
-    this.conn.remove(this.table, _id, callback);
-  }
+  this.find(_id, function (err, record) {
+    if (err) {
+      callback(err);
+    } else {
+      _this._remove(record, callback);
+    }
+  });
 }
 
 function removeSync (_id) {
@@ -664,16 +625,18 @@ function removeSync (_id) {
 }
 
 function _remove (record, callback) {
+  var _this = this;
   // no data found
   if (!record) {
     callback();
   } else {
-    this.unlinkEachUniqueField(record);
-    this.removeIndexRecords(record);
     this.conn.remove(this.table, record._id, function (e) {
       if (e) {
         callback(e);
       } else {
+        _this.unlinkEachUniqueField(record);
+        _this.removeIndexRecords(record);
+        _this.removeIdRecord(record._id);
         callback(null, record);
       }
     });
@@ -682,9 +645,10 @@ function _remove (record, callback) {
 
 function _removeSync (record) {
   if (!record) return;
+  this.conn.removeSync(this.table, record._id);
   this.unlinkEachUniqueField(record);
   this.removeIndexRecords(record);
-  this.conn.removeSync(this.table, record._id);
+  this.removeIdRecord(record._id);
 }
 
 function removeBy (field, value, callback) {
@@ -718,13 +682,10 @@ function removeAll (options, callback) {
     return tasks;
   }
   
-  this.createQuery(options, function (err, query) {
-    var records;
-    
+  this.query(options).exec(function (err, records) {
     if (err) {
       callback(err);
     } else {
-      records = query.filter(_this.getNoneIndexOptions(options)).select();
       if (records.length > 0) {
         async.parallelLimit(makeRemoveTasks(records), 150, callback);
         /*
@@ -746,7 +707,7 @@ function removeAll (options, callback) {
 
 function removeAllSync (options, callback) {
   var _this = this;
-  var records = this.createQuerySync(options).filter(this.getNoneIndexOptions(options)).select();
+  var records = this.query(options).select().execSync();
   records.forEach(function (record) {
     _this._removeSync(record);
   });
@@ -775,51 +736,6 @@ function findBySync (name, value) {
   return this.conn.readBySync(this.table, name, value); 
 }
 
-function findAll (/*options, fields, callback*/) {
-  var _this = this;
-  var options;
-  var fields;
-  var callback;
-  
-  switch (arguments.length) {
-    case 1: // no options
-      callback = arguments[0];
-      break;
-    case 2: // hash options
-      if (Array.isArray(arguments[0]) || typeof arguments[0] == 'string') {
-        fields = arguments[0];
-      } else if (typeof arguments[0] == 'object') {
-        options = arguments[0];  
-      }
-      callback = arguments[1];
-      break;
-    case 3:
-    default:
-      options = arguments[0];
-      fields = arguments[1];
-      callback = arguments[2];
-      break;
-  }
-  
-  if (!options && !fields) {
-    return this._findAll({}, callback);
-  }
-  
-  this.createQuery(options, function (err, query) {
-    var records;
-    if (err) {
-      callback(err);
-    } else {
-      // console.log(query.records);
-      records = query.filter(_this.getNoneIndexOptions(options)).select(fields);
-      callback(null, records);
-    }
-  }); 
-}
-
-function findAllSync (options, fields) {
-  return this.createQuerySync(options).filter(this.getNoneIndexOptions(options)).select(fields);
-}
 
 function validate (data, changedFields) {
   var _this = this;
@@ -860,7 +776,6 @@ function save (data, callback, changedFields) {
  * @throw error 1300 表示数据校验失败
  */
 function saveSync (data, changedFields) {
-  // console.log(changedFields);
   var check = this.validate(data, changedFields);
   
   if (check.isValid()) {
@@ -890,6 +805,16 @@ function removeIndexRecords (data, targetFields) {
     _this.conn.removeIndexRecord(_this.table, name, data[name], data._id);
   }, targetFields);
 }
+
+
+function addIdRecord (_id) {
+  this.conn.addIdRecord(this.table, _id);
+}
+
+function removeIdRecord (_id) {
+  this.conn.removeIdRecord(this.table, _id);
+}
+
 
 function read (_id, callback) {
   var _this = this;
@@ -927,50 +852,6 @@ function readBySync (name, value) {
   return data ? this.format(data) : null;
 }
 
-// should keep params same with findAll
-function readAll (/*options, callback*/) {
-  var _this = this;
-  var last = arguments.length - 1;
-  var callback = arguments[last];
-  var args = [];
-  
-  for (var i = 0; i < last; i++) {
-    args.push(arguments[i]);
-  }
-  
-  args.push(function (e, records) {
-    if (e) {
-      callback(e);
-    } else if (records.length > 0) {
-      records = _this.formatAll(records);
-      callback(null, records);
-    } else {
-      callback(null, [])
-    }
-  });
-  
-  this.findAll.apply(this, args);
-  
-  /*
-  this.findAll(options, function (e, records) {
-    if (e) {
-      callback(e);
-    } else if (records.length > 0) {
-      records = _this.formatAll(records);
-      console.log(callback);
-      callback(null, records);
-    } else {
-      callback(null, [])
-    }
-  });
-  */
-}
-
-function readAllSync (options) {
-  var data = this.findAllSync(options);
-  return data.length > 0 ? this.formatAll(data) : data; 
-}
-
 function updateAutoIncrementValues (data) {
   var _this = this;
   this.schemas.forEachUniqueField(function (name, field, schemas) {
@@ -982,11 +863,38 @@ function updateAutoIncrementValues (data) {
   });
 }
 
-function getIndexOptions (options) {
+
+function getIndexOrders (orders) {
+  var indexOrders = {};
+  
+  if (!orders) return {};
+  
+  this.schemas.forEachIndexField(function (name, field) {
+    indexOrders[name] = orders[name];
+  }, orders);
+  
+  return indexOrders;
+}
+
+function getNoneIndexOrders (orders) {
+  var noneIndexOrders = {};
+  
+  if (!orders) return {};
+  
+  this.schemas.forEachField(function (name, field, that) {
+    if (!that.isIndex(field)) {
+      noneIndexOrders[name] = orders[name];
+    }
+  }, orders);
+  
+  return noneIndexOrders;
+}
+
+function getIndexFilters (options) {
   var indexOptions = {};
   
   if (!options) return {};
-  
+  // console.log(options);
   this.schemas.forEachIndexField(function (name, field) {
     indexOptions[name] = options[name];
   }, options);
@@ -998,7 +906,7 @@ function getIndexOptions (options) {
   }
 }
 
-function getNoneIndexOptions (options) {
+function getNoneIndexFilters (options) {
   var noneIndexOptions = {};
   
   if (!options) return {};
@@ -1014,4 +922,285 @@ function getNoneIndexOptions (options) {
   } else {
     return {};
   }
+}
+
+function queryAll (options, callback) {
+  var indexFilters = this.getIndexFilters(options.filters);
+  var noneIndexFilters = this.getNoneIndexFilters(options.filters);
+  var indexOrders = this.getIndexOrders(options.orders);
+  var noneIndexOrders = this.getNoneIndexOrders(options.orders);
+  var _this = this;
+  var indexFilterKeys = Object.keys(indexFilters); 
+  var noneIndexOrdersKeys = Object.keys(noneIndexOrders);
+  
+  // console.log(options);
+  
+  function queryIdsOneByOne (ids) {
+    var newOptions = { filters: noneIndexFilters };
+    
+    if (noneIndexOrdersKeys.length == 0) {
+      newOptions.limit = options.limit;
+      newOptions.skip = options.skip;
+    }
+      
+    _this.conn.queryAll(_this.table, ids, newOptions, function (e, records) {
+      var query;
+      if (e) {
+        callback(e);
+      } else {
+        records = _this.localQuery(records, {
+          noneIndexOrders: noneIndexOrders,
+          noneIndexOrdersKeys: noneIndexOrdersKeys,
+          limit: options.limit,
+          select: options.select,
+          skip: options.skip
+        });
+        callback(null, records);
+        
+        /*
+        if (options.select || noneIndexOrdersKeys.length > 0) {
+          // console.log(noneIndexOrders);
+          // console.log(records);
+          query = Query.create(records);
+          noneIndexOrdersKeys.forEach(function (name) {
+            query = query.order(name, noneIndexOrders[name]);
+          });
+          callback(null, query.select(options.select));
+        } else {
+          callback(null, records);
+        } 
+        */ 
+      }
+    });
+  }
+  
+  // no index filter defined, need to read all ids.
+  if (indexFilterKeys.length == 0 ) {
+    this.conn.readAllIds(this.table, function (e, ids) {
+      if (e) {
+        callback(e);
+      } else {
+        queryIdsOneByOne(ids);
+      }
+    });
+  } else { // can use index filter
+    this.conn.getRecordsByIndex(this.table, indexFilters, function (e, idRecords) {
+      var ids;
+      if (e) {
+        callback(e);
+      } else {
+        // console.log(idRecords);
+        ids = _this.getIdsOrderedByIndex(idRecords, indexOrders);
+        // console.log(ids);
+        queryIdsOneByOne(ids);
+      }
+    });
+  }
+}
+
+function queryAllSync (options) {
+  var indexFilters = this.getIndexFilters(options.filters);
+  var noneIndexFilters = this.getNoneIndexFilters(options.filters);
+  var indexOrders = this.getIndexOrders(options.orders);
+  var noneIndexOrders = this.getNoneIndexOrders(options.orders);
+  var idRecords;
+  var indexFilterKeys = Object.keys(indexFilters);
+  var ids, newOptions, records;
+  var noneIndexOrdersKeys = Object.keys(noneIndexOrders);
+  
+  if (indexFilterKeys.length == 0) {
+    ids = this.conn.readAllIdsSync(this.table);
+  } else {
+    idRecords = this.conn.getRecordsByIndexSync(this.table, indexFilters);
+    ids = this.getIdsOrderedByIndex(idRecords, indexOrders);
+  }
+  
+  newOptions = { filters: noneIndexFilters };
+  
+  if (noneIndexOrdersKeys.length == 0) {
+    newOptions.limit = options.limit;
+    newOptions.skip = options.skip;
+  }
+  
+  records = this.conn.queryAllSync(this.table, ids, newOptions);
+  
+  return this.localQuery(records, {
+    noneIndexOrders: noneIndexOrders,
+    noneIndexOrdersKeys: noneIndexOrdersKeys,
+    select: options.select,
+    limit: options.limit,
+    skip: options.skip
+  });
+  /*
+  if (noneIndexOrdersKeys.length > 0) {
+    query = Query.create(records);
+    Object.keys(noneIndexOrders).forEach(function (name) {
+      query = query.order(name, noneIndexOrders[name]);
+    });
+    
+    if (options.skip) {
+      query = query.skip(options.skip);
+    }
+    
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+  }
+  
+  if (options.select) {
+    if (!query) {
+      query = Query.create(records);
+    }
+    records = query.select(options.select);
+  }
+  
+  return records;
+  */
+}
+
+function localQuery (records, options) {
+  var query;
+  if (options.noneIndexOrdersKeys.length > 0) {
+    query = Query.create(records);
+    options.noneIndexOrdersKeys.forEach(function (name) {
+      query = query.order(name, options.noneIndexOrders[name]);
+    });
+    
+    if (options.skip) {
+      query = query.skip(options.skip);
+    }
+    
+    if (options.limit) {
+      query = query.limit(options.limit);
+    }
+    
+    records = query.select();
+  }
+  
+  if (options.select) {
+    if (!query) {
+      query = Query.create(records);
+    }
+    records = query.select(options.select);
+  }
+  
+  return records;
+}
+
+function getIdsOrderedByIndex (records, orders) {
+  var orderQuery = Query.create(records);
+  var fields = Object.keys(orders);
+  var ids = [];
+  
+  if (fields.length > 0 ) {
+    fields.forEach(function (name) {
+      orderQuery.order(name, orders[name]);
+    });
+  }
+  
+  records = orderQuery.select('_id');
+  records.forEach(function (record) {
+    ids.push(record._id);  
+  });
+  
+  return ids;
+}
+
+// new version of query
+function query (filters) {
+  var parent = this;
+  
+  function where (field/*filter*/) {
+    var filter;
+  
+    if (arguments.length == 2) {
+      filter = arguments[1];
+    } else if (arguments.length == 3) {
+      filter = [arguments[1], arguments[2]];
+    } else {
+      return this;
+    }
+    
+    this.options.filters[field] = filter;
+    return this;
+  }
+  
+  function order (field, isDescend) {
+    this.options.orders[field] = isDescend ? true : false;
+    return this;
+  }
+  
+  function limit (n) {
+    this.options.limit = n;
+    return this;
+  }
+  
+  function skip (n) {
+    this.options.skip = n;
+    return this;
+  }
+  
+  function select () {
+    var args = [];
+    if (arguments.length == 1) {
+      this.options.select = arguments[0];
+    } else if (arguments.length > 1) {
+      for (var i = 0; i < arguments.length; i++ ) {
+        args.push(arguments[i]);
+      }
+      this.options.select = args;
+    }
+    
+    //  console.log(this.options.select);
+    return this;
+  }
+  
+  function format () {
+    this.options.isFormat = true;
+    return this;
+  }
+  
+  function exec (callback) {
+    // console.log(this.options);
+    // console.log(this.options.orders);
+    var _this = this;
+    parent.queryAll(this.options, function (e, records) {
+      if (e) {
+        callback(e);
+      } else if (_this.options.isFormat) {
+        callback(null, parent.formatAll(records));
+      } else {
+        callback(null, records);
+      }
+    });
+  }
+  
+  function execSync () {
+    var records = parent.queryAllSync(this.options);
+    if (this.options.isFormat) {
+      return parent.formatAll(records);
+    } else {
+      return records;
+    }
+  }
+  
+
+  return {
+    options: {
+      filters: filters || {},
+      orders: {},
+      limit: null,
+      skip: null,
+      select: null,
+      isFormat: false
+    },
+    where: where,
+    order: order,
+    limit: limit,
+    skip: skip,
+    select: select,
+    format: format,
+    exec: exec,
+    execSync: execSync
+  };
 }
