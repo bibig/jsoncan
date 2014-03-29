@@ -2,7 +2,7 @@
 
 + An agile json based database.
 + load seamlessly with zero config.
-+ if you are developing a project demo or a static site, or based on small data project like company offical sites, jsoncan is quite useful.
++ if you are developing a project like static site, personal blog or business website, jsoncan will be quite useful.
 + all the data is saved in json files, it's like a cache system, and it works the way.
 + using in the right place, it will be convenient, fast and effective.
 
@@ -11,7 +11,7 @@
  npm install jsoncan
 
 ## Version
-  1.0.6
+  1.0.7
 
 ## Usage	
 
@@ -45,6 +45,9 @@
 		    
 	// create or open a table.
 	var People = can.open('people'); // can.table('people') do the same thing.
+	
+	// create table with schemas.
+	var Doctor = can.open('doctor', schemas);
 	
 ```
 
@@ -84,13 +87,13 @@ find and findBy only return one record, when no data found, they will return nul
 ```
 
 ### query
-find multiply records in natural and intuitive way. 
+if you want to find multiply records, use query. 
 
 ```javascript
 
-  // eg:
+  // query(filters).exec(callback);
 	Product.query({price: ['>', 100], name: ['like', '%haha%']}).exec(function (e, records) {...} );
-	// or
+	// using where()
 	Product.query()
 	  .where('price', '>', 100)
 	  .where('name', 'like', '%haha%')
@@ -162,10 +165,10 @@ find multiply records in natural and intuitive way.
 ### remove
 ```javascript
 
-	// delete one
+	// delete one record
 	User.remove(_id, function (e) {...});
 	User.removeBy('class', 'xxx', function (e) {...});
-	// delete all
+	// delete mutilple records
 	User.removeAll({age, 10}, function (e) {...});
 	// sync way
 	User.removeSync(_id);
@@ -176,8 +179,6 @@ find multiply records in natural and intuitive way.
 ```
 
 ### the model way
-model is like "query" style, it's more intuitive too.
-
 There are three ways to create a model object: 
 
 + var model = Table.create({/*data*/});
@@ -189,7 +190,7 @@ There are three ways to create a model object:
 	var Product = can.open('product');
 	
 	// create a new one
-	var productA = Product.model({name: 'xxx'}); // or Product.create({...});
+	var productA = Product.create({name: 'xxx'}); // or Product.model({...});
 	productA.set(price, 2.99);
 	product.save(function (e, records) {...});
 	
@@ -231,7 +232,7 @@ so far, you can add these rules.
 + min // min size
 + maxValue
 + minValue
-+ pattern []regex object]
++ pattern [regex object]
 
 in insert or update process, if validate failed, it will throw an error.
 

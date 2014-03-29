@@ -31,28 +31,26 @@ function create (_path) {
     linkTableUniqueFileSync: linkTableUniqueFileSync,
     unlinkTableUniqueFile: unlinkTableUniqueFile,
     unlinkTableUniqueFileSync: unlinkTableUniqueFileSync,
-    save: save, // for insert or update
+    save: save,
     saveSync: saveSync,
     remove: remove,
     removeSync: removeSync,
-    readIdFiles: readIdFiles,
-    readIdFilesSync: readIdFilesSync,
     readAllIds: readAllIds,
     readAllIdsSync: readAllIdsSync,
     read: read,
     readSync: readSync,
     readBy: readBy,
     readBySync: readBySync,
+    readIndex: readIndex,
+    readIndexSync: readIndexSync,
+    readAllIndexes: readAllIndexes,
+    readAllIndexesSync: readAllIndexesSync,
     queryAll: queryAll,
     queryAllSync: queryAllSync,
     addIndexRecord: addIndexRecord,
     removeIndexRecord: removeIndexRecord,
     addIdRecord: addIdRecord,
-    removeIdRecord: removeIdRecord,
-    indexFilter: indexFilter,
-    getRecordsByIndex: getRecordsByIndex,
-    getRecordsByIndexSync: getRecordsByIndexSync,
-    extortIds: extortIds
+    removeIdRecord: removeIdRecord
   };
 }
 
@@ -74,7 +72,7 @@ function getTableUniquePath (table, name) {
 }
 
 function getTableUniqueFile (table, name, value) {
-  return path.join(this.getTableUniquePath(table, name), encrypt(value) + '.js');
+  return path.join(this.getTableUniquePath(table, name), _encrypt(value) + '.js');
 }
 
 function getTableUniqueAutoIncrementFile (table, name) {
@@ -122,7 +120,7 @@ function createTablePaths (table, uniqueFields) {
   });
 }
 
-function encrypt (s) {
+function _encrypt (s) {
   if (s !== '' && (typeof s === 'string' || typeof s === 'number')) {
     s = s + '';
 	  return require('crypto').createHash('sha1').update(s).digest('hex');
@@ -187,7 +185,7 @@ function readAllIds (table, callback) {
     if (e) {
       callback(e);
     } else {
-      ids = _this.extortIds(raw);
+      ids = _extortIds(raw);
       callback(null, ids);
     }
   });
@@ -199,7 +197,7 @@ function readAllIdsSync (table, callback) {
   var raw, ids;
   try {
     raw = fs.readFileSync(idsFile, {encoding: 'utf8'});
-    return this.extortIds(raw);
+    return _extortIds(raw);
   } catch (e) {
     if (e.code === "ENOENT") {
       return [];
@@ -207,52 +205,6 @@ function readAllIdsSync (table, callback) {
       throw e;
     }
   }
-}
-
-function readAllByIndexSync (table, options) {
-  var records = this.getRecordsByIndexSync(table, options);
-  var ids = getIdsInRecords(records);
-  return this.readIdFilesSync(table, ids);
-}
-
-function readIdFiles (table, ids, callback) {
-  var tasks = [];
-  var _this = this;
-  
-  ids.forEach(function (_id) {
-    tasks.push(function (callback) {
-      fs.readFile(_this.getTableIdFile(table, _id), function (e, content) {
-        if (e) {
-          callback(e);
-        } else {
-          callback(null, JSON.parse(content));
-        }
-      })
-    });
-  });
-  
-  if (tasks.length > 0) {
-    async.parallelLimit(tasks, 150, callback);
-  } else {
-    callback(null, []);
-  }
-}
-
-function readIdFilesSync (table, ids) {
-  var list = [];
-  var _this = this;
-  
-  ids.forEach(function (_id) {
-    var file = _this.getTableIdFile(table, _id);
-    var string = fs.readFileSync(file);
-    list.push(JSON.parse(string));
-  });
-  
-  return list;
-}
-
-function isValidFile (file) {
-  return file.split('.').pop() == 'js';
 }
 
 function remove (table, _id, callback) {
@@ -345,15 +297,18 @@ function removeIdRecord (table, _id) {
 
 
 function indexRecordFormatedString (arr) {
-  return arr.join(getIndexRecordSplitor()) + "\n";
+  return arr.join(_getIndexRecordSplitor()) + "\n";
 }
 
-function getIndexRecordSplitor () {
+function _getIndexRecordSplitor () {
   return "\t\t";
 }
 
-function extortIds (content) {
-  var splitor = getIndexRecordSplitor();
+/**
+ * return [_id1, _id2, ...]
+ */
+function _extortIds (content) {
+  var splitor = _getIndexRecordSplitor();
   var re = new RegExp('^([+-])' + splitor + '(.*?)$', "mg");
   var line;
   var targets = [];
@@ -370,166 +325,6 @@ function extortIds (content) {
   }
   
   return targets;
-}
-
-// line format: [+-] indexValue <_id>
-function indexFilter (name, content, filter) {
-  var splitor = getIndexRecordSplitor();
-  var re = new RegExp('^([+-])' + splitor + '(.*?)' + splitor + '(.*?)$', "mg");
-  var line;
-  var targets = [];
-  var records = {};
-  var operator, value;
-  var sign, _id, indexValue;
-  
-  if (Array.isArray(filter)) {
-    operator = filter[0];
-    value = filter[1];
-  } else {
-    operator = '=';
-    value = filter;
-  }
-  
-  while (line = re.exec(content)) {
-    sign = line[1];
-    _id = line[2];
-    indexValue = line[3];
-    records[_id] = {};
-    records[_id][name] = indexValue;
-    if (Query.compare(indexValue, operator, value)) {
-      if (sign == '+') {
-        targets.push(_id);
-      } else if (sign == '-') {
-        targets.splice(targets.indexOf(_id), 1);
-      }
-    }
-  }
-  return clone(records, targets);
-}
-
-function clone (source, keys) {
-  var copycat = {};
-  keys = keys || Object.keys(source);
-  keys.forEach(function (key) {
-    copycat[key] = source[key];
-  });
-  return copycat;
-}
-
-function merge (a, b) {
-  var c = clone(a);
-  
-  Object.keys(b).forEach(function (key) {
-    c[key] = b[key];
-  });
-  
-  return c;
-}
-
-function getRecordsByIndex (table, filters, callback) {
-  var tasks = [];
-  var _this = this;
-  var noFileFoundErrorCode = 'NoFiles';
-  var keys = Object.keys(filters);
-  
-  keys.forEach(function (name) {
-    tasks.push(function (callback) {
-      var file = _this.getTableIndexFile(table, name);
-      fs.readFile(file, function (e, content) {
-        var records, noFileFoundError;
-        if (e) {
-          callback(e);
-        } else {
-          records = _this.indexFilter(name, content, filters[name]);
-          if (Object.keys(records).length == 0) {
-            noFileFoundError = new Error();
-            noFileFoundError.code = noFileFoundErrorCode;
-            callback(noFileFoundError);
-          } else {
-            callback(null, records);
-          }
-        }
-      });    
-    });
-  });
-
-  async.series(tasks, function (e, results) {
-    if (e) {
-      if (e.code == noFileFoundErrorCode) {
-        callback(null, []);
-      } else {
-        callback(e);
-      }
-    } else {
-      callback(null, getAllIntersection(results));
-    }
-  });  
-}
-
-/**
- * @return _ids
- */
-function getRecordsByIndexSync (table, options) {
-  var results = [];
-  var _this = this;
-  var names = Object.keys(options);
-  
-  for (var i = 0; i < names.length; i++) {
-    var file = _this.getTableIndexFile(table, names[i]);
-    var content = fs.readFileSync(file);
-    var records = _this.indexFilter(names[i], content, options[names[i]]);
-    if (Object.keys(records).length == 0) {
-      return [];
-    } else {
-      results.push(records);
-    }
-  }
-  return getAllIntersection(results);
-}
-
-function getAllIntersection (targets) {
-  var result = targets.shift();
-  if (targets.length > 0) {
-    targets.forEach(function (target) {
-      result = getIntersection(result, target);
-    });
-  } else {
-    result = idsMapToRecords(result);
-  }
-  return result;
-}
-
-function idsMapToRecords (map) {
-  var records = [];
-  Object.keys(map || {}).forEach(function (_id) {
-    var record = map[_id];
-    record._id = _id;
-    records.push(record);
-  });
-  
-  return records;
-}
-
-function getIntersection (a, b) {
-  var c = [];
-  Object.keys(a).forEach(function (key) {
-    var d;
-    if (b[key] !== undefined) {
-      d = merge(a[key], b[key]);
-      d._id = key;
-      c.push(d);
-    }
-  });
-  
-  return c;
-}
-
-function getIdsInRecords (records) {
-  var ids = [];
-  records.forEach(function (record) {
-    ids.push(record._id);
-  });
-  return ids;
 }
 
 function queryAll (table, ids, options, callback) {
@@ -597,4 +392,105 @@ function queryAllSync (table, ids, options) {
   
   return records;
   
+}
+
+function readAllIndexes (table, names, callback) {
+  var tasks = {};
+  var _this = this;
+  
+  Object.keys(names).forEach(function (name) {
+    tasks[name] = function (callback) {
+      _this.readIndex(table, name, names[name], callback);
+    }
+  });
+  
+  // console.log(tasks);
+  
+  async.series(
+    [
+      function (callback) {
+        _this.readAllIds(table, callback);
+      },
+      function (callback) {
+        async.parallel(tasks, callback);  
+      }
+    ],
+    function (e, results) {
+      if (e) {
+        callback(e);
+      } else {
+        callback(null, _mergeIndexesToRecords(results[0], results[1]));
+      }
+    }
+  );
+  
+}
+
+function readAllIndexesSync (table, names) {
+  var indexes = {};
+  var ids = this.readAllIdsSync(table);
+  var _this = this;
+  
+  Object.keys(names).forEach(function (name) {
+    indexes[name] = _this.readIndexSync(table, name, names[name]);
+  });
+  
+  return _mergeIndexesToRecords(ids, indexes);
+}
+
+
+function readIndex (table, name, convertFn, callback) {
+  var file = this.getTableIndexFile(table, name);
+  fs.readFile(file, function (e, content) {
+    if (e) {
+      callback(e);
+    } else {
+      callback(null, _parseIndexFile(content, convertFn));
+    }
+  });
+}
+
+function readIndexSync (table, name, convertFn) {
+  var file = this.getTableIndexFile(table, name);
+  var content = fs.readFileSync(file, {encoding: 'utf8'});
+  return _parseIndexFile(content, convertFn);
+}
+
+/**
+ * return {_id1: xxx, _id2: xxx}
+ */
+function _parseIndexFile (content, convertFn) {
+  var splitor = _getIndexRecordSplitor();
+  var re = new RegExp('^([+-])' + splitor + '(.*?)' + splitor + '(.*?)$', "mg");
+  var line;  
+  var records = {};
+  var sign, _id, indexValue;
+  while (line = re.exec(content)) {
+    sign = line[1];
+    _id = line[2];
+    indexValue = convertFn ? convertFn(line[3]) : line[3];
+    
+    if (sign == '+') {
+      records[_id] = indexValue;
+    } else if (sign == '-') {
+      delete records[_id];
+    }
+  }
+ 
+  return records;
+}
+
+function _mergeIndexesToRecords (ids, indexes) {
+  var names = Object.keys(indexes);
+  var records = [];
+  
+  ids.forEach(function (_id) {
+    var record = { _id: _id };
+    names.forEach(function (name) {
+      record[name] = indexes[name][_id];
+    });
+    records.push(record);
+  });
+
+  return records;
 }

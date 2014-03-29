@@ -11,6 +11,10 @@ describe('test index fields', function () {
   
   var can, table;
   var schemas = {
+    id: {
+      type: 'autoIncrement',
+      isIndex: true
+    },
     date: {
       type: 'date',
       isIndex: true,
@@ -77,7 +81,7 @@ describe('test index fields', function () {
   before(function (done) {
     utils.clear(PATH, function () {
       can = new Jsoncan(PATH);
-      table = can.open('date', schemas);
+      table = can.open('myTable', schemas);
       addData();
       done();
     });
@@ -87,17 +91,45 @@ describe('test index fields', function () {
   after(function (done) {
     utils.clear(PATH, done);
   });
+
   
-  it('should exist index file', function (done) {
-    var file = table.conn.getTableIndexFile(table.table, 'date');
-    // console.log(file);
-    fs.exists(file, function (exists) {
-      assert.ok(exists);
+  it('should exist index file', function () {
+    var file1 = table.conn.getTableIndexFile(table.table, 'id');
+    var file2 = table.conn.getTableIndexFile(table.table, 'date');
+    assert.ok(fs.existsSync(file1));
+    assert.ok(fs.existsSync(file2));
+  });
+  
+  it('test order ascend', function (done) {
+    table.query().order('id').exec(function (e, records) {
+      should.not.exists(e);
+      // console.log(records);
+      assert.equal(records[0].id, 1);
+      done();
+    });
+  });
+  
+  it('test order descend', function (done) {
+    table.query().order('id', true).exec(function (e, records) {
+      should.not.exists(e);
+      // console.log(records);
+      assert.equal(records[0].id, pastCount + todayCount + todayInLastYearCount);
+      done();
+    });
+  });
+  
+  it('test order, skip, limit', function (done) {
+    table.query().order('id', true).skip(100).limit(10).exec(function (e, records) {
+      should.not.exists(e);
+      // console.log(records);
+      assert.equal(records[0].id, pastCount + todayCount + todayInLastYearCount - 100);
+      assert.equal(records.length, 10);
       done();
     });
   });
   
   it('test query all records', function (done) {
+    
     table.query().exec(function (e, records) {
       should.not.exists(e);
       assert.equal(records.length, pastCount + todayCount + todayInLastYearCount);
@@ -107,6 +139,7 @@ describe('test index fields', function () {
   
   it('test query all records sync way', function () {
     var records = table.query().execSync();
+    // console.log(records);
     assert.equal(records.length, pastCount + todayCount + todayInLastYearCount);
   });
   
@@ -179,6 +212,7 @@ describe('test index fields', function () {
     });
   });
 
+  
   it('test query by mixed filters( including index filters and noneIndex filters)', function (done) {
     table.query({date: getToday(), name: 'steve', age: 1}).exec(function (e, records) {
       should.not.exists(e);
@@ -186,6 +220,8 @@ describe('test index fields', function () {
       done();
     });
   });
+  
+  
   
   it('test updateAll', function () {
     var records = table.updateAllSync({date: getToday(), name: ['<>', 'steve']}, {name: 'NoneExist'});

@@ -39,15 +39,7 @@ function create (ctx, table) {
     conn: ctx.conn,
     schemas: schemas,
     validator: validator,
-    validate: validate,
-    clearFakeFields: clearFakeFields,
     inputFields: function () { return this.schemas.inputFields(); }, // 返回所有来自input输入的字段
-    getChangedFields: getChangedFields,
-    getRealUpdateData: getRealUpdateData,
-    linkEachUniqueField: linkEachUniqueField,
-    present: function (name, value, data) { return this.schemas.present(name, value, data); },
-    format: function (data) { return this.schemas.presentAll(data);},
-    formatAll: formatAll,
     read: read,
     readSync: readSync,
     readBy: readBy,
@@ -56,26 +48,19 @@ function create (ctx, table) {
     findBy: findBy,
     findSync: findSync,
     findBySync: findBySync,
+    query: query,
     insert: insert,
     insertSync: insertSync,
     insertAll: insertAll,
     insertAllSync: insertAllSync,
-    makeInsertTasks: makeInsertTasks,
     save: save,
     saveSync: saveSync,
-    checkUniqueField: checkUniqueField,
-    checkEachUniqueField: checkEachUniqueField,
-    unlinkEachUniqueField: unlinkEachUniqueField,
-    _update: _update,
-    _updateSync: _updateSync,
     updateBy: updateBy,
     updateBySync: updateBySync,
     update: update,
     updateSync: updateSync,
     updateAll: updateAll,
     updateAllSync: updateAllSync,
-    _remove: _remove,
-    _removeSync: _removeSync,
     remove: remove,
     removeSync: removeSync,
     removeBy: removeBy,
@@ -85,21 +70,7 @@ function create (ctx, table) {
     model: model,
     create: model, // alias model
     load: load,
-    loadBy: loadBy,
-    updateAutoIncrementValues: updateAutoIncrementValues,
-    addIndexRecords: addIndexRecords,
-    removeIndexRecords: removeIndexRecords,
-    addIdRecord: addIdRecord,
-    removeIdRecord: removeIdRecord,
-    getIndexFilters: getIndexFilters,
-    getNoneIndexFilters: getNoneIndexFilters,
-    getIndexOrders: getIndexOrders,
-    getNoneIndexOrders: getNoneIndexOrders,
-    getIdsOrderedByIndex: getIdsOrderedByIndex,
-    queryAll: queryAll,
-    queryAllSync: queryAllSync,
-    query: query,
-    localQuery: localQuery
+    loadBy: loadBy
   };
 }
 
@@ -139,15 +110,15 @@ function model (data) {
   
   m.read = function (name) {
     if (name) {
-      return parent.present(name, this.data[name], this.data);
+      return _present.call(parent, name, this.data[name], this.data);
     } else {
-      return parent.format(this.data);
+      return parent.schemas.presentAll(this.data);
     }
   };
   
   m.validate = function () {
     var data = parent.schemas.addValues(this.data);
-    var check = parent.validate(this.data);
+    var check = _validate.call(parent, this.data);
     this.messages = check.getMessages();
     this.isValid = check.isValid();
     return this.isValid;
@@ -223,12 +194,16 @@ function loadBy(name, value) {
   return this.model(data);
 }
 
+function _present (name, value, data) { 
+  return this.schemas.present(name, value, data); 
+}
+
 /**
  * remove all the fake fields data
  * @data, ready to save
  */
 
-function clearFakeFields (data) {
+function _clearFakeFields (data) {
   var noFake = {};
   this.schemas.forEachField(function (name, field, _this) {
     noFake[name] = data[name];
@@ -244,11 +219,11 @@ function clearFakeFields (data) {
  * @records: 记录列表
  * @return 转换好的列表
  */
-function formatAll (records) {
+function _formatAll (records) {
   var list = [];
   var _this = this;
   records.forEach(function (record) {
-    list.push(_this.format(record));
+    list.push(_this.schemas.presentAll(record));
   });
   return list;
 }
@@ -277,11 +252,11 @@ function insert (_data, callback) {
     if (e) {
       callback(e);
     } else {
-      _this.linkEachUniqueField(record);
-      _this.updateAutoIncrementValues(record);
+      _linkEachUniqueField.call(_this, record);
+      _updateAutoIncrementValues.call(_this, record);
       // add all index records
-      _this.addIndexRecords(record);
-      _this.addIdRecord(record._id);
+      _addIndexRecords.call(_this, record);
+      _addIdRecord.call(_this, record._id);
       callback(null, record);
     }
   });
@@ -301,17 +276,17 @@ function insertSync (data) {
   data = this.saveSync(data);
   
   // link files
-  this.linkEachUniqueField(data);
-  this.updateAutoIncrementValues(data);
+  _linkEachUniqueField.call(this, data);
+  _updateAutoIncrementValues.call(this, data);
   // add all index records
-  this.addIndexRecords(data);
-  this.addIdRecord(data._id);
+  _addIndexRecords.call(this, data);
+  _addIdRecord.call(this, data._id);
   
   return data;
 }
 
 function insertAll (datas, callback) {
-  var tasks = this.makeInsertTasks(datas);
+  var tasks = _makeInsertTasks.call(this, datas);
   
   if (this.schemas.hasAutoIncrementField()) {
     async.series(tasks, callback);  
@@ -321,7 +296,7 @@ function insertAll (datas, callback) {
 }
 
 // make insert tasks
-function makeInsertTasks (datas) {
+function _makeInsertTasks (datas) {
   var _this = this;
   var tasks = [];
   datas.forEach(function (data) {
@@ -359,10 +334,10 @@ function getTimestamp () {
  * @record: 要保存的数据
  * @fields: 特别指定的字段，update的时候可能只需要检查更改过的字段
  */
-function checkEachUniqueField (record, fields) {
+function _checkEachUniqueField (record, fields) {
   var _this = this;
   this.schemas.forEachUniqueField(function (name, field) {
-    _this.checkUniqueField(name, record[name]);
+    _checkUniqueField.call(_this, name, record[name]);
   }, fields);
 }
 
@@ -372,7 +347,7 @@ function checkEachUniqueField (record, fields) {
  * @value: 值
  * @throw: 1100, 1101
  */
-function checkUniqueField (name, value, isReturn) {
+function _checkUniqueField (name, value, isReturn) {
   var linkFile = this.conn.getTableUniqueFile(this.table, name, value);
   if (isReturn) {
     return !fs.existsSync(linkFile);
@@ -388,7 +363,7 @@ function checkUniqueField (name, value, isReturn) {
  * @record: 准备保存到数据库的记录
  * @fields: 特别指定的字段范围
  */
-function linkEachUniqueField (record, fields) {
+function _linkEachUniqueField (record, fields) {
   var _this = this;
 
   this.schemas.forEachUniqueField(function (name, field) {
@@ -403,7 +378,7 @@ function linkEachUniqueField (record, fields) {
  * @record: 准备保存到数据库的记录
  * @fields: 特别指定的字段范围
  */
-function unlinkEachUniqueField (record, fields) {
+function _unlinkEachUniqueField (record, fields) {
   var _this = this;
   this.schemas.forEachUniqueField(function (name, field) {
     _this.conn.unlinkTableUniqueFileSync(_this.table, name, record[name]);
@@ -423,7 +398,7 @@ function update (_id, data, callback) {
     if (err) {
       callback(err);
     } else {
-      _this._update(data, record, callback);
+      _update.call(_this, data, record, callback);
     }
   });
 }
@@ -434,7 +409,7 @@ function update (_id, data, callback) {
 function updateSync (_id, data) {
   var _this = this;
   var record = this.findSync(_id);
-  return this._updateSync(data, record);
+  return _updateSync.call(_this, data, record);
 }
 
 function updateBy (field, value, data, callback) {
@@ -445,7 +420,7 @@ function updateBy (field, value, data, callback) {
     } else if (!record) {
       callback(error(1400, field, value));
     } else {
-      _this._update(data, record, callback);
+      _update.call(_this, data, record, callback);
     }
   });
 }
@@ -459,7 +434,7 @@ function updateBySync (field, value, data) {
   if (!record) {
     throw error(1400, field, value);
   }
-  return this._updateSync(data, record);
+  return _updateSync.call(this, data, record);
 }
 
 
@@ -472,26 +447,26 @@ function updateBySync (field, value, data) {
  */ 
 function _update (_data, record, callback) {
   var data = this.schemas.filterData(_data); // keep data clean and safe.
-  var changedFields = this.getChangedFields(data, record);
+  var changedFields = _getChangedFields.call(this, data, record);
   var _this = this;
   
   if (changedFields.length == 0 ) { // 数据没有更改,
     return callback(null, record);
   }
   
-  data = this.getRealUpdateData(data, record);
+  data = _getRealUpdateData.call(this, data, record);
   // 保存之前，删除掉link files
-  this.unlinkEachUniqueField(record, changedFields);
+  _unlinkEachUniqueField.call(this, record, changedFields);
   
   this.save(data, function (err, updatedRecord) {
     if (err) {
       // 出错时，要还原link文件
-      _this.linkEachUniqueField(record, changedFields);
+      _linkEachUniqueField.call(_this, record, changedFields);
       callback(err);
     } else {
-      _this.linkEachUniqueField(updatedRecord, changedFields);
-      _this.removeIndexRecords(record, changedFields);
-      _this.addIndexRecords(updatedRecord, changedFields);
+      _linkEachUniqueField.call(_this, updatedRecord, changedFields);
+      _removeIndexRecords.call(_this, record, changedFields);
+      _addIndexRecords.call(_this, updatedRecord, changedFields);
       callback(null, updatedRecord);
     }
   }, changedFields);
@@ -502,7 +477,7 @@ function _update (_data, record, callback) {
  */ 
 function _updateSync (_data, record, callback) {
   var data = this.schemas.filterData(_data);
-  var changedFields = this.getChangedFields(data, record);
+  var changedFields = _getChangedFields.call(this, data, record);
   var safe;
   
   if (changedFields.length == 0 ) { // 数据没有更改,
@@ -510,19 +485,19 @@ function _updateSync (_data, record, callback) {
   }
   
   try{
-    this.unlinkEachUniqueField(record, changedFields);
-    safe = this.saveSync(this.getRealUpdateData(data, record), changedFields);
-    this.linkEachUniqueField(safe, changedFields);
-    this.removeIndexRecords(record, changedFields);
-    this.addIndexRecords(safe, changedFields);
+    _unlinkEachUniqueField.call(this, record, changedFields);
+    safe = this.saveSync(_getRealUpdateData.call(this, data, record), changedFields);
+    _linkEachUniqueField.call(this, safe, changedFields);
+    _removeIndexRecords.call(this, record, changedFields);
+    _addIndexRecords.call(this, safe, changedFields);
     return safe;
   } catch (e) {
-    this.linkEachUniqueField(record, changedFields);
+    _linkEachUniqueField.call(this, record, changedFields);
     throw e;
   }
 }
 
-function getChangedFields (data, record) {
+function _getChangedFields (data, record) {
   var fields = [];
   this.schemas.forEachField(function (name, field, _this) {
     if (_this.isReadOnly(field)) { return; }
@@ -541,7 +516,7 @@ function getChangedFields (data, record) {
  * @data: 要保存的数据
  * @record: 当前数据库中的数据
  */ 
-function getRealUpdateData (data, record) {
+function _getRealUpdateData (data, record) {
   var target = {}; // 避免data中夹杂schemas没有定义的数据
   this.schemas.forEachField(function (name, field) {
     if (data[name] == undefined) {
@@ -563,7 +538,7 @@ function updateAll (options, data, callback) {
     
     records.forEach(function (record) {
       tasks.push(function (callback) {
-        _this._update(data, record, callback);
+        _update.call(_this, data, record, callback);
       });
     });
     
@@ -590,10 +565,9 @@ function updateAll (options, data, callback) {
 function updateAllSync (options, data) {
   var _this = this;
   var results = [];
-  // var records = this.createQuerySync(options).filter(this.getNoneIndexFilters(options)).select();
   var records = this.query(options).execSync();
   records.forEach(function (record) {
-    results.push(_this._updateSync(data, record));
+    results.push(_updateSync.call(_this, data, record));
   });
   return results;
 }
@@ -611,14 +585,14 @@ function remove (_id, callback) {
     if (err) {
       callback(err);
     } else {
-      _this._remove(record, callback);
+      _remove.call(_this, record, callback);
     }
   });
 }
 
 function removeSync (_id) {
   if (this.schemas.hasUniqueField()) {
-    this._removeSync(this.findSync(_id));
+    _removeSync.call(this, this.findSync(_id));
   } else {
     this.conn.removeSync(this.table, _id);
   }
@@ -634,9 +608,9 @@ function _remove (record, callback) {
       if (e) {
         callback(e);
       } else {
-        _this.unlinkEachUniqueField(record);
-        _this.removeIndexRecords(record);
-        _this.removeIdRecord(record._id);
+        _unlinkEachUniqueField.call(_this, record);
+        _removeIndexRecords.call(_this, record);
+        _removeIdRecord.call(_this, record._id);
         callback(null, record);
       }
     });
@@ -646,9 +620,9 @@ function _remove (record, callback) {
 function _removeSync (record) {
   if (!record) return;
   this.conn.removeSync(this.table, record._id);
-  this.unlinkEachUniqueField(record);
-  this.removeIndexRecords(record);
-  this.removeIdRecord(record._id);
+  _unlinkEachUniqueField.call(this, record);
+  _removeIndexRecords.call(this, record);
+  _removeIdRecord.call(this, record._id);
 }
 
 function removeBy (field, value, callback) {
@@ -658,7 +632,7 @@ function removeBy (field, value, callback) {
     if (err) {
       callback(err);
     } else {
-      _this._remove(record, callback);
+      _remove.call(_this, record, callback);
     }
   });
 };
@@ -675,7 +649,7 @@ function removeAll (options, callback) {
     
     records.forEach(function (record) {
       tasks.push(function (callback) {
-        _this._remove(record, callback);
+        _remove.call(_this, record, callback);
       });
     });
     
@@ -709,7 +683,7 @@ function removeAllSync (options, callback) {
   var _this = this;
   var records = this.query(options).select().execSync();
   records.forEach(function (record) {
-    _this._removeSync(record);
+    _removeSync.call(_this, record);
   });
   return records;
 }
@@ -737,11 +711,11 @@ function findBySync (name, value) {
 }
 
 
-function validate (data, changedFields) {
+function _validate (data, changedFields) {
   var _this = this;
 
   this.validator.isUnique = function (name, field, value) {
-    return _this.checkUniqueField (name, value, true);
+    return _checkUniqueField.call(_this, name, value, true);
   };
   
   return this.validator.check(data, changedFields);
@@ -755,10 +729,10 @@ function validate (data, changedFields) {
  */
 function save (data, callback, changedFields) {
   var e;
-  var check = this.validate(data, changedFields);
+  var check = _validate.call(this, data, changedFields);
   
   if (check.isValid()) {
-    data = this.clearFakeFields(data);
+    data = _clearFakeFields.call(this, data);
     // 对需要转换的数据进行转换
     data = this.schemas.convertEachField(data, changedFields);
     this.conn.save(this.table, data._id, data, callback);
@@ -776,10 +750,10 @@ function save (data, callback, changedFields) {
  * @throw error 1300 表示数据校验失败
  */
 function saveSync (data, changedFields) {
-  var check = this.validate(data, changedFields);
+  var check = _validate.call(this, data, changedFields);
   
   if (check.isValid()) {
-    data = this.clearFakeFields(data);
+    data = _clearFakeFields.call(this, data);
     data = this.schemas.convertEachField(data, changedFields);
     return this.conn.saveSync(this.table, data._id, data); 
   } else {
@@ -790,7 +764,7 @@ function saveSync (data, changedFields) {
   }
 }
 
-function addIndexRecords (data, targetFields) {
+function _addIndexRecords (data, targetFields) {
   var _this = this;
   
   this.schemas.forEachIndexField(function (name, field) {
@@ -798,7 +772,7 @@ function addIndexRecords (data, targetFields) {
   }, targetFields);
 }
 
-function removeIndexRecords (data, targetFields) {
+function _removeIndexRecords (data, targetFields) {
   var _this = this;
   
   this.schemas.forEachIndexField(function (name, field) {
@@ -807,11 +781,11 @@ function removeIndexRecords (data, targetFields) {
 }
 
 
-function addIdRecord (_id) {
+function _addIdRecord (_id) {
   this.conn.addIdRecord(this.table, _id);
 }
 
-function removeIdRecord (_id) {
+function _removeIdRecord (_id) {
   this.conn.removeIdRecord(this.table, _id);
 }
 
@@ -822,7 +796,7 @@ function read (_id, callback) {
     if (e) {
       callback(e);
     } else if (record) {
-      callback(null, _this.format(record));
+      callback(null, _this.schemas.presentAll(record));
     } else { // no data found
       callback(null, null);
     }
@@ -831,7 +805,7 @@ function read (_id, callback) {
 
 function readSync (_id) {
   var data = this.findSync(_id);
-  return data ? this.format(data): null;
+  return data ? this.schemas.presentAll(data): null;
 }
 
 function readBy (name, value, callback) {
@@ -840,7 +814,7 @@ function readBy (name, value, callback) {
     if (e) {
       callback(e);
     } else if (record) {
-      callback(null, _this.format(record));
+      callback(null, _this.schemas.presentAll(record));
     } else {
       callback(null, null);
     }
@@ -849,10 +823,10 @@ function readBy (name, value, callback) {
 
 function readBySync (name, value) {
   var data = this.findBySync(name, value);
-  return data ? this.format(data) : null;
+  return data ? this.schemas.presentAll(data) : null;
 }
 
-function updateAutoIncrementValues (data) {
+function _updateAutoIncrementValues (data) {
   var _this = this;
   this.schemas.forEachUniqueField(function (name, field, schemas) {
     var nextValue;
@@ -863,8 +837,7 @@ function updateAutoIncrementValues (data) {
   });
 }
 
-
-function getIndexOrders (orders) {
+function _getIndexOrders (orders) {
   var indexOrders = {};
   
   if (!orders) return {};
@@ -876,7 +849,7 @@ function getIndexOrders (orders) {
   return indexOrders;
 }
 
-function getNoneIndexOrders (orders) {
+function _getNoneIndexOrders (orders) {
   var noneIndexOrders = {};
   
   if (!orders) return {};
@@ -890,7 +863,7 @@ function getNoneIndexOrders (orders) {
   return noneIndexOrders;
 }
 
-function getIndexFilters (options) {
+function _getIndexFilters (options) {
   var indexOptions = {};
   
   if (!options) return {};
@@ -906,7 +879,7 @@ function getIndexFilters (options) {
   }
 }
 
-function getNoneIndexFilters (options) {
+function _getNoneIndexFilters (options) {
   var noneIndexOptions = {};
   
   if (!options) return {};
@@ -924,146 +897,112 @@ function getNoneIndexFilters (options) {
   }
 }
 
-function queryAll (options, callback) {
-  var indexFilters = this.getIndexFilters(options.filters);
-  var noneIndexFilters = this.getNoneIndexFilters(options.filters);
-  var indexOrders = this.getIndexOrders(options.orders);
-  var noneIndexOrders = this.getNoneIndexOrders(options.orders);
+function _queryAll (options, callback) {
   var _this = this;
-  var indexFilterKeys = Object.keys(indexFilters); 
-  var noneIndexOrdersKeys = Object.keys(noneIndexOrders);
-  
-  // console.log(options);
-  
-  function queryIdsOneByOne (ids) {
-    var newOptions = { filters: noneIndexFilters };
-    
-    if (noneIndexOrdersKeys.length == 0) {
-      newOptions.limit = options.limit;
-      newOptions.skip = options.skip;
-    }
+
+  async.waterfall([
+    function (callback) {
+      var indexFilters = _getIndexFilters.apply(_this, [options.filters]);
+      var indexFilterKeys = Object.keys(indexFilters);
+      var indexOrders = _getIndexOrders.apply(_this, [options.orders]);
+      var indexOrderKeys = Object.keys(indexOrders);
+      var usedIndexKeys = _mergeArrays(indexFilterKeys, indexOrderKeys);
       
-    _this.conn.queryAll(_this.table, ids, newOptions, function (e, records) {
-      var query;
-      if (e) {
-        callback(e);
-      } else {
-        records = _this.localQuery(records, {
-          noneIndexOrders: noneIndexOrders,
-          noneIndexOrdersKeys: noneIndexOrdersKeys,
-          limit: options.limit,
-          select: options.select,
-          skip: options.skip
-        });
-        callback(null, records);
-        
-        /*
-        if (options.select || noneIndexOrdersKeys.length > 0) {
-          // console.log(noneIndexOrders);
-          // console.log(records);
-          query = Query.create(records);
-          noneIndexOrdersKeys.forEach(function (name) {
-            query = query.order(name, noneIndexOrders[name]);
-          });
-          callback(null, query.select(options.select));
+      _this.conn.readAllIndexes(_this.table, _getConnQueryIndexKeys.apply(_this, [usedIndexKeys]), function (e, records) {
+        var ids;
+        if (e) {
+          callback(e);
         } else {
-          callback(null, records);
-        } 
-        */ 
-      }
-    });
-  }
+          ids = _getIdsFromIndexRecords.apply(_this, [records, options]);
+          callback(null, ids);
+        }
+      });
+    },
+    
+    function (ids, callback) {
+      _this.conn.queryAll(_this.table, ids, _makeConnQueryOptions.apply(_this, [options]), function (e, records) {
+        if (e) {
+          callback(e);
+        } else {
+          callback(null, _localQuery.apply(_this, [records, options])); 
+        }
+      });
+    }
   
-  // no index filter defined, need to read all ids.
-  if (indexFilterKeys.length == 0 ) {
-    this.conn.readAllIds(this.table, function (e, ids) {
-      if (e) {
-        callback(e);
-      } else {
-        queryIdsOneByOne(ids);
-      }
-    });
-  } else { // can use index filter
-    this.conn.getRecordsByIndex(this.table, indexFilters, function (e, idRecords) {
-      var ids;
-      if (e) {
-        callback(e);
-      } else {
-        // console.log(idRecords);
-        ids = _this.getIdsOrderedByIndex(idRecords, indexOrders);
-        // console.log(ids);
-        queryIdsOneByOne(ids);
-      }
-    });
-  }
+  ], callback);
 }
 
-function queryAllSync (options) {
-  var indexFilters = this.getIndexFilters(options.filters);
-  var noneIndexFilters = this.getNoneIndexFilters(options.filters);
-  var indexOrders = this.getIndexOrders(options.orders);
-  var noneIndexOrders = this.getNoneIndexOrders(options.orders);
-  var idRecords;
+function _queryAllSync (options) {
+  var indexFilters = _getIndexFilters.apply(this, [options.filters]);
   var indexFilterKeys = Object.keys(indexFilters);
-  var ids, newOptions, records;
+  var indexOrders = _getIndexOrders.apply(this, [options.orders]);
+  var indexOrderKeys = Object.keys(indexOrders);
+  var usedIndexKeys = _mergeArrays(indexFilterKeys, indexOrderKeys);
+  var indexRecords = this.conn.readAllIndexesSync(this.table, _getConnQueryIndexKeys.apply(this, [usedIndexKeys]));
+  var ids = _getIdsFromIndexRecords.apply(this, [indexRecords, options]);
+  var records = this.conn.queryAllSync(this.table, ids, _makeConnQueryOptions.apply(this, [options]));
+  
+  return _localQuery.apply(this, [records, options]);
+}
+
+function _getConnQueryIndexKeys (usedIndexKeys) {
+  var map = {};
+  var _this = this;
+  usedIndexKeys.forEach(function (name) {
+    map[name] = _this.schemas.fieldValueConvertFn(name);
+  });
+  return map;
+}
+
+function _getIdsFromIndexRecords (records, options) {
+  var indexFilters = _getIndexFilters.apply(this, [options.filters]);
+  var indexOrders = _getIndexOrders.apply(this, [options.orders]);
+  var query = Query.create(records).filter(indexFilters);
+  // console.log(records);
+  // using index orders
+  Object.keys(indexOrders).forEach(function (name) {
+    query.order(name, indexOrders[name]);
+  });
+  
+  return query.key('_id');
+}
+
+function _makeConnQueryOptions (options) {
+  var noneIndexFilters = _getNoneIndexFilters.apply(this, [options.filters]);
+  var noneIndexOrders = _getNoneIndexOrders.apply(this, [options.orders]);
   var noneIndexOrdersKeys = Object.keys(noneIndexOrders);
-  
-  if (indexFilterKeys.length == 0) {
-    ids = this.conn.readAllIdsSync(this.table);
-  } else {
-    idRecords = this.conn.getRecordsByIndexSync(this.table, indexFilters);
-    ids = this.getIdsOrderedByIndex(idRecords, indexOrders);
-  }
-  
-  newOptions = { filters: noneIndexFilters };
+  var newOptions = { filters: noneIndexFilters };
   
   if (noneIndexOrdersKeys.length == 0) {
     newOptions.limit = options.limit;
     newOptions.skip = options.skip;
   }
   
-  records = this.conn.queryAllSync(this.table, ids, newOptions);
-  
-  return this.localQuery(records, {
-    noneIndexOrders: noneIndexOrders,
-    noneIndexOrdersKeys: noneIndexOrdersKeys,
-    select: options.select,
-    limit: options.limit,
-    skip: options.skip
-  });
-  /*
-  if (noneIndexOrdersKeys.length > 0) {
-    query = Query.create(records);
-    Object.keys(noneIndexOrders).forEach(function (name) {
-      query = query.order(name, noneIndexOrders[name]);
-    });
-    
-    if (options.skip) {
-      query = query.skip(options.skip);
-    }
-    
-    if (options.limit) {
-      query = query.limit(options.limit);
-    }
-  }
-  
-  if (options.select) {
-    if (!query) {
-      query = Query.create(records);
-    }
-    records = query.select(options.select);
-  }
-  
-  return records;
-  */
+  return newOptions;
 }
 
-function localQuery (records, options) {
+function _mergeArrays (a, b) {
+  var c = [].concat(a);
+  
+  b.forEach(function (key) {
+    if (c.indexOf(key) == -1) {
+      c.push(key);
+    }
+  });
+  
+  return c;
+}
+
+function _localQuery (records, options) {
+  var noneIndexFilters = _getNoneIndexFilters.apply(this, [options.filters]);
+  var noneIndexOrders = _getNoneIndexOrders.apply(this, [options.orders]);
+  var noneIndexOrdersKeys = Object.keys(noneIndexOrders);
   var query;
-  if (options.noneIndexOrdersKeys.length > 0) {
+
+  if (noneIndexOrdersKeys.length > 0) {
     query = Query.create(records);
-    options.noneIndexOrdersKeys.forEach(function (name) {
-      query = query.order(name, options.noneIndexOrders[name]);
+    noneIndexOrdersKeys.forEach(function (name) {
+      query = query.order(name, noneIndexOrders[name]);
     });
     
     if (options.skip) {
@@ -1085,25 +1024,6 @@ function localQuery (records, options) {
   }
   
   return records;
-}
-
-function getIdsOrderedByIndex (records, orders) {
-  var orderQuery = Query.create(records);
-  var fields = Object.keys(orders);
-  var ids = [];
-  
-  if (fields.length > 0 ) {
-    fields.forEach(function (name) {
-      orderQuery.order(name, orders[name]);
-    });
-  }
-  
-  records = orderQuery.select('_id');
-  records.forEach(function (record) {
-    ids.push(record._id);  
-  });
-  
-  return ids;
 }
 
 // new version of query
@@ -1164,11 +1084,11 @@ function query (filters) {
     // console.log(this.options);
     // console.log(this.options.orders);
     var _this = this;
-    parent.queryAll(this.options, function (e, records) {
+    _queryAll.call(parent, this.options, function (e, records) {
       if (e) {
         callback(e);
       } else if (_this.options.isFormat) {
-        callback(null, parent.formatAll(records));
+        callback(null, _formatAll.call(parent, records));
       } else {
         callback(null, records);
       }
@@ -1176,9 +1096,9 @@ function query (filters) {
   }
   
   function execSync () {
-    var records = parent.queryAllSync(this.options);
+    var records = _queryAllSync.call(parent, this.options);
     if (this.options.isFormat) {
-      return parent.formatAll(records);
+      return _formatAll.call(parent, records);
     } else {
       return records;
     }

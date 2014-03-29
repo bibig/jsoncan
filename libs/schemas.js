@@ -124,7 +124,8 @@ function create (fields) {
     getUniqueFields: getUniqueFields,
     getAutoIncrementValue: null, // need to inject
     getNextAutoIncrementValue: getNextAutoIncrementValue,
-    filterData: filterData
+    filterData: filterData,
+    fieldValueConvertFn: fieldValueConvertFn
   };
 }
 
@@ -386,6 +387,25 @@ function convert (field, value) {
   }
   
   return value;
+}
+
+// convert string to fited type
+function fieldValueConvertFn (field) {
+  field = this.getField(field);
+  switch (field.type) {
+    case 'int':
+    case 'autoIncrement':
+    case 'increment':
+    case 'date':
+    case 'datetime':
+    case 'created':
+    case 'modified':
+      return function (s) { return parseInt(s, 10); };
+    case 'float':
+      return function (s) { return parseFloat(s); };
+    default:
+      return function (s) { return s; };
+  }
 }
 
 // 得到当前时戳

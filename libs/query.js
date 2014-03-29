@@ -25,6 +25,7 @@ function create (records) {
     records: records,
     isEmpty: isEmpty,
     select: select,
+    key: key,
     skip: skip,
     limit: limit,
     where: where,
@@ -36,10 +37,17 @@ function create (records) {
   };
 }
 
-
 // 是否有记录存在
 function isEmpty () {
   return this.records.length > 0;
+}
+
+function key (name) {
+  var list = [];
+  this.records.forEach(function (record) {
+    list.push(record[name]);
+  });
+  return list;
 }
 
 /**
