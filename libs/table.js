@@ -70,7 +70,10 @@ function create (ctx, table) {
     model: model,
     create: model, // alias model
     load: load,
-    loadBy: loadBy
+    loadBy: loadBy,
+    resetIdsFile: resetIdsFile,
+    resetIndexFile: resetIndexFile,
+    resetAllIndexFiles: resetAllIndexFiles
   };
 }
 
@@ -902,29 +905,29 @@ function _queryAll (options, callback) {
 
   async.waterfall([
     function (callback) {
-      var indexFilters = _getIndexFilters.apply(_this, [options.filters]);
+      var indexFilters = _getIndexFilters.call(_this, options.filters);
       var indexFilterKeys = Object.keys(indexFilters);
-      var indexOrders = _getIndexOrders.apply(_this, [options.orders]);
+      var indexOrders = _getIndexOrders.call(_this, options.orders);
       var indexOrderKeys = Object.keys(indexOrders);
       var usedIndexKeys = _mergeArrays(indexFilterKeys, indexOrderKeys);
       
-      _this.conn.readAllIndexes(_this.table, _getConnQueryIndexKeys.apply(_this, [usedIndexKeys]), function (e, records) {
+      _this.conn.readAllIndexes(_this.table, _getConnQueryIndexKeys.call(_this, usedIndexKeys), function (e, records) {
         var ids;
         if (e) {
           callback(e);
         } else {
-          ids = _getIdsFromIndexRecords.apply(_this, [records, options]);
+          ids = _getIdsFromIndexRecords.call(_this, records, options);
           callback(null, ids);
         }
       });
     },
     
     function (ids, callback) {
-      _this.conn.queryAll(_this.table, ids, _makeConnQueryOptions.apply(_this, [options]), function (e, records) {
+      _this.conn.queryAll(_this.table, ids, _makeConnQueryOptions.call(_this, options), function (e, records) {
         if (e) {
           callback(e);
         } else {
-          callback(null, _localQuery.apply(_this, [records, options])); 
+          callback(null, _localQuery.call(_this, records, options)); 
         }
       });
     }
@@ -933,16 +936,16 @@ function _queryAll (options, callback) {
 }
 
 function _queryAllSync (options) {
-  var indexFilters = _getIndexFilters.apply(this, [options.filters]);
+  var indexFilters = _getIndexFilters.call(this, options.filters);
   var indexFilterKeys = Object.keys(indexFilters);
-  var indexOrders = _getIndexOrders.apply(this, [options.orders]);
+  var indexOrders = _getIndexOrders.call(this, options.orders);
   var indexOrderKeys = Object.keys(indexOrders);
   var usedIndexKeys = _mergeArrays(indexFilterKeys, indexOrderKeys);
-  var indexRecords = this.conn.readAllIndexesSync(this.table, _getConnQueryIndexKeys.apply(this, [usedIndexKeys]));
-  var ids = _getIdsFromIndexRecords.apply(this, [indexRecords, options]);
-  var records = this.conn.queryAllSync(this.table, ids, _makeConnQueryOptions.apply(this, [options]));
+  var indexRecords = this.conn.readAllIndexesSync(this.table, _getConnQueryIndexKeys.call(this, usedIndexKeys));
+  var ids = _getIdsFromIndexRecords.call(this, indexRecords, options);
+  var records = this.conn.queryAllSync(this.table, ids, _makeConnQueryOptions.call(this, options));
   
-  return _localQuery.apply(this, [records, options]);
+  return _localQuery.call(this, records, options);
 }
 
 function _getConnQueryIndexKeys (usedIndexKeys) {
@@ -955,8 +958,8 @@ function _getConnQueryIndexKeys (usedIndexKeys) {
 }
 
 function _getIdsFromIndexRecords (records, options) {
-  var indexFilters = _getIndexFilters.apply(this, [options.filters]);
-  var indexOrders = _getIndexOrders.apply(this, [options.orders]);
+  var indexFilters = _getIndexFilters.call(this, options.filters);
+  var indexOrders = _getIndexOrders.call(this, options.orders);
   var query = Query.create(records).filter(indexFilters);
   // console.log(records);
   // using index orders
@@ -968,8 +971,8 @@ function _getIdsFromIndexRecords (records, options) {
 }
 
 function _makeConnQueryOptions (options) {
-  var noneIndexFilters = _getNoneIndexFilters.apply(this, [options.filters]);
-  var noneIndexOrders = _getNoneIndexOrders.apply(this, [options.orders]);
+  var noneIndexFilters = _getNoneIndexFilters.call(this, options.filters);
+  var noneIndexOrders = _getNoneIndexOrders.call(this, options.orders);
   var noneIndexOrdersKeys = Object.keys(noneIndexOrders);
   var newOptions = { filters: noneIndexFilters };
   
@@ -994,8 +997,8 @@ function _mergeArrays (a, b) {
 }
 
 function _localQuery (records, options) {
-  var noneIndexFilters = _getNoneIndexFilters.apply(this, [options.filters]);
-  var noneIndexOrders = _getNoneIndexOrders.apply(this, [options.orders]);
+  var noneIndexFilters = _getNoneIndexFilters.call(this, options.filters);
+  var noneIndexOrders = _getNoneIndexOrders.call(this, options.orders);
   var noneIndexOrdersKeys = Object.keys(noneIndexOrders);
   var query;
 
@@ -1123,4 +1126,20 @@ function query (filters) {
     exec: exec,
     execSync: execSync
   };
+}
+
+function resetIdsFile () {
+  var ids = this.conn.readAllIdsInDirSync(this.table);
+  this.conn.resetIdsFile(this.table, ids);
+}
+
+function resetAllIndexFiles () {
+  var _this = this;
+  this.schemas.forEachIndexField(function (name) {
+    _this.resetIndexFile(name);
+  });
+}
+
+function resetIndexFile (name) {
+  this.conn.resetIndexFile(this.table, name);
 }

@@ -35,8 +35,12 @@ function create (_path) {
     saveSync: saveSync,
     remove: remove,
     removeSync: removeSync,
+    readAll: readAll,
+    readAllSync: readAllSync,
     readAllIds: readAllIds,
     readAllIdsSync: readAllIdsSync,
+    readAllIdsInDir: readAllIdsInDir,
+    readAllIdsInDirSync: readAllIdsInDirSync,
     read: read,
     readSync: readSync,
     readBy: readBy,
@@ -50,7 +54,9 @@ function create (_path) {
     addIndexRecord: addIndexRecord,
     removeIndexRecord: removeIndexRecord,
     addIdRecord: addIdRecord,
-    removeIdRecord: removeIdRecord
+    removeIdRecord: removeIdRecord,
+    resetIdsFile: resetIdsFile,
+    resetIndexFile: resetIndexFile
   };
 }
 
@@ -177,6 +183,37 @@ function readBySync (table, fieldName, fieldValue) {
   return _readSync(this.getTableUniqueFile(table, fieldName, fieldValue));
 }
 
+function readAllIdsInDir (table, callback) {
+  var _this = this;
+  var dir = this.getTableIdPath(table);
+  var ids = [];
+  
+  fs.readDir(dir, function (e, files) {
+    if (e) {
+      callback(e);
+    } else {
+      files.forEach(function (idFile) {
+        ids.push(idFile.split('.')[0]);
+      });
+      callback(null, ids);
+    }    
+  });
+}
+
+function readAllIdsInDirSync (table) {
+  var _this = this;
+  var dir = this.getTableIdPath(table);
+  var ids = [];
+  
+  var files = fs.readdirSync(dir);
+  files.forEach(function (idFile) {
+    ids.push(idFile.split('.')[0]);
+  });
+  
+  return ids;
+}
+
+
 function readAllIds (table, callback) {
   var _this = this;
   var idsFile = this.getTableIndexFile(table, '_id');
@@ -288,6 +325,28 @@ function removeIndexRecord  (table, name, value, _id) {
 function addIdRecord (table, _id) {
   var indexFile = this.getTableIndexFile(table, '_id');
   fs.appendFileSync(indexFile, indexRecordFormatedString(['+', _id]));
+}
+
+function resetIdsFile (table, ids) {
+  var indexFile = this.getTableIndexFile(table, '_id');
+  var content = '';
+  ids.forEach(function (_id) {
+    content += indexRecordFormatedString(['+', _id]);
+  });
+  
+  fs.writeFileSync(indexFile, content);
+}
+
+function resetIndexFile (table, name) {
+  var indexFile = this.getTableIndexFile(table, name);
+  var records = this.readAllSync(table);
+  var content = '';
+  records.forEach(function (record) {
+    content += indexRecordFormatedString(['+', record['_id'], record[name]]);
+  });
+
+  // console.log(content);
+  fs.writeFileSync(indexFile, content);
 }
 
 function removeIdRecord (table, _id) {
@@ -493,4 +552,34 @@ function _mergeIndexesToRecords (ids, indexes) {
   });
 
   return records;
+}
+
+// 将读出所有记录
+function readAll (table, callback) {
+  var list = [];
+  var _path = this.getTableIdPath(table);
+  fs.readdir(_path, function (err, files) {
+    if (err) {
+      callback(err);
+    } else {
+      // if none files found, files = []
+      files.forEach(function (file) {
+        list.push(JSON.parse(fs.readFileSync(path.join(_path, file))));
+      });
+      callback(null, list);
+    }
+  });
+}
+
+function readAllSync (table) {
+  var list = [];
+  var _path = this.getTableIdPath(table);
+  var files = fs.readdirSync(_path);
+  
+  files.forEach(function (file) {
+    list.push(JSON.parse(fs.readFileSync(path.join(_path, file))));
+  });
+  
+  return list;
+  
 }

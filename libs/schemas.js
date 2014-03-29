@@ -31,10 +31,11 @@ var ValidKeys = [
   'validate', // a custom validate function, if failed it should return error message directly! passed return null
   'isFake', // for field like 'passwordConfirm', it 's basically same as normal field, except it will never be saved!
   'isReadOnly', // cannot update value after inserted.
-  'readOnly', // alias isReadOnly
+  'readOnly', // alias for isReadOnly
   'step', // only for 'autoIncrement' type
   'autoIncrement', // only for 'autoIncrement' type
-  'isIndex' // is index field
+  'isIndex', // is index field
+  'index'  // alias for isIndex
 ];
 
 var RequiredKeys = ['type'];
@@ -142,7 +143,7 @@ function isUnique (v) {
 
 function isIndex (v) {
   var field = this.getField(v);
-  return field.isIndex === true;
+  return field.isIndex === true || field.index === true;
 
 }
 
