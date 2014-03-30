@@ -128,6 +128,18 @@ describe('test index fields', function () {
     });
   });
   
+  it('test count', function (done) {
+    table.query().count(function (e, count) {
+      should.not.exists(e);
+      assert.equal(count, pastCount + todayCount + todayInLastYearCount);
+      done();
+    });
+  })
+  
+  it('test countSync', function () {
+    assert.equal(table.query().countSync(), pastCount + todayCount + todayInLastYearCount);
+  })
+  
   it('test query all records', function (done) {
     
     table.query().exec(function (e, records) {
@@ -151,10 +163,26 @@ describe('test index fields', function () {
     });
   });
   
+  it('test query().where().count()', function (done) {
+    table.query().where('date', getToday()).count(function (e, count) {
+      should.not.exists(e);
+      assert.equal(count, todayCount);
+      done();
+    });
+  });
+  
   it('test query(filters).exec()', function (done) {
     table.query({date: getToday()}).exec(function (e, records) {
       should.not.exists(e);
       assert.equal(records.length, todayCount);
+      done();
+    });
+  });
+  
+  it('test query(filters).count()', function (done) {
+    table.query({date: getToday()}).count(function (e, count) {
+      should.not.exists(e);
+      assert.equal(count, todayCount);
       done();
     });
   });
@@ -167,6 +195,14 @@ describe('test index fields', function () {
     assert.equal(records2.length, todayCount);
   });
   
+  it('test query().countSync()', function () {
+    var count1 = table.query({date: getToday()}).countSync();
+    var count2 = table.query().where('date', getToday()).countSync();
+    // console.log(records);
+    assert.equal(count1, todayCount);
+    assert.equal(count2, todayCount);
+  });
+  
   it('test query date by timestamp', function (done) {
     table.query({date: getToday().getTime()}).exec(function (e, records) {
       should.not.exists(e);
@@ -175,7 +211,7 @@ describe('test index fields', function () {
     });
   });
   
-  it('test query filter with >=', function (done) {
+  it('test query(filter) with >=', function (done) {
     table.query({date: ['>=', getToday()]}).exec(function (e, records) {
       should.not.exists(e);
       assert.equal(records.length, todayCount);
@@ -183,6 +219,13 @@ describe('test index fields', function () {
     });
   });
   
+  it('test query().where() with >=', function (done) {
+    table.query().where('date', '>=', getToday()).exec(function (e, records) {
+      should.not.exists(e);
+      assert.equal(records.length, todayCount);
+      done();
+    });
+  });
   
   
   it('test query filter with <', function (done) {

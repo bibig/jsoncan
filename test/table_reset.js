@@ -4,7 +4,7 @@ var utils = require('./utils');
 var faker = require('faker');
 var Jsoncan = require('../index');
 var path = require('path');
-var PATH = path.join(__dirname, '_index_fields_test');
+var PATH = path.join(__dirname, '_table_reset_test');
 var fs = require('fs');
 
 describe('test index fields', function () {
@@ -66,7 +66,7 @@ describe('test index fields', function () {
   });
   
   it('read all ids after reset', function () {
-    var ids = table.conn.readAllIdsSync(table.table);
+    var ids = table.conn.readTableIdIndexFileSync(table.table);
     // console.log(ids);
     assert.ok(ids.length, count);
   });
@@ -94,6 +94,23 @@ describe('test index fields', function () {
     fs.unlinkSync(indexFile3);
 
     table.resetAllIndexFiles();
+    
+    assert.ok(fs.existsSync(indexFile1));
+    assert.ok(fs.existsSync(indexFile2));
+    assert.ok(fs.existsSync(indexFile3));
+    
+  });
+  
+  it('test can.refresh', function () {
+    var indexFile1 = table.conn.getTableIndexFile(table.table, 'id');
+    var indexFile2 = table.conn.getTableIndexFile(table.table, 'name');
+    var indexFile3 = table.conn.getTableIndexFile(table.table, 'created');
+    
+    fs.unlinkSync(indexFile1);
+    fs.unlinkSync(indexFile2);
+    fs.unlinkSync(indexFile3);
+
+    can.refresh();
     
     assert.ok(fs.existsSync(indexFile1));
     assert.ok(fs.existsSync(indexFile2));

@@ -181,7 +181,7 @@ describe('test table.js', function () {
   // now, three people in db
   it('primary ids should be appended info index file', function () {
     var exist = fs.existsSync(Table.conn.getTableIndexFile(tableName, '_id'));
-    var ids = Table.conn.readAllIdsSync(tableName);
+    var ids = Table.conn.readTableIdIndexFileSync(tableName);
     assert.equal(ids.length, 3);
     assert.ok(exist);
   });
@@ -454,10 +454,10 @@ describe('test table.js', function () {
   
   
   it('primary id should be delete in the index file', function () {
-    var records = Table.conn.readAllIdsSync(tableName);
+    var ids = Table.conn.readTableIdIndexFileSync(tableName);
     // console.log(raw);
     // console.log(ids);
-    assert.equal(Object.keys(records).length, 2);
+    assert.equal(Object.keys(ids).length, 2);
   });
   
   // now, remain two people in db

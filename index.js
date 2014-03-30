@@ -14,4 +14,11 @@ exports = module.exports = function (path, tableSchemas, validateMessages) {
     }
     return Table.create(this, name);
   }
+  
+  this.refresh = function () {
+    var _this = this;
+    Object.keys(this.tables).forEach(function (name) {
+      _this.table(name).refresh();
+    });
+  }
 };

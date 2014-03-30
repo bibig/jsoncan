@@ -37,10 +37,12 @@ function create (_path) {
     removeSync: removeSync,
     readAll: readAll,
     readAllSync: readAllSync,
-    readAllIds: readAllIds,
-    readAllIdsSync: readAllIdsSync,
-    readAllIdsInDir: readAllIdsInDir,
-    readAllIdsInDirSync: readAllIdsInDirSync,
+    readTableIdIndexFile: readTableIdIndexFile,
+    readTableIdIndexFileSync: readTableIdIndexFileSync,
+    readTableIdsDir: readTableIdsDir,
+    readTableIdsDirSync: readTableIdsDirSync,
+    readTableIdsFiles: readTableIdsFiles,
+    readTableIdsFilesSync: readTableIdsFilesSync,
     read: read,
     readSync: readSync,
     readBy: readBy,
@@ -70,7 +72,7 @@ function getTableIdPath (table) {
 
 // 获取table数据文件
 function getTableIdFile (table, id) {
-  return path.join(this.getTableIdPath(table), id + '.js');
+  return path.join(this.getTableIdPath(table), id);
 }
 
 function getTableUniquePath (table, name) {
@@ -78,7 +80,7 @@ function getTableUniquePath (table, name) {
 }
 
 function getTableUniqueFile (table, name, value) {
-  return path.join(this.getTableUniquePath(table, name), _encrypt(value) + '.js');
+  return path.join(this.getTableUniquePath(table, name), _encrypt(value));
 }
 
 function getTableUniqueAutoIncrementFile (table, name) {
@@ -183,7 +185,7 @@ function readBySync (table, fieldName, fieldValue) {
   return _readSync(this.getTableUniqueFile(table, fieldName, fieldValue));
 }
 
-function readAllIdsInDir (table, callback) {
+function readTableIdsDir (table, callback) {
   var _this = this;
   var dir = this.getTableIdPath(table);
   var ids = [];
@@ -200,7 +202,7 @@ function readAllIdsInDir (table, callback) {
   });
 }
 
-function readAllIdsInDirSync (table) {
+function readTableIdsDirSync (table) {
   var _this = this;
   var dir = this.getTableIdPath(table);
   var ids = [];
@@ -214,13 +216,18 @@ function readAllIdsInDirSync (table) {
 }
 
 
-function readAllIds (table, callback) {
+function readTableIdIndexFile (table, callback) {
   var _this = this;
   var idsFile = this.getTableIndexFile(table, '_id');
+
   fs.readFile(idsFile, function (e, raw) {
     var ids;
     if (e) {
-      callback(e);
+      if (e.code === "ENOENT") {
+        callback(null, []);
+      } else {
+        callback(e);
+      }
     } else {
       ids = _extortIds(raw);
       callback(null, ids);
@@ -229,7 +236,7 @@ function readAllIds (table, callback) {
 }
 
 
-function readAllIdsSync (table, callback) {
+function readTableIdIndexFileSync (table, callback) {
   var idsFile = this.getTableIndexFile(table, '_id');
   var raw, ids;
   try {
@@ -345,7 +352,6 @@ function resetIndexFile (table, name) {
     content += indexRecordFormatedString(['+', record['_id'], record[name]]);
   });
 
-  // console.log(content);
   fs.writeFileSync(indexFile, content);
 }
 
@@ -463,12 +469,10 @@ function readAllIndexes (table, names, callback) {
     }
   });
   
-  // console.log(tasks);
-  
   async.series(
     [
       function (callback) {
-        _this.readAllIds(table, callback);
+        _this.readTableIdIndexFile(table, callback);
       },
       function (callback) {
         async.parallel(tasks, callback);  
@@ -487,7 +491,7 @@ function readAllIndexes (table, names, callback) {
 
 function readAllIndexesSync (table, names) {
   var indexes = {};
-  var ids = this.readAllIdsSync(table);
+  var ids = this.readTableIdIndexFileSync(table);
   var _this = this;
   
   Object.keys(names).forEach(function (name) {
@@ -502,7 +506,11 @@ function readIndex (table, name, convertFn, callback) {
   var file = this.getTableIndexFile(table, name);
   fs.readFile(file, function (e, content) {
     if (e) {
-      callback(e);
+      if (e.code === "ENOENT") {
+        callback(null, {});
+      } else {
+        return e;
+      }
     } else {
       callback(null, _parseIndexFile(content, convertFn));
     }
@@ -511,8 +519,17 @@ function readIndex (table, name, convertFn, callback) {
 
 function readIndexSync (table, name, convertFn) {
   var file = this.getTableIndexFile(table, name);
-  var content = fs.readFileSync(file, {encoding: 'utf8'});
-  return _parseIndexFile(content, convertFn);
+  var content;
+  try {
+    content = fs.readFileSync(file, {encoding: 'utf8'});
+    return _parseIndexFile(content, convertFn);
+  } catch (e) {
+    if (e.code === "ENOENT") {
+      return {}
+    } else {
+      throw e;
+    }
+  }
 }
 
 /**
@@ -558,28 +575,52 @@ function _mergeIndexesToRecords (ids, indexes) {
 function readAll (table, callback) {
   var list = [];
   var _path = this.getTableIdPath(table);
-  fs.readdir(_path, function (err, files) {
+  var _this = this;
+  
+  fs.readdir(_path, function (err, ids) {
     if (err) {
       callback(err);
     } else {
-      // if none files found, files = []
-      files.forEach(function (file) {
-        list.push(JSON.parse(fs.readFileSync(path.join(_path, file))));
-      });
-      callback(null, list);
+      _this.readTableIdsFiles(table, ids, callback);
     }
   });
+}
+
+function readTableIdsFiles (table, ids, callback) {
+  var _path = this.getTableIdPath(table);
+  var tasks = [];
+  
+  ids.forEach(function (_id) {
+    tasks.push(function (callback) {
+      fs.readFile(path.join(_path, _id), {encoding: 'utf8'}, function (e, content) {
+        if (e) { 
+          callback(e);
+        } else {
+          callback(null, JSON.parse(content));
+        }
+      })
+    });
+  });
+  
+  async.parallelLimit(tasks, 100, callback);
+}
+
+function readTableIdsFilesSync (table, ids) {
+  var _path = this.getTableIdPath(table);
+  var list = [];
+  
+  ids.forEach(function (_id) {
+    var content = fs.readFileSync(path.join(_path, _id), {encoding: 'utf8'});
+    list.push(JSON.parse(content));
+  });
+  
+  return list;
 }
 
 function readAllSync (table) {
   var list = [];
   var _path = this.getTableIdPath(table);
-  var files = fs.readdirSync(_path);
+  var ids = fs.readdirSync(_path);
   
-  files.forEach(function (file) {
-    list.push(JSON.parse(fs.readFileSync(path.join(_path, file))));
-  });
-  
-  return list;
-  
+  return this.readTableIdsFilesSync (table, ids);
 }

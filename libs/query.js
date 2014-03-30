@@ -183,15 +183,16 @@ function skip (n) {
  * @return this
  */
 function order (field, isDescend) {
-  this.records.sort(function (a, b) {
-    // return isDescend ? ( a[field] - b[field] ) : ( a[field] - b[field] );
-    if (a[field] < b[field])
-       return isDescend ? 1 : -1;
-    if (a[field] > b[field])
-      return isDescend ? -1 : 1;
-    return 0;
-  });
-  
+  if (this.records.length > 0) {
+    this.records.sort(function (a, b) {
+      // return isDescend ? ( a[field] - b[field] ) : ( a[field] - b[field] );
+      if (a[field] < b[field])
+         return isDescend ? 1 : -1;
+      if (a[field] > b[field])
+        return isDescend ? -1 : 1;
+      return 0;
+    });
+  }  
   return this;
 }
 

@@ -11,7 +11,7 @@
  npm install jsoncan
 
 ## Version
-  1.0.7
+  1.0.8
 
 ## Usage	
 
@@ -107,6 +107,7 @@ if you want to find multiply records, use query.
 	
 	// where
 	// support operators: =, >, <=, <>, !=, in, not in,  between, like, pattern.
+	var query = People.query();
 	query.where('age', 8).select();
 	query.where('age', '>', 8).select();
 	query.where('text', 'like', '%hello%').select();
@@ -135,10 +136,14 @@ if you want to find multiply records, use query.
 	query.order('id').skip(3).limit(10);
 	
 	// exec
-	query().exec(function (e, records) { ... });
+	query.exec(function (e, records) { ... });
 	// exec in sync
-	var records = query().execSync();
+	var records = query.execSync();
 	
+	// count
+	query.count(function (e, count) {...});
+	// count in sync
+	var count = query.countSync();
 	
 ```
 
