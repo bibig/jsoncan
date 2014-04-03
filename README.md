@@ -1,4 +1,4 @@
-# node-jsoncan
+# Jsoncan
 
 + An agile json based database.
 + load seamlessly with zero config.

@@ -39,7 +39,8 @@ function create (ctx, table) {
     conn: ctx.conn,
     schemas: schemas,
     validator: validator,
-    inputFields: function () { return this.schemas.inputFields(); }, // 返回所有来自input输入的字段
+    inputFields: function () { return this.schemas.inputFields(); }, // ready to deprecate
+    getFields: function () { return this.schemas.fields; },
     read: read,
     readSync: readSync,
     readBy: readBy,
@@ -125,7 +126,7 @@ function model (data) {
   m.validate = function () {
     var data = parent.schemas.addValues(this.data);
     var check = _validate.call(parent, this.data);
-    this.messages = check.getMessages();
+    this.errors = this.messages = check.getMessages();
     this.isValid = check.isValid();
     return this.isValid;
   };
@@ -376,7 +377,6 @@ function _linkEachUniqueField (record, fields) {
     _this.conn.linkTableUniqueFileSync(_this.table, record._id, name, record[name]);
   }, fields);
 }
-
 
 /**
  * 删除每一个unique字段的symbol link文件
@@ -1037,6 +1037,7 @@ function _mergeArrays (a, b) {
 function _localQuery (records, options) {
   var noneIndexOrders = _getNoneIndexOrders.call(this, options.orders);
   var noneIndexOrdersKeys = Object.keys(noneIndexOrders);
+  var _this = this;
   var query;
 
   if (noneIndexOrdersKeys.length > 0) {
@@ -1062,6 +1063,14 @@ function _localQuery (records, options) {
     }
     records = query.select(options.select);
   }
+  
+  // but should add default value info all the records.
+  // should keep the value type integrated with the schemas definition.
+  
+  records.forEach(function (record) {
+    _this.schemas.addDefaultValues(record, record);
+    _this.schemas.convertBackEachField(record);
+  });
   
   return records;
 }

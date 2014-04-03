@@ -11,7 +11,7 @@ var ValidKeys = [
   'isNull',
   'isRequired',
   'required', // alias isRequired
-  'isInput',
+  'isInput', // ready to deprecate
   'shouldAfter', 
   'shouldBefore',
   'length',
@@ -83,7 +83,6 @@ function create (fields) {
     text: '_id',
     type: 'primary'
   };
-  
   checkFields(fields);
 
   return {
@@ -106,6 +105,8 @@ function create (fields) {
     precise: precise,
     convertEachField: convertEachField,
     convert: convert,
+    convertBackEachField: convertBackEachField,
+    convertBack: convertBack,
     addAliasValues: addAliasValues,
     addSystemValues: addSystemValues,
     addDefaultValues: addDefaultValues,
@@ -144,7 +145,6 @@ function isUnique (v) {
 function isIndex (v) {
   var field = this.getField(v);
   return field.isIndex === true || field.index === true;
-
 }
 
 function isAutoIncrement (v) {
@@ -171,7 +171,6 @@ function checkFields (fields) {
   });
 }
 
-
 function checkField (name, field) {
   /*
   var keys = Object.keys(field);
@@ -195,8 +194,8 @@ function checkField (name, field) {
 
 // 将原始的数据转换为可以放入表示层阅读的数据
 function presentAll (data) {
-  data = data || {};
   var presentations = {};
+  data = data || {};
   
   this.forEachField(function (name, field, _this) {
     presentations[name] = _this.present(name, data[name], data);
@@ -264,6 +263,7 @@ function isMap (name) {
   return ( field.type == 'hash' || field.type == 'map' ) && field.values;
 }
 
+// ready to deprecate
 // 获取所有isInput的fields
 function inputFields () {
   var fields = {};
@@ -313,20 +313,17 @@ function hasAutoIncrementField () {
 function forEachField (callback, fields, filter) {
   var _this = this;
   var targets;
-  
-  if (fields) {
-    if (Array.isArray(fields)) {
-      targets = fields;
-    } else {
-      targets = Object.keys(fields);
-    }
+
+  if (Array.isArray(fields)) {
+    targets = fields;
+  } else if ( fields && typeof fields == 'object') {
+    targets = Object.keys(fields);
   } else {
     targets = Object.keys(this.fields);
   }
   
   targets.forEach(function (name) {
     var field = _this.fields[name];
-    // field['name'] = name;
     if (typeof filter == 'function') {
       if (!filter(field)) return;
     }
@@ -353,7 +350,7 @@ function precise(num, decimals) {
 }
 
 /**
- * convert value, accoring to the field type
+ * convert value for json file, accoring to the field type
  */
 function convertEachField (data, fields) {
   this.forEachField(function (name, field, _this) {
@@ -363,6 +360,9 @@ function convertEachField (data, fields) {
 }
 
 
+/**
+ * convert for json file
+ */
 function convert (field, value) {
   // console.log('convert field: %s = %s', field.type, value);
   // string to date object
@@ -387,6 +387,29 @@ function convert (field, value) {
     return safepass.hash(value);
   }
   
+  if (field.type == 'boolean' && typeof value != 'boolean') {
+    return value === 1 || value === '1' || value === 'on' || value === 'true';
+  }
+  
+  return value;
+}
+
+/**
+ * convert back from json
+ */
+function convertBackEachField (data) {
+  this.forEachField(function (name, field, _this) {
+    data[name] = _this.convertBack(field, data[name]);
+  }, data);
+  return data;
+}
+
+function convertBack (field, value) {
+  if ((field.type == 'date' || field.type == 'datetime')) {
+    if (typeof value == 'number' ) {
+      return new Date(value);
+    }
+  }
   return value;
 }
 
@@ -434,11 +457,10 @@ function getRandom (type, len) {
   }
 }
 
-function addDefaultValues (data) {
+function addDefaultValues (data, fields) {
   var filtered = {};
   this.forEachField(function (name, field) {
     if (data[name] !== undefined) return; // data中已经设置, 注意可以为空值，null值
-    
     if (field.default !== undefined) {
       if (typeof field.default == 'function') {
         data[name] = field.default();
@@ -448,8 +470,7 @@ function addDefaultValues (data) {
     } else { // if not set default value then set value to null
       data[name] = null;
     }
-  });
-  
+  }, fields);
   return data;
 }
 
