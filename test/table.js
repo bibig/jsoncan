@@ -486,4 +486,25 @@ describe('test table.js', function () {
       done();
     });
   });
+  
+  it('test find by none exist field', function (done) {
+    try {
+      Table.query().where('noneExistField', 10).exec();
+    } catch (err) {
+      should.exist(err);
+      assert.equal(err.code, 1003);
+      done();
+    }
+  });
+  
+  it('test find by none unique field', function (done) {
+    try {
+      Table.findBy('age', 10);
+    } catch (err) {
+      should.exist(err);
+      assert.equal(err.code, 1004);
+      done();
+    }
+  });
+  
 });

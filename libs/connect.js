@@ -451,7 +451,6 @@ function queryAllSync (table, ids, options) {
         records.push(record);
       }
     }
-    
     max--;
   }
   

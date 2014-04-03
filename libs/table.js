@@ -41,6 +41,9 @@ function create (ctx, table) {
     validator: validator,
     inputFields: function () { return this.schemas.inputFields(); }, // ready to deprecate
     getFields: function () { return this.schemas.fields; },
+    checkFields: checkFields,
+    checkField: checkField,
+    checkUniqueField: checkUniqueField,
     read: read,
     readSync: readSync,
     readBy: readBy,
@@ -690,21 +693,49 @@ function find (_id, callback) {
   this.conn.read(this.table, _id, callback);
 }
 
-function findBy (name, value, callback) {
-  if (!this.schemas.isUnique(name)) { throw error(1003, name); }
-  if (Validator.isEmpty(name, value)) { return null; }
-  this.conn.readBy(this.table, name, value, callback); 
-}
-
 function findSync (_id) { 
   if (Validator.isEmpty(_id)) { return null; }
   return this.conn.readSync(this.table, _id); 
 }
 
+function findBy (name, value, callback) {
+  this.checkUniqueField(name);
+  if (Validator.isEmpty(name, value)) { return null; }
+  this.conn.readBy(this.table, name, value, callback); 
+}
+
 function findBySync (name, value) {
-  if (!this.schemas.isUnique(name)) { throw error(1003, name); }
+  this.checkUniqueField(name);
   if (Validator.isEmpty(name, value)) { return null; }
   return this.conn.readBySync(this.table, name, value); 
+}
+
+function checkFields (names) {
+  var _this = this;
+  if (!Array.isArray(names)) {
+    if (typeof names == 'object') {
+      names = Object.keys(names);
+    } else {
+      names = [];
+    }
+  }
+  
+  names.forEach(function (name) {
+    _this.checkField(name);
+  });
+}
+
+function checkField (name) {
+  if (!this.schemas.isField(name)) {
+    throw error(1003, name);
+  }
+}
+
+function checkUniqueField (name) {
+  this.checkField(name);
+  if (!this.schemas.isUnique(name)) { 
+    throw error(1004, name); 
+  }
 }
 
 
@@ -895,6 +926,7 @@ function _getNoneIndexFilters (options) {
 
 function count (filters, callback) {
   var _this = this;
+  this.checkFields(filters);
   
   async.waterfall([
     function (callback) {
@@ -925,12 +957,15 @@ function count (filters, callback) {
 }
 
 function countSync (filters) {
-  var indexFilters = _getIndexFilters.call(this, filters);
-  var indexFilterKeys = Object.keys(indexFilters);
-  var noneIndexFilters = _getNoneIndexFilters.call(this, filters);
-  var noneIndexFilterKeys = Object.keys(noneIndexFilters);
-  var records = this.conn.readAllIndexesSync(this.table, _getConnQueryIndexKeys.call(this, indexFilterKeys));
-  var ids = _getIdsFromIndexRecords.call(this, records, { filters: indexFilters });
+  var indexFilters, indexFilterKeys, noneIndexFilters, noneIndexFilterKeys, ids, records;
+  this.checkFields(filters);
+  
+  indexFilters = _getIndexFilters.call(this, filters);
+  indexFilterKeys = Object.keys(indexFilters);
+  noneIndexFilters = _getNoneIndexFilters.call(this, filters);
+  noneIndexFilterKeys = Object.keys(noneIndexFilters);
+  records = this.conn.readAllIndexesSync(this.table, _getConnQueryIndexKeys.call(this, indexFilterKeys));
+  ids = _getIdsFromIndexRecords.call(this, records, { filters: indexFilters });
   
   if (noneIndexFilterKeys.length == 0) {
     return ids.length;  
@@ -941,6 +976,8 @@ function countSync (filters) {
 
 function _findAll (options, callback) {
   var _this = this;
+  this.checkFields(options.filters);
+  this.checkFields(options.orders);
 
   async.waterfall([
     function (callback) {
@@ -975,14 +1012,18 @@ function _findAll (options, callback) {
 }
 
 function _findAllSync (options) {
-  var indexFilters = _getIndexFilters.call(this, options.filters);
-  var indexFilterKeys = Object.keys(indexFilters);
-  var indexOrders = _getIndexOrders.call(this, options.orders);
-  var indexOrderKeys = Object.keys(indexOrders);
-  var usedIndexKeys = _mergeArrays(indexFilterKeys, indexOrderKeys);
-  var indexRecords = this.conn.readAllIndexesSync(this.table, _getConnQueryIndexKeys.call(this, usedIndexKeys));
-  var ids = _getIdsFromIndexRecords.call(this, indexRecords, options);
-  var records = this.conn.queryAllSync(this.table, ids, _makeConnQueryOptions.call(this, options));
+  var indexFilters, indexFilterKeys, indexOrders, indexOrderKeys, usedIndexKeys, indexRecords, ids, records;  
+  this.checkFields(options.filters);
+  this.checkFields(options.orders);
+  
+  indexFilters = _getIndexFilters.call(this, options.filters);
+  indexFilterKeys = Object.keys(indexFilters);
+  indexOrders = _getIndexOrders.call(this, options.orders);
+  indexOrderKeys = Object.keys(indexOrders);
+  usedIndexKeys = _mergeArrays(indexFilterKeys, indexOrderKeys);
+  indexRecords = this.conn.readAllIndexesSync(this.table, _getConnQueryIndexKeys.call(this, usedIndexKeys));
+  ids = _getIdsFromIndexRecords.call(this, indexRecords, options);
+  records = this.conn.queryAllSync(this.table, ids, _makeConnQueryOptions.call(this, options));
   
   return _localQuery.call(this, records, options);
 }
@@ -1038,7 +1079,7 @@ function _localQuery (records, options) {
   var noneIndexOrders = _getNoneIndexOrders.call(this, options.orders);
   var noneIndexOrdersKeys = Object.keys(noneIndexOrders);
   var _this = this;
-  var query;
+  var query, fields;
 
   if (noneIndexOrdersKeys.length > 0) {
     query = Query.create(records);
@@ -1064,11 +1105,16 @@ function _localQuery (records, options) {
     records = query.select(options.select);
   }
   
+  if (query) {
+    fields = query.fields;
+  }
+  
   // but should add default value info all the records.
   // should keep the value type integrated with the schemas definition.
-  
   records.forEach(function (record) {
-    _this.schemas.addDefaultValues(record, record);
+    if (fields) {
+      _this.schemas.addDefaultValues(record, fields);
+    }
     _this.schemas.convertBackEachField(record);
   });
   

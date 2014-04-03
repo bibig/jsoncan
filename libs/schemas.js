@@ -120,6 +120,7 @@ function create (fields) {
     getFieldType: function (name) { return this.fields[name].type; },
     isType: function (name, type) { return this.getFieldType(name) == type; },
     isAutoIncrement: isAutoIncrement,
+    isField: isField,
     isUnique: isUnique,
     isIndex : isIndex,
     isReadOnly: isReadOnly,
@@ -134,6 +135,10 @@ function create (fields) {
 
 function getField (v) {
   return typeof v == 'string' ? this.fields[v] : v;
+}
+
+function isField (name) {
+  return typeof this.fields[name] !== 'undefined';
 }
 
 // notice: auto increment fields are unique too.

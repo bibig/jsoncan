@@ -22,6 +22,7 @@ var error = require('./error');
  */
 function create (records) {
   return {
+    fields: null,
     records: records,
     isEmpty: isEmpty,
     select: select,
@@ -82,6 +83,7 @@ function select (/*fields*/) {
   }
   
   if (util.isArray(fields)) {
+    this.fields = fields;
     return _select(this.records, fields);
   } else {
     return this.records;
