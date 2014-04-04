@@ -58,6 +58,7 @@ var ValidTypes = [
   'created', // created timestamp
   'modified', // modified timestamp
   'text',
+  'ref', // reference
   'primary', // _id type
   'random', // alpha number random, default length 8
   'alias', // logic field, should define a logic function to create its value.
@@ -127,6 +128,7 @@ function create (fields) {
     getUniqueFields: getUniqueFields,
     getAutoIncrementValue: null, // need to inject
     getNextAutoIncrementValue: getNextAutoIncrementValue,
+    getReference: getReference,
     filterData: filterData,
     fieldValueConvertFn: fieldValueConvertFn
   };
@@ -135,6 +137,12 @@ function create (fields) {
 
 function getField (v) {
   return typeof v == 'string' ? this.fields[v] : v;
+}
+
+function getReference (name) {
+  var field = this.getField(name);
+  // console.log(field.ref);
+  return field.ref;
 }
 
 function isField (name) {
@@ -188,12 +196,12 @@ function checkField (name, field) {
   
   RequiredKeys.forEach(function (key) {
     if (field[key] == undefined) {
-      throw error.create(1001, key, name);
+      throw error(1001, key, name);
     }
   });
   
   if (!isValidType(field.type)) {
-    throw error.create(1002, field.type, name);
+    throw error(1002, field.type, name);
   }
 }
 
@@ -329,6 +337,7 @@ function forEachField (callback, fields, filter) {
   
   targets.forEach(function (name) {
     var field = _this.fields[name];
+    if (typeof field === 'undefined') return;
     if (typeof filter == 'function') {
       if (!filter(field)) return;
     }
@@ -403,6 +412,7 @@ function convert (field, value) {
  * convert back from json
  */
 function convertBackEachField (data) {
+  // console.log(data);
   this.forEachField(function (name, field, _this) {
     data[name] = _this.convertBack(field, data[name]);
   }, data);

@@ -11,6 +11,8 @@ var Messages = {
   1002: 'Invalid field\'s type <%s> found in field <%s>.',
   1003: 'Invalid field <%s>',
   1004: '<%s> is not an unique field, cannot use findBy feature.',
+  1005: 'Invalid table <%s>',
+  1006: 'Invalid reference field <%s>',
   
   // table
   1100: 'Unique field <%s> should have a value.',

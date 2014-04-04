@@ -13,6 +13,7 @@ var Query = require('./query');
 var error = require('./error');
 var Validator = require('./validator');
 var safepass = require('safepass');
+var utils = require('./utils');
 
 /**
  * create table object
@@ -22,28 +23,30 @@ var safepass = require('safepass');
  * @fields: schemas
  * @return Object
  */
-function create (ctx, table) {
-  var schemas = Schemas.create(ctx.tables[table]);
-  var validator = Validator.create(schemas, ctx.validateMessages);
+function create (conn, table) {
+  var schemas = Schemas.create(conn.tables[table]);
+  var validator = Validator.create(schemas, conn.validateMessages);
   
   // build table root path and unique fields paths
-  ctx.conn.createTablePaths(table, schemas.getUniqueFields());
+  conn.createTablePaths(table, schemas.getUniqueFields());
   
   schemas.getAutoIncrementValue = function (name) {
-    return ctx.conn.readTableUniqueAutoIncrementFile(table, name);
+    return conn.readTableUniqueAutoIncrementFile(table, name);
   }
   
   
   return {
     table: table,
-    conn: ctx.conn,
+    conn: conn,
     schemas: schemas,
     validator: validator,
     inputFields: function () { return this.schemas.inputFields(); }, // ready to deprecate
     getFields: function () { return this.schemas.fields; },
     checkFields: checkFields,
     checkField: checkField,
+    checkTable: checkTable,
     checkUniqueField: checkUniqueField,
+    checkReference: checkReference,
     read: read,
     readSync: readSync,
     readBy: readBy,
@@ -52,6 +55,11 @@ function create (ctx, table) {
     findBy: findBy,
     findSync: findSync,
     findBySync: findBySync,
+    findBelongsTo: findBelongsTo,
+    findBelongsToSync: findBelongsToSync,
+    findAllBelongsToSync: findAllBelongsToSync,
+    findAllHasMany: findAllHasMany,
+    findAllHasManySync: findAllHasManySync,
     query: query,
     count: count,
     countSync: countSync,
@@ -689,7 +697,7 @@ function removeAllSync (options, callback) {
 }
 
 function find (_id, callback) { 
-  if (Validator.isEmpty(_id)) { return null; }
+  if (Validator.isEmpty(_id)) { return callback(); }
   this.conn.read(this.table, _id, callback);
 }
 
@@ -725,6 +733,12 @@ function checkFields (names) {
   });
 }
 
+function checkTable (name) {
+  if (!this.conn.tables[name]) {
+    throw error(1005, name);
+  }
+}
+
 function checkField (name) {
   if (!this.schemas.isField(name)) {
     throw error(1003, name);
@@ -736,6 +750,19 @@ function checkUniqueField (name) {
   if (!this.schemas.isUnique(name)) { 
     throw error(1004, name); 
   }
+}
+
+function checkReference (name) {
+  var ref = this.schemas.getReference(name);
+  if (typeof ref == 'object') {
+    if (ref.table) {
+      if (this.conn.tables[ref.table]) {
+        return true;
+      }
+    }
+  }
+  
+  throw error(1006, name);
 }
 
 
@@ -1121,6 +1148,71 @@ function _localQuery (records, options) {
   return records;
 }
 
+function findAllBelongsTo (ref, callback) {
+  var Reference = create(this.conn, ref.table);
+  var fields = utils.clone(ref.fields);
+  fields.unshift('_id');
+  Reference.query(ref.filters || {}).select(fields).map().exec(callback);
+}
+
+function findAllBelongsToSync (ref) {
+  var Reference = create(this.conn, ref.table);
+  var fields = utils.clone(ref.fields);
+  fields.unshift('_id');
+  return Reference.query(ref.filters || {}).select(fields).map().execSync();
+}
+
+function findBelongsTo (key, value, ref, callback) {
+  var Reference = create(this.conn, ref.table);
+  if (key == '_id') {
+    Reference.find(value, callback);
+  } else {
+    Reference.findBy(key, value, callback);
+  }
+}
+
+function findBelongsToSync (key, value, ref) {
+  var Reference = create(this.conn, ref.table);
+  if (key == '_id') {
+    return Reference.findSync(value);
+  } else {
+    return Reference.findBySync(key, value);
+  }
+  
+}
+
+function findAllHasMany (_id, ref, callback) {
+  var query = _hasManyQuery.call(this, _id, ref);  
+  query.exec(callback);
+}
+
+function findAllHasManySync (_id, ref) {
+  // console.log(ref);
+  var query = _hasManyQuery.call(this, _id, ref);
+  return query.execSync();
+}
+
+// return table.query();
+function _hasManyQuery (_id, ref) {
+  var Reference = create(this.conn, ref.table);
+  var query;
+  var options = utils.clone(ref.options);
+  options.filters = options.filters || {};
+  options.filters[ref.on] = _id;
+  // console.log(options.filters);
+  query = Reference.query(options.filters);
+  if (Array.isArray(options.order)) {
+    query.order(options.order[0], options.order[1] || false);
+  }
+  
+  if (options.select) {
+    query.select(options.select);
+  }
+  
+  return query;
+}
+
+
 // new version of query
 function query (filters) {
   var parent = this;
@@ -1173,26 +1265,169 @@ function query (filters) {
     return this;
   }
   
+  function map () {
+    this.options.isMap = true;
+    return this;
+  }
+  
+  function popluateRecords (records, callback) {
+    var _this = this;
+    async.each(records, function (record, callback) {
+      // console.log('ready to populateRecord');
+      // console.log(record);
+      populateRecord.call(_this, record, callback) 
+    }, callback);
+  }
+  
+  function popluateRecordsSync (records, callback) {
+    var _this = this;
+    records.forEach(function (record) {
+      populateRecordSync.call(_this, record);
+    });
+  }
+  
+  function populateRecord (record, callback) {
+    var tasks = [];
+    var _this = this;
+    
+    // console.log('populateRecord');
+    // console.log(this.references);
+    // console.log('~0');
+    this.references.forEach(function (ref) {
+      switch (ref.type) {
+        case 'hasMany':
+          tasks.push(function (callback) {
+            parent.findAllHasMany(record._id, ref, function (e, sons) {
+              if (e) { callback(e); } else {
+                record[ref.table] = sons;
+                callback();
+              }
+            });
+          });
+          break;
+        case 'belongsTo':
+          tasks.push(function (callback) {
+            var name = ref.name;
+            var key = ref.key;
+            var value = record[ref.name];
+            var cache = getBelongsToCache.call(_this, name, value);
+            if (cache) {
+              record[name] = cache;
+              // console.log('find cache! %d', new Date().getTime());
+              callback();
+            } else {
+              // console.log('no cache! %d', new Date().getTime());
+              parent.findBelongsTo(key, value, ref, function (e, father) {
+                if (e) { callback(e); } else {
+                  record[name] = father;
+                  // console.log('ready to add cache: %s, %d', ref.name, new Date().getTime());
+                  // console.log(father);
+                  addBelongsToCache.call(_this, name, father);
+                  callback();
+                }
+              });
+            }
+          }); // end of push
+          break;
+      }
+    }); // end of forEach
+    
+    
+    // console.log(tasks);
+    async.waterfall(tasks, callback);
+    
+  } // end of function
+  
+  function populateRecordSync (record) {
+    var _this = this;
+    // console.log(this.references);
+    this.references.forEach(function (ref) {
+      if (ref.type == 'hasMany') {
+        record[ref.table] = parent.findAllHasManySync(record._id, ref);
+      } else if (ref.type == 'belongsTo') {
+        var cache = getBelongsToCache.call(_this, ref.name, record[ref.name]);
+        if (cache) {
+          record[ref.name] = cache;
+        } else {
+          record[ref.name] = parent.findBelongsToSync(ref.key, record[ref.name], ref);
+          addBelongsToCache.call(_this, ref.name, record[ref.name]);
+        }
+      } // end of else if
+    }); // end of forEach
+    
+    return record;
+  } // end of function
+  
+  function addBelongsToCache (name, record) {
+    var key = getBelongsToCacheId(name, record._id);
+    this.belongsToCaches[key] = record;
+    // console.log('im in addBelongsToCache');
+    // console.log(this.belongsToCaches);
+  }
+  
+  function getBelongsToCacheId (name, _id) {
+    return [name, _id].join('|');
+  }
+  
+  function getBelongsToCache (name, _id) {
+    // console.log('im in getBelongsToCache, %s, %s', name, _id);
+    // console.log(this.belongsToCaches[name]);
+    var key = getBelongsToCacheId(name, _id);
+    return this.belongsToCaches[key];
+  }
+  
+  
+  function populateHasManySync (records) {
+    var _this = this;
+    records.forEach(function (record) {
+      _this.references.forEach(function (reference) {
+        if (reference.type != 'hasMany') { return; }
+        record[reference.name] = parent.findAllHasManySync(reference);
+      });
+    });
+  }
+  
   function exec (callback) {
     var _this = this;
-    _findAll.call(parent, this.options, function (e, records) {
-      if (e) {
-        callback(e);
-      } else if (_this.options.isFormat) {
-        callback(null, _formatAll.call(parent, records));
-      } else {
-        callback(null, records);
+
+    _findAll.call(parent, _this.options, function (e, records) {
+      if (e) { callback(e); } else {
+        if (_this.options.isFormat) {
+          records = _formatAll.call(parent, records)
+        }
+        
+        if (_this.hasReference()) {
+          popluateRecords.call(_this, records, function (e) {
+            if (e) { callback(e); } else {
+              if (_this.options.isMap) {
+                records = arrayToMap(records);
+              }
+              // console.log('im here');
+              callback(null, records);
+            }
+          });
+        } else {
+          if (_this.options.isMap) {
+            records = arrayToMap(records);
+          }
+          callback(null, records);
+        }
       }
-    });
+    }); // end of _findAll
   }
   
   function execSync () {
     var records = _findAllSync.call(parent, this.options);
+    
     if (this.options.isFormat) {
-      return _formatAll.call(parent, records);
-    } else {
-      return records;
+      records = _formatAll.call(parent, records);
+    } 
+    
+    if (this.hasReference()) {
+      popluateRecordsSync.call(this, records);
     }
+    
+    return records;
   }
   
   function count (callback) {
@@ -1202,27 +1437,77 @@ function query (filters) {
   function countSync () {
     return parent.countSync(this.options.filters);
   }
+  
+  function ref (name) {
+    var ref;
+    parent.checkReference(name);
+    ref = parent.schemas.getReference(name);
+    ref.name = name;
+    ref.type = 'belongsTo';
+    
+    if (!ref.key) {
+      ref.key = '_id';
+    }
+    
+    this.references.push(ref);
+    return this;
+  }
+  
+  function hasMany (table, name, options) {
+    var ref;
+    parent.checkTable(table);
+    
+    ref = {
+      type: 'hasMany',
+      table: table,
+      on: name,
+      options: options
+    };
+    
+    this.references.push(ref);
+    return this;
+  }
+  
+  function arrayToMap (records) {
+    var map = {};
+    records.forEach(function (record) {
+      map[record._id] = record;
+    });
+    return map;
+  }
 
   return {
+    belongsToCaches: {},
+    references: [],
     options: {
-      filters: filters || {},
+      filters: filters || {}, 
       orders: {},
       limit: null,
       skip: null,
       select: null,
-      isFormat: false
+      isFormat: false,
+      isMap: false
     },
+    hasReference: function () { return Object.keys(this.references).length > 0; },
     where: where,
     order: order,
     limit: limit,
     skip: skip,
     select: select,
     format: format,
+    map: map,
+    // populate: populate,
+    ref: ref,
+    hasMany: hasMany,
     exec: exec,
     execSync: execSync,
     count: count,
     countSync: countSync
   };
+  // popluateRecords: popluateRecords,
+  // popluateRecordsSync: popluateRecordsSync,
+  // populateRecord: populateRecord,
+  // populateRecordSync: populateRecordSync
 }
 
 function resetIdsFile () {
