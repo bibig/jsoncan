@@ -60,6 +60,7 @@ function create (conn, table) {
     
     findInOtherTable: findInOtherTable,
     findInOtherTableSync: findInOtherTableSync,
+    findAllBelongsTo: findAllBelongsTo,
     findAllBelongsToSync: findAllBelongsToSync,
     findAllHasMany: findAllHasMany,
     findAllHasManySync: findAllHasManySync,
@@ -390,12 +391,9 @@ function checkUniqueField (name) {
 }
 
 function checkReference (table, name) {
-  if (this.conn.tables[table]) {
-    if (table === this.schemas.getReference(name)) {
-      return true;
-    }
+  if (this.conn.tables[table] && this.schemas.isField(name)) {
+    return true;
   }
-  
   throw error(1006, name);
 }
 
@@ -533,12 +531,12 @@ function countSync (filters) {
   }
 }
 
-
-
 function findAllBelongsTo (ref, callback) {
   var Reference = create(this.conn, ref.table);
   var fields = utils.clone(ref.fields);
-  fields.unshift('_id');
+  if (Array.isArray(fields)) {
+    fields.unshift('_id');
+  }
   Reference.query(ref.filters || {}).select(fields).map().exec(callback);
 }
 

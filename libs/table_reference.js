@@ -9,7 +9,7 @@ exports.hasReference = hasReference;
 
 var utils = require('./utils');
 var async = require('async');
-var pluralize = require('pluralize');
+var inflection = require('inflection');
 
 function select () {
   var args = [];
@@ -42,7 +42,9 @@ function belongsTo (parent, table, name) {
 }
 
 function getReferenceName (tableName) {
-  return '_' + pluralize.singular(tableName);
+  // console.log(tableName);
+  // console.log('_' + inflection.singularize(tableName));
+  return '_' + inflection.singularize(tableName);
 }
 
 function hasMany (parent, table, options) {
@@ -96,12 +98,17 @@ function populateRecord (parent, record, callback) {
       case 'belongsTo':
         tasks.push(function (callback) {
           var _id = record[ref.on];
-          parent.findInOtherTable(_id, ref.table, function (e, father) {
-            if (e) { callback(e); } else {
-              record[ref.on] = father;
-              callback();
-            }
-          });
+          if (_id) {
+            parent.findInOtherTable(_id, ref.table, function (e, father) {
+              if (e) { callback(e); } else {
+                record[ref.on] = father;
+                callback();
+              }
+            });
+          } else {
+            record[ref.on] = null;
+            callback();
+          }
         }); // end of push
         break;
     }

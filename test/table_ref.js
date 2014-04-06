@@ -17,13 +17,13 @@ describe('populate test', function () {
     blogs: {
       id: { type: 'autoIncrement', isIndex: true},
       title: { type: 'string', max: 100, required: true},
-      _category: { type: 'ref', required: true, ref: 'categories' },
+      _category: { type: 'ref', required: true},
       created:  { type: 'created' }
     },
     comments: {
       id: { type: 'autoIncrement', isIndex: true},
       title: { type: 'string', max: 100, required: true},
-      _blog: { type: 'ref', required: true, ref: 'blogs' },
+      _blog: { type: 'ref', required: true},
       created: { type: 'created' }
     }
   };

@@ -24,7 +24,7 @@
     "rander": "*",
     "async": "*",
     "safepass": "*",
-    "pluralize": "*"
+    "inflection": "*"
   },
   "devDependencies": {
     "mocha": "*",
