@@ -11,29 +11,19 @@ describe('populate test', function () {
   
   var tables = {
     categories: {
+      id: { type: 'random', size: 6, required: true, isUnique: true, index: true },
       name: { type: 'string', max: 30, required: true}
     },
     blogs: {
       id: { type: 'autoIncrement', isIndex: true},
       title: { type: 'string', max: 100, required: true},
-      category: { type: 'ref', required: true, 
-        ref: {
-          table: 'categories',
-          key: '_id',
-          options: { order: ['name', true] }
-        }
-      },
+      _category: { type: 'ref', required: true, ref: 'categories' },
       created:  { type: 'created' }
     },
     comments: {
       id: { type: 'autoIncrement', isIndex: true},
       title: { type: 'string', max: 100, required: true},
-      _blog: { type: 'ref', required: true,
-        ref: {
-          table: 'blogs',
-          fields: ['title']
-        }
-      },
+      _blog: { type: 'ref', required: true, ref: 'blogs' },
       created: { type: 'created' }
     }
   };
@@ -46,45 +36,45 @@ describe('populate test', function () {
   function addData () {
     var categoryA = Categories.insertSync({name: 'a'});
     var categoryB = Categories.insertSync({name: 'b'});
-    
+    // console.log(categoryA);
     var blog1 = Blogs.insertSync({
-      category: categoryA._id,
+      _category: categoryA,
       title: 'a.1'
     });
     
     var blog2 = Blogs.insertSync({
-      category: categoryA._id,
+      _category: categoryA,
       title: 'a.2'
     });
     
     Blogs.insertSync({
-      category: categoryA._id,
+      _category: categoryA,
       title: 'a.3'
     });
     
     Blogs.insertSync({
-      category: categoryB._id,
+      _category: categoryB,
       title: 'b.1'
     });
     
     Blogs.insertSync({
-      category: categoryB._id,
+      _category: categoryB._id,
       title: 'b.2'
     });
     
     
     Comments.insertSync({
-      _blog: blog1._id,
+      _blog: blog1,
       title: 'comment 1.1'
     });
     
     Comments.insertSync({
-      _blog: blog1._id,
+      _blog: blog1,
       title: 'comment 1.2'
     });
     
     Comments.insertSync({
-      _blog: blog1._id,
+      _blog: blog1,
       title: 'comment 1.3'
     });
     
@@ -106,20 +96,21 @@ describe('populate test', function () {
 
   
   it('test populate (belongsTo type) sync way', function () {
-    var blogs = Blogs.query().ref('category').execSync();
+    var query = Blogs.query().ref('categories');
+    var blogs = query.execSync();
     blogs.forEach(function (blog) {
-      blog.category.should.have.property('name');
-      blog.category.should.have.property('_id');
+      blog._category.should.have.property('name');
+      blog._category.should.have.property('_id');
     });
   });
   
   it('test populate (belongsTo type) async way', function (done) {
-    var query = Blogs.query().ref('category');
+    var query = Blogs.query().ref('categories');
     query.exec(function (e, blogs) {
       should.not.exist(e);
       blogs.forEach(function (blog) {
-        blog.category.should.have.property('name');
-        blog.category.should.have.property('_id');
+        blog._category.should.have.property('name');
+        blog._category.should.have.property('_id');
       });
       // console.log(query.belongsToCaches);
       done();
@@ -128,7 +119,7 @@ describe('populate test', function () {
   
   
   it('test populate (hasMany type) sync way', function () {
-    var blogs = Blogs.query().hasMany('comments', '_blog').execSync();
+    var blogs = Blogs.query().hasMany('comments').execSync();
     // console.log(blogs);
     blogs.forEach(function (blog) {
       assert.ok(Array.isArray(blog.comments));
@@ -138,10 +129,8 @@ describe('populate test', function () {
     });
   });
   
-  
-  
   it('test populate (hasMany type) async way', function (done) {
-    Blogs.query().hasMany('comments', '_blog').exec(function (e, blogs) {
+    Blogs.query().hasMany('comments').exec(function (e, blogs) {
       should.not.exist(e);
       // console.log(blogs);
       blogs.forEach(function (blog) {
@@ -149,10 +138,30 @@ describe('populate test', function () {
       });
       done();
     });
-    
     // console.log(blogs);
   });
   
+  it('test finder().ref()', function (done) {
+    var finder = Blogs.finder('id', 1).ref('categories').select('id, title, _category');
+    finder.exec(function (e, record) {
+      // console.log(record);
+      should.not.exist(e);
+      assert.ok(typeof record._category == 'object');
+      record._category.should.have.property('_id');
+      assert.equal(record._category._id, Blogs.finder('id', 1).execSync()._category);
+      done();
+    });
+  });
   
+  it('test finder().hasMany()', function (done) {
+    var finder = Blogs.finder('id', 1).ref('categories').hasMany('comments', {order: ['created']}).select('id, title, _category, comments');
+    finder.exec(function (e, record) {
+      // console.log(record);
+      should.not.exist(e);
+      assert.ok(Array.isArray(record.comments));
+      assert.equal(record.comments.length, 3);
+      done();
+    });
+  });
   
 });

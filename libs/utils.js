@@ -1,5 +1,8 @@
 exports.merge = merge;
+exports.mergeArray = mergeArray;
 exports.clone = clone;
+exports.cloneArray = cloneArray;
+exports.hasKeys = hasKeys;
 
 function merge (targetObj, defaultObj) {
 	if (! targetObj) targetObj = {};
@@ -17,39 +20,47 @@ function cloneArray (target) {
   var copycat = [];
   target.forEach(function (ele) {
     if (Array.isArray(ele)) {
-      copycat[key] = cloneArray(ele);
+      copycat.push(cloneArray(ele));
     } else if (typeof ele == 'object') {
-      copycat[key] = clone(ele);
+      copycat.push(clone(ele));
     } else {
-      copycat[key] = ele;
+      copycat.push(ele);
     }
   });
   return copycat;
 }
 
 function clone (target, keys) {
-	var copycat = {};
-	try {
-	  if (Array.isArray(target)) {
-	    return cloneArray(target);
-	  } else if (typeof target == 'object') {
-	    keys = keys || Object.keys(target);
-      if ( keys.length > 0 ) {
-        keys(target).forEach(function (key) {
-          if (Array.isArray(target[key])) {
-            copycat[key] = [];
-            target[key].forEach(function (element) {
-              copycat[key] = clone(element);
-            });
-          } else if (typeof target[key] == 'object' && target[key] != null) {
-            copycat[key] = clone(target[key]);
-          } else {
-            copycat[key] = target[key];
-          }
-        });
-      }  
-	  }
-	} catch (ignore) {}
+	var copycat;
 	
-	return copycat;
+	if (Array.isArray(target)) {
+    return cloneArray(target);
+  } else if (typeof target === 'object') {
+    copycat = {};
+    keys = keys || Object.keys(target);
+    if ( keys.length > 0 ) {
+      keys.forEach(function (key) {
+        copycat[key] = clone(target[key]);
+      });
+    }
+    return copycat;
+  } else {
+    return target;
+  }
+}
+
+function mergeArray (a, b) {
+  var c = [].concat(a);
+  
+  b.forEach(function (key) {
+    if (c.indexOf(key) == -1) {
+      c.push(key);
+    }
+  });
+  
+  return c;
+}
+
+function hasKeys (obj) {
+  return Object.keys(obj).length > 0;
 }

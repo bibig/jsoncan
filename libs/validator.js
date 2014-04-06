@@ -1,6 +1,7 @@
 exports.isNumber = isNumber;
 exports.create = create;
 exports.isEmpty = isEmpty;
+exports.isValidPrimaryId = isValidPrimaryId;
 
 var validator = require('validator');
 var util = require('util');
@@ -29,7 +30,8 @@ var Messages = {
   215: 'Invalid credit card <%s>',
   216: 'Invalid value, it should be less than <%s>',
   217: 'Invalid value, it should be greater than <%s>',
-  218: 'Duplicated value found, <%s> already exists'
+  218: 'Duplicated value found, <%s> already exists',
+  219: 'Invalid reference'
 };
 
 function create (schemas, messages) {
@@ -86,12 +88,10 @@ function check (data, changedFields) {
     if (changedFields) { if (changedFields.indexOf(name) == -1) return; }
     _this.validate(name, ctx.fields[name], _this.data[name], data);
   });
-  
   return this;
 }
 
 function validate (name, field, value, data) {
-  
   if (this.schemas.isSystemField(field) || this.schemas.isAliasField(field)) return;
   
   this.checkNull.apply(this, arguments);
@@ -115,13 +115,9 @@ function validate (name, field, value, data) {
   this.checkCustom.apply(this, arguments);
 }
 
-
-
 function isValidField (name) {
   return this.Map[name] === undefined;
 }
-
-
 
 function checkType (name, field, value) {
   var pass;
@@ -150,6 +146,12 @@ function checkType (name, field, value) {
     case 'map':
       pass = (typeof value == 'string' || typeof value == 'number');
       break;
+    case 'ref':
+      if (typeof value === 'object') {
+        if (isValidPrimaryId(value._id)) { return; }
+      } else if (isValidPrimaryId(value)) { return; }
+      this.addMessage(name, 219);
+      return;
     case 'date':
     case 'datetime':
       if (!validator.isDate(value)) { this.addMessage(name, 208, value); }
@@ -231,14 +233,14 @@ function checkCustom (name, field, value, data) {
 
 // 注意： unique field不能为空
 function checkNull (name, field, value) {
-  
-  if ( (field.isRequired || field.required || field.isNull === false || field.isUnique ) &&  validator.isNull(value) ) {
-    this.addMessage(name, 200);
+  if ((field.isRequired || field.required || field.isNull === false || field.null === false || field.isUnique )) {
+    if (isEmpty(value)) {
+      this.addMessage(name, 200);
+    }
   }
 }
 
 function checkValue (name, field, value) {
-  
   if (field.pattern && !validator.matches(value, field.pattern, 'i')) {
     this.addMessage(name, 201, field.pattern);
     return;
@@ -301,11 +303,24 @@ function isNumber (n) {
 }
 
 function isEmpty () {
-  var _isEmpty = function (s) { return typeof s === 'undefined' || s === null || s === ''; };
-
+  function _isEmpty (s) {
+    if (Array.isArray(s)) {
+      return s.length === 0;  
+    } else {
+      return s === undefined || s === null || s === '';
+    }
+  }
+  
   for (var i = 0; i < arguments.length; i++) {
     if (_isEmpty(arguments[i])) { return true; }
   }
   
+  return false;
+}
+
+function isValidPrimaryId (s) {
+  if (typeof s === 'string') {
+    return /[0-9a-f]+/.test(s);
+  }
   return false;
 }

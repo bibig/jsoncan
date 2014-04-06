@@ -73,7 +73,7 @@ describe('test auto-increment field', function () {
   }); 
   
   it('test query all', function (done) {
-    Table.query({id: ['>', 0]}).exec(function (e, records) {
+    Table.findAll({id: ['>', 0]}).exec(function (e, records) {
       should.not.exist(e);
       assert.equal(records.length, 3);
       done();
@@ -82,7 +82,7 @@ describe('test auto-increment field', function () {
   
   
   it('test findby, auto increment field is unique too', function (done) {
-    Table.findBy('id', 100, function (e, record) {
+    Table.findBy('id', 100).exec(function (e, record) {
       should.not.exist(e);
       // console.log(record);
       record.should.have.property('id');

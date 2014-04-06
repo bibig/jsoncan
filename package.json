@@ -23,7 +23,8 @@
     "validator": "3.3.0",
     "rander": "*",
     "async": "*",
-    "safepass": "*"
+    "safepass": "*",
+    "pluralize": "*"
   },
   "devDependencies": {
     "mocha": "*",

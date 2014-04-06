@@ -8,10 +8,11 @@ var ValidKeys = [
   'text', 
   'type',
   'isUnique',
+  'unique', // alias isUnique
   'isNull',
+  'null', // alias isNull
   'isRequired',
   'required', // alias isRequired
-  'isInput', // ready to deprecate
   'shouldAfter', 
   'shouldBefore',
   'length',
@@ -30,6 +31,7 @@ var ValidKeys = [
   'prefix',  // for presentation
   'validate', // a custom validate function, if failed it should return error message directly! passed return null
   'isFake', // for field like 'passwordConfirm', it 's basically same as normal field, except it will never be saved!
+  'fake', // alias for isFake
   'isReadOnly', // cannot update value after inserted.
   'readOnly', // alias for isReadOnly
   'step', // only for 'autoIncrement' type
@@ -103,6 +105,7 @@ function create (fields) {
     forEachField: forEachField,
     forEachUniqueField: forEachUniqueField,
     forEachIndexField: forEachIndexField,
+    clearFakeFields: clearFakeFields,
     precise: precise,
     convertEachField: convertEachField,
     convert: convert,
@@ -129,6 +132,8 @@ function create (fields) {
     getAutoIncrementValue: null, // need to inject
     getNextAutoIncrementValue: getNextAutoIncrementValue,
     getReference: getReference,
+    getChangedFields: getChangedFields,
+    getRealUpdateData: getRealUpdateData,
     filterData: filterData,
     fieldValueConvertFn: fieldValueConvertFn
   };
@@ -152,7 +157,7 @@ function isField (name) {
 // notice: auto increment fields are unique too.
 function isUnique (v) {
   var field = this.getField(v);
-  return field.isUnique === true || this.isAutoIncrement(v);
+  return field.unique === true || field.isUnique === true || this.isAutoIncrement(v);
 }
 
 function isIndex (v) {
@@ -359,6 +364,22 @@ function forEachIndexField (callback, fields) {
   });
 }
 
+/**
+ * remove all the fake fields data
+ * @data, ready to save
+ */
+
+function clearFakeFields (data) {
+  var noFake = {};
+  this.forEachField(function (name, field, self) {
+    noFake[name] = data[name];
+  }, data, function (field) {
+    return ! (field.isFake || field.fake);
+  });
+  
+  return noFake;
+}
+
 function precise(num, decimals) {
   return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
 }
@@ -372,7 +393,6 @@ function convertEachField (data, fields) {
   }, fields);
   return data;
 }
-
 
 /**
  * convert for json file
@@ -397,12 +417,17 @@ function convert (field, value) {
   }
 
   if (field.type == 'password') {
-    // console.log('password: %s', value);
     return safepass.hash(value);
   }
   
   if (field.type == 'boolean' && typeof value != 'boolean') {
     return value === 1 || value === '1' || value === 'on' || value === 'true';
+  }
+  
+  if (field.type == 'ref') {
+    if (typeof value == 'object') {
+      return value._id;
+    }
   }
   
   return value;
@@ -412,7 +437,6 @@ function convert (field, value) {
  * convert back from json
  */
 function convertBackEachField (data) {
-  // console.log(data);
   this.forEachField(function (name, field, _this) {
     data[name] = _this.convertBack(field, data[name]);
   }, data);
@@ -453,7 +477,7 @@ function getTimestamp () {
 }
 
 function getPrimaryId () {
-  return require('crypto').randomBytes(20).toString('hex');
+  return require('crypto').randomBytes(16).toString('hex');
 }
 
 /** 
@@ -586,4 +610,35 @@ function isValidPassword (hash, pass) {
 function getNextAutoIncrementValue (name, currentValue) {
   var step = this.fields[name].step || 1;
   return parseInt(currentValue, 10) + parseInt(step, 10);
+}
+
+function getChangedFields (data, record) {
+  var fields = [];
+  this.forEachField(function (name, field, self) {
+    if (self.isReadOnly(field)) { return; }
+    if (data[name] == undefined) { return; }
+    
+    if (data[name] != record[name]) {
+      fields.push(name);
+    }
+  }, data);
+  return fields;
+}
+
+/** 
+ * 无论是sync or async都要处理的部分
+ * 如果unique字段更改，需要删除旧的link文件，建立新的link文件
+ * @data: 要保存的数据
+ * @record: 当前数据库中的数据
+ */ 
+function getRealUpdateData (data, record) {
+  var target = {}; // 避免data中夹杂schemas没有定义的数据
+  this.forEachField(function (name, field) {
+    if (data[name] == undefined) {
+      target[name] = record[name];
+    } else {
+      target[name] = data[name];
+    }
+  });
+  return this.addValues(target);
 }

@@ -194,22 +194,22 @@ describe('test sync actions in table.js', function () {
   });
   
   it('test find', function () {
-    var data = Table.findSync(record._id);
+    var data = Table.find(record._id).execSync();
     data.should.have.property('id', record.id);
   });
   
   it('test findById', function () {
-    var data = Table.findBySync('id', record.id);
+    var data = Table.findBy('id', record.id).execSync();
     data.should.have.property('_id', record._id);
   });
 
   it('test findByEmail', function () {
-    var data = Table.findBySync('email', record.email);
+    var data = Table.findBy('email', record.email).execSync();
     data.should.have.property('_id', record._id);
   });
   
   it('test findByMobile', function () {
-    var data = Table.findBySync('mobile', record.mobile);
+    var data = Table.findBy('mobile', record.mobile).execSync();
     data.should.have.property('_id', record._id);
   });
   
@@ -223,13 +223,13 @@ describe('test sync actions in table.js', function () {
   });
   
   //---read
-  it('test read', function () {
-    var data = Table.readSync(record._id);
+  it('test read feature, deprecated, using format instead', function () {
+    var data = Table.find(record._id).format().execSync();
     data.should.have.property('id', record.id);
   });
   
-  it('test readBy', function () {
-    var data = Table.readBySync('id', record.id);
+  it('test readBy feature, deprecated, using format instead', function () {
+    var data = Table.findBy('id', record.id).format().execSync();
     data.should.have.property('_id', record._id);
   });
     
@@ -304,7 +304,7 @@ describe('test sync actions in table.js', function () {
   });
   
   it('test find one none exist', function () {
-    record = Table.findBySync('email', 'nonexist');
+    record = Table.findBy('email', 'nonexist').execSync();
     assert.ok(!record);
   });
   

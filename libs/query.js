@@ -10,6 +10,7 @@
 exports.create = create;
 exports.compare = compare;
 exports.checkHash = checkHash;
+exports.parseSelectArguments = parseSelectArguments;
 
 var util = require('util');
 var error = require('./error');
@@ -62,7 +63,7 @@ function key (name) {
  *  4. selelct(['id', 'name', 'age'])
  */
 function select (/*fields*/) {
-  var fields = [];
+  /*var fields = [];
   if (arguments.length > 1) {
     for (var i = 0; i < arguments.length; i++) {
       fields.push(arguments[i]);
@@ -80,6 +81,13 @@ function select (/*fields*/) {
     } else {
       fields = [fields];
     }
+  }
+  */
+  
+  var fields = parseSelectArguments.apply(this, arguments);
+  
+  if (!fields) {
+    return this.records;
   }
   
   if (util.isArray(fields)) {
@@ -353,4 +361,30 @@ function compare (fieldValue, operator, value) {
     default:
       throw error(1200, operator);
   }
+}
+
+function parseSelectArguments () {
+  var fields = [];
+  if (arguments.length > 1) {
+    for (var i = 0; i < arguments.length; i++) {
+      fields.push(arguments[i]);
+    }
+  } else if (arguments.length == 1) {
+    fields = arguments[0];
+  } else {
+    // return this.records;
+    return null;
+  }
+  
+  if (typeof fields == 'string') {
+    fields = fields.replace(/[\s]/g, '');
+    if (fields.indexOf(',') > -1) { // 支持select('id, name, age');
+      fields = fields.split(',');
+    } else {
+      fields = [fields];
+    }
+  }
+  
+  return fields
+  
 }

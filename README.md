@@ -11,7 +11,7 @@
  npm install jsoncan
 
 ## Version
-  1.0.8
+  1.1.0
 
 ## Usage	
 
@@ -70,29 +70,40 @@ when a record inserted, it will be automatically added an "_id" field as the pri
 	});
 ```
 
-### find	
-find and findBy only return one record, when no data found, they will return null value;
+### finder
+
++ using finder to retrieve one record, when no data found, they will return null value.
++ finder(_id)  find by primary key.
++ finder(uniqueName, value)  find by unique key.
++ find(_id) and findBy(uniqueName, value) are aliases.
 
 ```javascript
 
 	// find by primary id
-	People.find(Tom._id, function (e, record) {...});
+	People.finder(Tom._id).exec(function (e, record) {...});
+	// or 
+	People.find(Tom._id).exec(function (e, record) {...});
+	
 	// sync way
-  var man = People.findSync(_id);
+  var man = People.find(_id).execSync();
 	
 	// find by unique id, only used for the uniqued fields.
-	People.findBy('id', Tom.id, function (e, record) {...});
+	People.finder('id', Tom.id).exec(function (e, record) {...});
+	// or 
+	People.findBy('id', Tom.id).exec(function (e, record) {...});
 	// sync way
-	var otherMan = People.findBySync('name', 'xxx');  
+	var otherMan = People.findBy('name', 'xxx').execSync();
 ```
 
-### query
-if you want to find multiply records, use query. 
+### query or findAll
+using query() to retrieve multiply records. findAll() is alias. 
 
 ```javascript
 
   // query(filters).exec(callback);
 	Product.query({price: ['>', 100], name: ['like', '%haha%']}).exec(function (e, records) {...} );
+	// or
+	Product.findAll(filters).exec(callback);
 	// using where()
 	Product.query()
 	  .where('price', '>', 100)
@@ -179,7 +190,6 @@ if you want to find multiply records, use query.
 	User.removeSync(_id);
 	User.removeBySync('class', 'xxx');
 	User.removeAllSync({age, 10});
-	
 		
 ```
 
@@ -303,6 +313,7 @@ field types including:
 + 'boolean'
 + 'map'
 + 'hash' // map alias
++ 'ref'  // new added,  reference field
 + 'enum'
 + 'date'
 + 'datetime'
@@ -415,6 +426,18 @@ examples:
 	var People = can.open('people', schemas);
 
 ```
+
+### references
+to-do, please see the test/table_ref.js file.
+
+```javascript
+  // find one with references
+  Blog.findBy('id',  'id value').ref('category').hasMany('comments', 'blog').exec(callback);
+  // find all with references
+  Product.query(filters).ref('category').hasMany('factories', 'product').execSync();
+    
+```
+
 
 ### more detail
 Please see the test part.

@@ -246,7 +246,7 @@ describe('test table.js', function () {
   });
   
   it('test find', function (done) {
-    Table.find(record._id, function (err, data) {
+    Table.find(record._id).exec(function (err, data) {
       should.not.exist(err);
       data.should.have.property('id', record.id);
       done();
@@ -255,7 +255,7 @@ describe('test table.js', function () {
   
   
   it('test findById', function (done) {
-    Table.findBy('id', record.id, function (err, data) {
+    Table.findBy('id', record.id).exec(function (err, data) {
       should.not.exist(err);
       data.should.have.property('_id', record._id);
       done();
@@ -263,7 +263,7 @@ describe('test table.js', function () {
   });
 
   it('test findByEmail', function (done) {
-    Table.findBy('email', record.email, function (err, data) {
+    Table.findBy('email', record.email).exec(function (err, data) {
       should.not.exist(err);
       data.should.have.property('_id', record._id);
       done();
@@ -271,7 +271,7 @@ describe('test table.js', function () {
   });
   
   it('test findByMobile', function (done) {
-    Table.findBy('mobile', record.mobile, function (err, data) {
+    Table.findBy('mobile', record.mobile).exec(function (err, data) {
       should.not.exist(err);
       data.should.have.property('_id', record._id);
       done();
@@ -321,8 +321,8 @@ describe('test table.js', function () {
     });
   });
   
-  it('test read', function (done) {
-    Table.read(record._id, function (err, data) {
+  it('test read, deprecated, replaced by format()', function (done) {
+    Table.find(record._id).format().exec(function (err, data) {
       var re = /\d{4}\-\d{1,2}\-\d{1,2}\s+\d{1,2}:\d{1,2}:\d{1,2}/i;
       should.not.exist(err);
       // data.should.have.property('id', record.id);
@@ -358,8 +358,8 @@ describe('test table.js', function () {
     });
   });
   
-  it('test readBy', function (done) {
-    Table.readBy('id', record.id, function (err, data) {
+  it('test readBy, deprecated, replaced by format()', function (done) {
+    Table.findBy('id', record.id).format().exec(function (err, data) {
       should.not.exist(err);
       data.should.have.property('_id', record._id);
       done();
@@ -469,10 +469,8 @@ describe('test table.js', function () {
     });
   });
   
-  
-  
   it('test find one none exist', function (done) {
-    Table.findBy('email', 'nonexist', function (err, data) {
+    Table.findBy('email', 'nonexist').exec(function (err, data) {
       should.not.exist(err);
       assert.ok(!data);
       done();
@@ -499,7 +497,7 @@ describe('test table.js', function () {
   
   it('test find by none unique field', function (done) {
     try {
-      Table.findBy('age', 10);
+      Table.findBy('age', 10).execSync();
     } catch (err) {
       should.exist(err);
       assert.equal(err.code, 1004);

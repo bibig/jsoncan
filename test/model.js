@@ -258,10 +258,10 @@ describe('test model way', function () {
     readData.should.have.property('id', GaryClone.get('id'));
   });
   
-  it('test model way, remove()', function (done) {
+  it('remove()', function (done) {
     Gary.remove(function (e) {
       should.not.exist(e);
-      Table.findBy('name', 'Gary', function (e, record) {
+      Table.findBy('name', 'Gary').exec(function (e, record) {
         should.not.exist(e);
         assert.ok(!record);
         done();
