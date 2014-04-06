@@ -52,13 +52,13 @@
 ```
 
 ### primary key
-All the tables will be automatically added an "_id" field as the only primary key.
-You do not need to define _id field in table schemas.
-The primary key in table has only one, but you can add multiply unique keys.
-Unique keys are simalar to primary key.
+
++ All the tables will be automatically added an "_id" field as the only primary key.
++ You need not to define _id field in table schemas.
++ You can add multiply unique keys, which are similar to primary key.
 
 ### insert
-when a record inserted, "_id" value will be added.
+when a record inserted, a new "_id" value will be assigned to it.
 
 ```javascript
 	
