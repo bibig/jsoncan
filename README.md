@@ -51,9 +51,14 @@
 	
 ```
 
+### primary key
+All the tables will be automatically added an "_id" field as the only primary key.
+You do not need to define _id field in table schemas.
+The primary key in table has only one, but you can add multiply unique keys.
+Unique keys are simalar to primary key.
 
 ### insert
-when a record inserted, it will be automatically added an "_id" field as the primary key.
+when a record inserted, "_id" value will be added.
 
 ```javascript
 	
@@ -427,14 +432,17 @@ examples:
 
 ```
 
+### indexes
+please see the test file.
+
 ### references
-to-do, please see the test/table_ref.js file.
+please see the test file.
 
 ```javascript
   // find one with references
-  Blog.findBy('id',  'id value').ref('category').hasMany('comments', 'blog').exec(callback);
+  Blog.findBy('id',  'id value').ref('categories').hasMany('comments').exec(callback);
   // find all with references
-  Product.query(filters).ref('category').hasMany('factories', 'product').execSync();
+  Product.query(filters).ref('categories').hasMany('factories').execSync();
     
 ```
 
