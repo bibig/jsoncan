@@ -452,12 +452,9 @@ function localQuery (records, options) {
     fields = query.fields;
   }
   
-  // but should add default value info all the records.
   // should keep the value type integrated with the schemas definition.
   records.forEach(function (record) {
-    if (fields) {
-      self.schemas.addDefaultValues(record, fields);
-    }
+    // self.schemas.addDefaultValues(record, fields);
     self.schemas.convertBackEachField(record);
   });
   

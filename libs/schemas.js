@@ -214,7 +214,6 @@ function checkField (name, field) {
 function presentAll (data) {
   var presentations = {};
   data = data || {};
-  
   this.forEachField(function (name, field, _this) {
     presentations[name] = _this.present(name, data[name], data);
   }, data);
@@ -507,7 +506,7 @@ function addDefaultValues (data, fields) {
         data[name] = field.default;
       }
     } else { // if not set default value then set value to null
-      data[name] = null;
+      // data[name] = null;
     }
   }, fields);
   return data;

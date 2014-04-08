@@ -40,10 +40,6 @@ function create () {
     var thisArgs = utils.clone(args);
     var finderCb = function (e, record) {
       if (e) { callback(e); } else {
-        if (self.options.isFormat) {
-          record = libs.format.call(parent, record);
-        }
-        
         if (Ref.hasReference.call(self)) {
           Ref.populateRecord.call(self, parent, record, function (e) {
             if (e) { callback(e); } else {
@@ -64,10 +60,6 @@ function create () {
   function execSync () {
     var record = syncFn.apply(parent, args);
     
-    if (this.options.isFormat) {
-      record = libs.format.call(parent, record);
-    } 
-    
     if (Ref.hasReference.call(this)) {
       Ref.populateRecordSync.apply(this, [parent, record]);
     }
@@ -76,13 +68,24 @@ function create () {
   }  
 
   function selectFilter (record) {
-    var keys = Query.parseSelectArguments.call(this, this.options.select);
-    var result = {};
-    if (keys) {
-      return utils.clone(record, keys);
-    } else {
-      return record;
+    var fields;
+    
+    if ( !record ) return record;
+    
+    fields = Query.parseSelectArguments.call(this, this.options.select);
+    parent.schemas.convertBackEachField(record);
+    // parent.schemas.addDefaultValues(record, fields);
+    
+    if (fields) {
+      record = utils.clone(record, fields);
     }
+    
+    if (this.options.isFormat) {
+      record = libs.format.call(parent, record);
+    }
+    
+    return record;
+    
   }
   
   function belongsTo (table, name) { 
