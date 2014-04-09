@@ -1,8 +1,3 @@
-/**
- * Table
- * 
- */
-
 exports.create = create;
 
 var fs = require('fs');
@@ -17,6 +12,20 @@ var libs = require('./table_libs');
 var Query = require('./table_query');
 var Model = require('./table_model');
 var Finder = require('./table_finder');
+
+var Table = function (conn, table, schemas, validator) {
+  this.conn = conn;
+  this.table = table;
+  this.schemas = schemas;
+  this.validator = validator;
+  this.find = Finder.find;
+  this.findBy = Finder.findBy;
+  this.finder = Finder.create;
+  this.findAll = Query.create;
+  this.query = Query.create;
+  this.model = Model.create,
+  this.create = Model.create; // alias model
+};
 
 /**
  * create table object
@@ -37,72 +46,24 @@ function create (conn, table) {
     return conn.readTableUniqueAutoIncrementFile(table, name);
   }
   
-  return {
-    table: table,
-    conn: conn,
-    schemas: schemas,
-    validator: validator,
-    inputFields: function () { return this.schemas.inputFields(); }, // ready to deprecate
-    getFields: function () { return this.schemas.fields; },
-    checkFields: checkFields,
-    checkField: checkField,
-    checkTable: checkTable,
-    checkUniqueField: checkUniqueField,
-    checkReference: checkReference,
-    find: Finder.find,
-    findBy: Finder.findBy,
-    finder: Finder.create,
-    findAll: Query.create,
-    query: Query.create,
-    count: count,
-    countSync: countSync,
-    findInOtherTable: findInOtherTable,
-    findInOtherTableSync: findInOtherTableSync,
-    findAllBelongsTo: findAllBelongsTo,
-    findAllBelongsToSync: findAllBelongsToSync,
-    findAllHasMany: findAllHasMany,
-    findAllHasManySync: findAllHasManySync,
-    
-    insert: insert,
-    insertSync: insertSync,
-    insertAll: insertAll,
-    insertAllSync: insertAllSync,
-    save: save,
-    saveSync: saveSync,
-    updateBy: updateBy,
-    updateBySync: updateBySync,
-    update: update,
-    updateSync: updateSync,
-    updateAll: updateAll,
-    updateAllSync: updateAllSync,
-    remove: remove,
-    removeSync: removeSync,
-    removeBy: removeBy,
-    removeBySync: removeBySync,
-    removeAll: removeAll,
-    removeAllSync: removeAllSync,
-    model: Model.create,
-    create: Model.create, // alias model
-    load: load,
-    loadBy: loadBy,
-    refresh: refresh,
-    resetIdsFile: resetIdsFile,
-    resetIndexFile: resetIndexFile,
-    resetAllIndexFiles: resetAllIndexFiles
-  };
+  return new Table(conn, table, schemas, validator);
 }
 
-function load (_id) {
+Table.prototype.getFields = function () { 
+  return this.schemas.fields; 
+};
+
+Table.prototype.load = function (_id) {
   var data = this.finder(_id).execSync();
   if (!data) { return null; }
   return this.model(data);
-}
+};
 
-function loadBy(name, value) {
+Table.prototype.loadBy = function (name, value) {
   var data = this.finder(name, value).execSync();
   if (!data) { return null; }
   return this.model(data);
-}
+};
 
 /**
  * 插入一条记录
@@ -113,7 +74,7 @@ function loadBy(name, value) {
  * @data: 记录数据
  * @callback(err, record)
  */
-function insert (_data, callback) {
+Table.prototype.insert = function (_data, callback) {
   
   var self = this;
   var data = this.schemas.filterData(_data); // filter data, make sure it is safe
@@ -132,12 +93,12 @@ function insert (_data, callback) {
       callback(null, record);
     }
   });
-}
+};
 
 /**
  * sync way of insert
  */
-function insertSync (data) {
+Table.prototype.insertSync = function (data) {
   // filter data, make sure it is safe
   data = this.schemas.filterData(data);
   
@@ -155,9 +116,9 @@ function insertSync (data) {
   libs.addIdRecord.call(this, data._id);
   
   return data;
-}
+};
 
-function insertAll (datas, callback) {
+Table.prototype.insertAll = function (datas, callback) {
   var tasks = libs.makeInsertTasks.call(this, datas);
   
   if (this.schemas.hasAutoIncrementField()) {
@@ -165,9 +126,9 @@ function insertAll (datas, callback) {
   } else {
     async.parallelLimit(tasks, 100, callback);
   }
-}
+};
 
-function insertAllSync (records) {
+Table.prototype.insertAllSync = function (records) {
   var self = this;
   var results = [];
   
@@ -176,7 +137,7 @@ function insertAllSync (records) {
   });
   
   return results;
-}
+};
 
 /** 
  * 先根据data._id查出整个记录，然后合并数据，最后再保存数据
@@ -184,7 +145,7 @@ function insertAllSync (records) {
  * @data: 要保存的数据
  * @callback(err, record)
  */ 
-function update (_id, data, callback) {
+Table.prototype.update = function (_id, data, callback) {
   var self = this;
   
   this.find(_id).exec(function (err, record) {
@@ -194,18 +155,18 @@ function update (_id, data, callback) {
       libs.update.call(self, data, record, callback);
     }
   });
-}
+};
 
 /** 
  * update sync version
  */ 
-function updateSync (_id, data) {
+Table.prototype.updateSync = function (_id, data) {
   var self = this;
   var record = this.find(_id).execSync();
   return libs.updateSync.call(self, data, record);
-}
+};
 
-function updateBy (field, value, data, callback) {
+Table.prototype.updateBy = function (field, value, data, callback) {
   var self = this;
   this.findBy(field, value).exec(function (err, record) {
     if (err) {
@@ -216,21 +177,21 @@ function updateBy (field, value, data, callback) {
       libs.update.call(self, data, record, callback);
     }
   });
-}
+};
 
 
 /** 
  * updateBy sync version
  */ 
-function updateBySync (field, value, data) {
+Table.prototype.updateBySync = function (field, value, data) {
   var record = this.findBy(field, value).execSync();
   if (!record) {
     throw error(1400, field, value);
   }
   return libs.updateSync.call(this, data, record);
-}
+};
 
-function updateAll (options, data, callback) {
+Table.prototype.updateAll = function (options, data, callback) {
   var self = this;
   
   function _makeUpdateTasks (records) {
@@ -259,10 +220,9 @@ function updateAll (options, data, callback) {
     }
     
   });
+};
 
-}
-
-function updateAllSync (options, data) {
+Table.prototype.updateAllSync = function (options, data) {
   var self = this;
   var results = [];
   var records = this.query(options).execSync();
@@ -270,7 +230,7 @@ function updateAllSync (options, data) {
     results.push(libs.updateSync.call(self, data, record));
   });
   return results;
-}
+};
 
 /** 
  * 物理删除一条记录
@@ -279,7 +239,7 @@ function updateAllSync (options, data) {
  * @callback(err)
  */
 
-function remove (_id, callback) { 
+Table.prototype.remove = function (_id, callback) { 
   var self = this;
   this.finder(_id).exec(function (err, record) {
     if (err) {
@@ -288,19 +248,17 @@ function remove (_id, callback) {
       libs.remove.call(self, record, callback);
     }
   });
-}
+};
 
-function removeSync (_id) {
+Table.prototype.removeSync = function (_id) {
   if (this.schemas.hasUniqueField()) {
     libs.removeSync.call(this, this.finder(_id).execSync());
   } else {
     this.conn.removeSync(this.table, _id);
   }
-}
+};
 
-
-
-function removeBy (field, value, callback) {
+Table.prototype.removeBy = function (field, value, callback) {
   var self = this;
   
   this.finder(field, value).exec(function (err, record) {
@@ -312,11 +270,11 @@ function removeBy (field, value, callback) {
   });
 };
 
-function removeBySync (field, value, callback) {
+Table.prototype.removeBySync = function (field, value, callback) {
   this.removeSync(this.finder(field, value).execSync());
 };
 
-function removeAll (options, callback) {
+Table.prototype.removeAll = function (options, callback) {
   var self = this;
   
   function _makeRemoveTasks (records) {
@@ -345,16 +303,16 @@ function removeAll (options, callback) {
   
 }
 
-function removeAllSync (options, callback) {
+Table.prototype.removeAllSync = function (options, callback) {
   var self = this;
   var records = this.query(options).select().execSync();
   records.forEach(function (record) {
     libs.removeSync.call(self, record);
   });
   return records;
-}
+};
 
-function checkFields (names) {
+Table.prototype.checkFields = function (names) {
   var self = this;
   if (!Array.isArray(names)) {
     if (typeof names == 'object') {
@@ -367,36 +325,33 @@ function checkFields (names) {
   names.forEach(function (name) {
     self.checkField(name);
   });
-}
+};
 
-function checkTable (name) {
+Table.prototype.checkTable = function (name) {
   if (!this.conn.tables[name]) {
     throw error(1005, name);
   }
-}
+};
 
-function checkField (name) {
+Table.prototype.checkField = function (name) {
   if (!this.schemas.isField(name)) {
     throw error(1003, name);
   }
-}
+};
 
-function checkUniqueField (name) {
+Table.prototype.checkUniqueField = function (name) {
   this.checkField(name);
   if (!this.schemas.isUnique(name)) { 
     throw error(1004, name); 
   }
-}
+};
 
-function checkReference (table, name) {
+Table.prototype.checkReference = function (table, name) {
   if (this.conn.tables[table] && this.schemas.isField(name)) {
     return true;
   }
   throw error(1006, name);
-}
-
-
-
+};
 
 /**
  * 保存数据
@@ -404,7 +359,7 @@ function checkReference (table, name) {
  * @callback(err, data or invalid messages)
  *  error 1300 表示数据校验失败
  */
-function save (data, callback, changedFields) {
+Table.prototype.save = function (data, callback, changedFields) {
   var e;
   var check = libs.validate.call(this, data, changedFields);
   
@@ -426,7 +381,7 @@ function save (data, callback, changedFields) {
  * @data: 要保存的数据
  * @throw error 1300 表示数据校验失败
  */
-function saveSync (data, changedFields) {
+Table.prototype.saveSync = function (data, changedFields) {
   var check = libs.validate.call(this, data, changedFields);
   if (check.isValid()) {
     data = this.schemas.clearFakeFields(data);
@@ -439,9 +394,9 @@ function saveSync (data, changedFields) {
     // console.error(e);
     throw e;
   }
-}
+};
 
-function count (filters, callback) {
+Table.prototype.count = function (filters, callback) {
   var self = this;
   this.checkFields(filters);
   
@@ -471,9 +426,9 @@ function count (filters, callback) {
       }
     }
   ], callback);
-}
+};
 
-function countSync (filters) {
+Table.prototype.countSync = function (filters) {
   var indexFilters, indexFilterKeys, noneIndexFilters, noneIndexFilterKeys, ids, records;
   this.checkFields(filters);
   
@@ -489,47 +444,47 @@ function countSync (filters) {
   } else {
     return this.conn.queryAllSync(this.table, ids, libs.makeConnQueryOptions.call(this, { filters: noneIndexFilters })).length;
   }
-}
+};
 
-function findAllBelongsTo (ref, callback) {
+Table.prototype.findAllBelongsTo = function (ref, callback) {
   var Reference = create(this.conn, ref.table);
   var fields = utils.clone(ref.fields);
   if (Array.isArray(fields)) {
     fields.unshift('_id');
   }
   Reference.query(ref.filters || {}).select(fields).map().exec(callback);
-}
+};
 
-function findAllBelongsToSync (ref) {
+Table.prototype.findAllBelongsToSync = function (ref) {
   var Reference = create(this.conn, ref.table);
   var fields = utils.clone(ref.fields);
   fields.unshift('_id');
   return Reference.query(ref.filters || {}).select(fields).map().execSync();
-}
+};
 
-function findInOtherTable (_id, table, callback) {
+Table.prototype.findInOtherTable = function (_id, table, callback) {
   var Table = create(this.conn, table);
   Table.finder(_id).exec(callback);
-}
+};
 
-function findInOtherTableSync (_id, table) {
+Table.prototype.findInOtherTableSync = function (_id, table) {
   var Table = create(this.conn, table);
   return Table.finder(_id).execSync();
-}
+};
 
-function findAllHasMany (_id, ref, callback) {
-  var query = hasManyQuery.call(this, _id, ref);  
+Table.prototype.findAllHasMany = function (_id, ref, callback) {
+  var query = this.hasManyQuery(_id, ref);  
   query.exec(callback);
-}
+};
 
-function findAllHasManySync (_id, ref) {
+Table.prototype.findAllHasManySync = function (_id, ref) {
   // console.log(ref);
-  var query = hasManyQuery.call(this, _id, ref);
+  var query = this.hasManyQuery(_id, ref);
   return query.execSync();
-}
+};
 
 // return table.query();
-function hasManyQuery (_id, ref) {
+Table.prototype.hasManyQuery = function (_id, ref) {
   var Reference = create(this.conn, ref.table);
   var query;
   var options = utils.clone(ref.options, ['filters', 'order', 'select', 'limit', 'skip']);
@@ -555,25 +510,25 @@ function hasManyQuery (_id, ref) {
   }
   
   return query;
-}
+};
 
-function resetIdsFile () {
+Table.prototype.resetIdsFile = function () {
   var ids = this.conn.readTableIdsDirSync(this.table);
   this.conn.resetIdsFile(this.table, ids);
-}
+};
 
-function resetAllIndexFiles () {
+Table.prototype.resetAllIndexFiles = function () {
   var self = this;
   this.schemas.forEachIndexField(function (name) {
     self.resetIndexFile(name);
   });
-}
+};
 
-function resetIndexFile (name) {
+Table.prototype.resetIndexFile = function (name) {
   this.conn.resetIndexFile(this.table, name);
-}
+};
 
-function refresh () {
+Table.prototype.refresh = function () {
   this.resetIdsFile();
   this.resetAllIndexFiles();
-}
+};

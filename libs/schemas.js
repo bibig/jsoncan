@@ -3,7 +3,7 @@ exports.create = create;
 var error = require('./error');
 var rander = require('rander');
 var safepass = require('safepass');
-
+/*
 var ValidKeys = [
   'text', 
   'type',
@@ -39,9 +39,8 @@ var ValidKeys = [
   'isIndex', // is index field
   'index'  // alias for isIndex
 ];
-
+*/
 var RequiredKeys = ['type'];
-
 // random, created, modified fields do not need to validate, the values are assigned by system.
 var ValidTypes = [
   'string',
@@ -80,152 +79,76 @@ var ValidTypes = [
   'object' // array, hash, function ....
 ];
 
-// 创建schema
-function create (fields) {
-  // add _id 字段
+
+var Schemas = function (fields) {
   fields._id = {
     text: '_id',
     type: 'primary'
   };
+  
+  this.fields = fields;
+  this.getAutoIncrementValue = null; // need to inject
+};
+
+function create (fields) {
   checkFields(fields);
-
-  return {
-    fields: fields,
-    inputFields: inputFields,
-    isMap: isMap,
-    isEnum: isEnum,
-    isArray: isArray,
-    isAliasField: isAliasField,
-    isSystemField: isSystemField,
-    mapIdToDesc: mapIdToDesc,
-    arrayIdToDesc: arrayIdToDesc,
-    present: present,
-    presentAll: presentAll,
-    hasFormat: hasFormat,
-    hasUniqueField: hasUniqueField,
-    hasAutoIncrementField: hasAutoIncrementField,
-    formatField: formatField,
-    addPrefixAndSuffix:addPrefixAndSuffix,
-    forEachField: forEachField,
-    forEachUniqueField: forEachUniqueField,
-    forEachIndexField: forEachIndexField,
-    clearFakeFields: clearFakeFields,
-    precise: precise,
-    convertEachField: convertEachField,
-    convert: convert,
-    convertBackEachField: convertBackEachField,
-    convertBack: convertBack,
-    addAliasValues: addAliasValues,
-    addSystemValues: addSystemValues,
-    addDefaultValues: addDefaultValues,
-    addValues: addValues,
-    getField: getField,
-    getPrimaryId: getPrimaryId,
-    getTimestamp: getTimestamp,
-    getRandom: getRandom,
-    isValidType: isValidType,
-    isValidPassword: isValidPassword,
-    getFieldType: function (name) { return this.fields[name].type; },
-    isType: function (name, type) { return this.getFieldType(name) == type; },
-    isAutoIncrement: isAutoIncrement,
-    isField: isField,
-    isUnique: isUnique,
-    isIndex : isIndex,
-    isReadOnly: isReadOnly,
-    getUniqueFields: getUniqueFields,
-    getAutoIncrementValue: null, // need to inject
-    getNextAutoIncrementValue: getNextAutoIncrementValue,
-    getReference: getReference,
-    getChangedFields: getChangedFields,
-    getRealUpdateData: getRealUpdateData,
-    filterData: filterData,
-    fieldValueConvertFn: fieldValueConvertFn
-  };
+  return new Schemas(fields);
 }
 
+Schemas.prototype.getFieldType = function (name) { 
+  return this.fields[name].type; 
+};
 
-function getField (v) {
+Schemas.prototype.isType = function (name, type) { 
+  return this.getFieldType(name) == type; 
+};
+
+Schemas.prototype.getField = function (v) {
   return typeof v == 'string' ? this.fields[v] : v;
-}
+};
 
-function getReference (name) {
+Schemas.prototype.getReference = function (name) {
   var field = this.getField(name);
   // console.log(field.ref);
   return field.ref;
-}
+};
 
-function isField (name) {
+Schemas.prototype.isField = function (name) {
   return typeof this.fields[name] !== 'undefined';
-}
+};
 
 // notice: auto increment fields are unique too.
-function isUnique (v) {
+Schemas.prototype.isUnique = function (v) {
   var field = this.getField(v);
   return field.unique === true || field.isUnique === true || this.isAutoIncrement(v);
-}
+};
 
-function isIndex (v) {
+Schemas.prototype.isIndex = function (v) {
   var field = this.getField(v);
   return field.isIndex === true || field.index === true;
-}
+};
 
-function isAutoIncrement (v) {
+Schemas.prototype.isAutoIncrement = function (v) {
   var field = this.getField(v);
   return field.type === 'increment' || field.type == 'autoIncrement';
-}
+};
 
-function isReadOnly (v) {
+Schemas.prototype.isReadOnly = function (v) {
   var field = this.getField(v);
   return field.isReadOnly || field.readOnly || this.isAutoIncrement(v);
-}
-
-function isValidKey (key) {
-  return ValidKeys.indexOf(key) > -1;
-}
-
-function isValidType (type) {
-  return ValidTypes.indexOf(type) > -1;
-}
-
-function checkFields (fields) {
-  Object.keys(fields).forEach(function (name) {
-    checkField(name, fields[name]);
-  });
-}
-
-function checkField (name, field) {
-  /*
-  var keys = Object.keys(field);
-  keys.forEach(function (key) {
-    if (!isValidKey(key)) {
-      throw error.create(1000, key, name);
-    }
-  });
-  */
-  
-  RequiredKeys.forEach(function (key) {
-    if (field[key] == undefined) {
-      throw error(1001, key, name);
-    }
-  });
-  
-  if (!isValidType(field.type)) {
-    throw error(1002, field.type, name);
-  }
-}
+};
 
 // 将原始的数据转换为可以放入表示层阅读的数据
-function presentAll (data) {
+Schemas.prototype.presentAll = function (data) {
   var presentations = {};
   data = data || {};
   this.forEachField(function (name, field, _this) {
     presentations[name] = _this.present(name, data[name], data);
   }, data);
-  
   return presentations;
-}
+};
 
-function present (name, value, data) {
+Schemas.prototype.present = function (name, value, data) {
   
   if (value === null || value === '' || value === undefined) {
     return '';
@@ -246,24 +169,24 @@ function present (name, value, data) {
   value = this.addPrefixAndSuffix(name, value);
 
   return value;
-}
+};
 
 // 将map字段的值转换为描述文本
-function mapIdToDesc (name, value) {
+Schemas.prototype.mapIdToDesc = function (name, value) {
   value = value + '';
   return this.fields[name].values[value];
-}
+};
 
-function arrayIdToDesc (name, value) {
+Schemas.prototype.arrayIdToDesc = function (name, value) {
   value = parseInt(value, 10);
   return this.fields[name].values[value];
-}
+};
 
-function hasFormat (name) {
+Schemas.prototype.hasFormat = function (name) {
   return typeof this.fields[name].format == 'function';
-}
+};
 
-function addPrefixAndSuffix(name, value) {
+Schemas.prototype.addPrefixAndSuffix = function (name, value) {
   var field = this.fields[name];
   
   if (field.prefix) {
@@ -275,44 +198,51 @@ function addPrefixAndSuffix(name, value) {
   }
   
   return value;
-}
+};
 
 // invoke the format function defined in schema.
-function formatField (name, value, data) {
+Schemas.prototype.formatField = function (name, value, data) {
   // console.log(arguments);
   return this.fields[name].format(value, data); 
-}
+};
 
-function isSystemField (field) {
+Schemas.prototype.isSystemField = function (field) {
   return ['primary', 'created', 'modified', 'random'].indexOf(field.type) > -1 || this.isAutoIncrement(field);
-}
+};
 
-function isAliasField (field) {
+Schemas.prototype.isAliasField = function (field) {
   return field.type == 'alias' && typeof field.logic == 'function';
-}
+};
 
 // 是否是map字段
-function isMap (name) {
+Schemas.prototype.isMap = function (name) {
   var field = this.fields[name];
   if (!field) return false;
   return ( field.type == 'hash' || field.type == 'map' ) && field.values;
-}
+};
 
-function isEnum (name) {
+Schemas.prototype.isEnum = function (name) {
   var field = this.fields[name];
   if (!field) return false;
-  return ( field.type == 'enum') && Array.isArray(field.values);
-}
+  // return ( field.type == 'enum') && Array.isArray(field.values);
+  if (field.type == 'enum') {
+    if (typeof field.values == 'string') {
+      return field.values.split(',').length > 0;
+    }
+    return Array.isArray(field.values);
+  }
+  return false;
+};
 
-function isArray (name) {
+Schemas.prototype.isArray = function (name) {
   var field = this.fields[name];
   if (!field) return false;
   return ( field.type == 'array') && Array.isArray(field.values);
-}
+};
 
 // ready to deprecate
 // 获取所有isInput的fields
-function inputFields () {
+Schemas.prototype.inputFields = function () {
   var fields = {};
   
   this.forEachField(function (name, field, _this) {
@@ -323,27 +253,25 @@ function inputFields () {
   });
   
   return fields;
-}
+};
 
-function getUniqueFields () {
+Schemas.prototype.getUniqueFields = function () {
   var map = {};
   this.forEachUniqueField(function (name, field, _this) {
     map[name] = _this.isAutoIncrement(field) ? ( field.autoIncrement || 1 ) : 0;
   });
-  // console.log('in schemas.getUniqueFields()');
-  // console.log(map);
   return map;
-}
+};
 
 /**
  * 是否有unique字段
  * @return boolean
  */
-function hasUniqueField () {
+Schemas.prototype.hasUniqueField = function () {
   return Object.keys(this.getUniqueFields()).length > 0;
-}
+};
 
-function hasAutoIncrementField () {
+Schemas.prototype.hasAutoIncrementField = function () {
   var result = false;
   this.forEachField(function (name, field, _this) {
     if (result) { return; }
@@ -351,13 +279,13 @@ function hasAutoIncrementField () {
   });
   
   return result;
-}
+};
 
 /**
  * 遍历每一个表字段
  * @callback(field name, field object, context)
  */
-function forEachField (callback, fields, filter) {
+Schemas.prototype.forEachField = function (callback, fields, filter) {
   var _this = this;
   var targets;
 
@@ -377,28 +305,28 @@ function forEachField (callback, fields, filter) {
     }
     callback(name, field, _this);
   });
-}
+};
 
-function forEachUniqueField (callback, fields) {
+Schemas.prototype.forEachUniqueField = function (callback, fields) {
   var _this = this;
   this.forEachField(callback, fields, function (field) {
     return _this.isUnique(field);
   });
-}
+};
 
-function forEachIndexField (callback, fields) {
+Schemas.prototype.forEachIndexField = function (callback, fields) {
   var _this = this;
   this.forEachField(callback, fields, function (field) {
     return _this.isIndex(field);
   });
-}
+};
 
 /**
  * remove all the fake fields data
  * @data, ready to save
  */
 
-function clearFakeFields (data) {
+Schemas.prototype.clearFakeFields = function (data) {
   var noFake = {};
   this.forEachField(function (name, field, self) {
     noFake[name] = data[name];
@@ -407,16 +335,14 @@ function clearFakeFields (data) {
   });
   
   return noFake;
-}
+};
 
-function precise(num, decimals) {
-  return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
-}
+
 
 /**
  * convert value for json file, accoring to the field type
  */
-function convertEachField (data, fields) {
+Schemas.prototype.convertEachField = function (data, fields) {
   this.forEachField(function (name, field, _this) {
     data[name] = _this.convert(field, data[name]);
   }, fields);
@@ -426,7 +352,7 @@ function convertEachField (data, fields) {
 /**
  * convert for json file
  */
-function convert (field, value) {
+Schemas.prototype.convert = function (field, value) {
   // console.log('convert field: %s = %s', field.type, value);
   // string to date object
   if ((field.type == 'date' || field.type == 'datetime')) {
@@ -460,29 +386,29 @@ function convert (field, value) {
   }
   
   return value;
-}
+};
 
 /**
  * convert back from json
  */
-function convertBackEachField (data) {
+Schemas.prototype.convertBackEachField = function (data) {
   this.forEachField(function (name, field, _this) {
     data[name] = _this.convertBack(field, data[name]);
   }, data);
   return data;
-}
+};
 
-function convertBack (field, value) {
+Schemas.prototype.convertBack = function (field, value) {
   if ((field.type == 'date' || field.type == 'datetime')) {
     if (typeof value == 'number' ) {
       return new Date(value);
     }
   }
   return value;
-}
+};
 
 // convert string to fited type
-function fieldValueConvertFn (field) {
+Schemas.prototype.fieldValueConvertFn = function (field) {
   field = this.getField(field);
   switch (field.type) {
     case 'int':
@@ -498,23 +424,23 @@ function fieldValueConvertFn (field) {
     default:
       return function (s) { return s; };
   }
-}
+};
 
 // 得到当前时戳
-function getTimestamp () {
+Schemas.prototype.getTimestamp = function () {
   return (new Date()).getTime();
-}
+};
 
-function getPrimaryId () {
+Schemas.prototype.getPrimaryId = function () {
   return require('crypto').randomBytes(16).toString('hex');
-}
+};
 
 /** 
  * 获取随机字符串或数字
  * @type: 类型(string or int)
  * @len: 长度
  */
-function getRandom (type, len) {
+Schemas.prototype.getRandom = function (type, len) {
   len = len || 8;  
   switch (type) {
     case 'int':
@@ -523,9 +449,9 @@ function getRandom (type, len) {
     default:
       return rander.string(len);
   }
-}
+};
 
-function addDefaultValues (data, fields) {
+Schemas.prototype.addDefaultValues = function (data, fields) {
   var filtered = {};
   this.forEachField(function (name, field) {
     if (data[name] !== undefined) return; // data中已经设置, 注意可以为空值，null值
@@ -540,9 +466,9 @@ function addDefaultValues (data, fields) {
     }
   }, fields);
   return data;
-}
+};
 
-function addSystemValues (data) {
+Schemas.prototype.addSystemValues = function (data) {
   var _this = this;
   
   this.forEachField(function (name, field) {
@@ -578,31 +504,33 @@ function addSystemValues (data) {
   });
   
   return data;
-}
+};
 
-function addAliasValues (data) {
+Schemas.prototype.addAliasValues = function (data) {
+  var self = this;
+  
   this.forEachField(function (name, field, _this) {
     data[name] = field.logic(data);
   }, null, function (field) {
-    return isAliasField(field);
+    return self.isAliasField(field);
   });
   
   return data;
-}
+};
 
-function addValues (data) {
+Schemas.prototype.addValues = function (data) {
   data = clone(data); // do not dirty the param data, object param is dangerous.
   data = this.addDefaultValues(data);
   data = this.addSystemValues(data);
   data = this.addAliasValues(data);
   return data;
-}
+};
 
 /**
  * filter dirty data, only include those who are defined in schemas
  * @data: ready to save
  */
-function filterData (data) {
+Schemas.prototype.filterData = function (data) {
   var safe = {};
   
   this.forEachField(function (name, field, _this) {
@@ -613,17 +541,9 @@ function filterData (data) {
   });
   
   return safe;
-}
+};
 
-function clone (data) {
-  var _data = {};
-  
-  Object.keys(data).forEach(function (name) {
-    _data[name] = data[name];
-  });
-  
-  return _data;
-}
+
 
 /**
  * 检查密码是否正确
@@ -632,16 +552,16 @@ function clone (data) {
  * @return boolean
  */ 
 
-function isValidPassword (hash, pass) {
+Schemas.prototype.isValidPassword = function (hash, pass) {
   return safepass.set(hash).isValid(pass);
-}
+};
 
-function getNextAutoIncrementValue (name, currentValue) {
+Schemas.prototype.getNextAutoIncrementValue = function (name, currentValue) {
   var step = this.fields[name].step || 1;
   return parseInt(currentValue, 10) + parseInt(step, 10);
-}
+};
 
-function getChangedFields (data, record) {
+Schemas.prototype.getChangedFields = function (data, record) {
   var fields = [];
   this.forEachField(function (name, field, self) {
     if (self.isReadOnly(field)) { return; }
@@ -652,7 +572,7 @@ function getChangedFields (data, record) {
     }
   }, data);
   return fields;
-}
+};
 
 /** 
  * 无论是sync or async都要处理的部分
@@ -660,7 +580,7 @@ function getChangedFields (data, record) {
  * @data: 要保存的数据
  * @record: 当前数据库中的数据
  */ 
-function getRealUpdateData (data, record) {
+Schemas.prototype.getRealUpdateData = function (data, record) {
   var target = {}; // 避免data中夹杂schemas没有定义的数据
   this.forEachField(function (name, field) {
     if (data[name] == undefined) {
@@ -670,4 +590,42 @@ function getRealUpdateData (data, record) {
     }
   });
   return this.addValues(target);
+};
+
+function isValidType (type) {
+  return ValidTypes.indexOf(type) > -1;
+}
+
+function checkFields (fields) {
+  Object.keys(fields).forEach(function (name) {
+    checkField(name, fields[name]);
+  });
+}
+
+Schemas.prototype.isValidType = isValidType;
+
+function checkField (name, field) {  
+  RequiredKeys.forEach(function (key) {
+    if (field[key] == undefined) {
+      throw error(1001, key, name);
+    }
+  });
+  
+  if (!isValidType(field.type)) {
+    throw error(1002, field.type, name);
+  }
+}
+
+function precise(num, decimals) {
+  return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
+}
+
+function clone (data) {
+  var _data = {};
+  
+  Object.keys(data).forEach(function (name) {
+    _data[name] = data[name];
+  });
+  
+  return _data;
 }
