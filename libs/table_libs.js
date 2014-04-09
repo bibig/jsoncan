@@ -50,7 +50,7 @@ function findSync (_id) {
 
 function findBy (name, value, callback) {
   this.checkUniqueField(name);
-  if (Validator.isEmpty(name, value)) { return null; }
+  if (Validator.isEmpty(name, value)) { return callback(); }
   this.conn.readBy(this.table, name, value, callback); 
 }
 

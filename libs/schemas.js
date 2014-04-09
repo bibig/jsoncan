@@ -50,9 +50,10 @@ var ValidTypes = [
   'boolean',
   'autoIncrement', // auto increment id, used with 'autoIncrement' key
   'increment', // autoIncrement alias
+  'enum',
   'map',
   'hash', // map alias
-  'enum',
+  'array',
   'password',
   'date',
   'datetime',
@@ -92,9 +93,12 @@ function create (fields) {
     fields: fields,
     inputFields: inputFields,
     isMap: isMap,
+    isEnum: isEnum,
+    isArray: isArray,
     isAliasField: isAliasField,
     isSystemField: isSystemField,
     mapIdToDesc: mapIdToDesc,
+    arrayIdToDesc: arrayIdToDesc,
     present: present,
     presentAll: presentAll,
     hasFormat: hasFormat,
@@ -222,8 +226,17 @@ function presentAll (data) {
 }
 
 function present (name, value, data) {
+  
+  if (value === null || value === '' || value === undefined) {
+    return '';
+  }
+
   if (this.isMap(name)) {
     value = this.mapIdToDesc(name, value);
+  }
+  
+  if (this.isArray(name)) {
+    value = this.arrayIdToDesc(name, value);
   }
   
   if (this.hasFormat(name)) {
@@ -238,6 +251,11 @@ function present (name, value, data) {
 // 将map字段的值转换为描述文本
 function mapIdToDesc (name, value) {
   value = value + '';
+  return this.fields[name].values[value];
+}
+
+function arrayIdToDesc (name, value) {
+  value = parseInt(value, 10);
   return this.fields[name].values[value];
 }
 
@@ -278,6 +296,18 @@ function isMap (name) {
   var field = this.fields[name];
   if (!field) return false;
   return ( field.type == 'hash' || field.type == 'map' ) && field.values;
+}
+
+function isEnum (name) {
+  var field = this.fields[name];
+  if (!field) return false;
+  return ( field.type == 'enum') && Array.isArray(field.values);
+}
+
+function isArray (name) {
+  var field = this.fields[name];
+  if (!field) return false;
+  return ( field.type == 'array') && Array.isArray(field.values);
 }
 
 // ready to deprecate

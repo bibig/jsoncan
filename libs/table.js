@@ -1,6 +1,6 @@
 /**
  * Table
- * support: find, findBy, findAll, insert, insertAll, update, updateBy, updateAll, remove, removeBy, removeAll
+ * 
  */
 
 exports.create = create;
@@ -37,7 +37,6 @@ function create (conn, table) {
     return conn.readTableUniqueAutoIncrementFile(table, name);
   }
   
-  
   return {
     table: table,
     conn: conn,
@@ -57,7 +56,6 @@ function create (conn, table) {
     query: Query.create,
     count: count,
     countSync: countSync,
-    
     findInOtherTable: findInOtherTable,
     findInOtherTableSync: findInOtherTableSync,
     findAllBelongsTo: findAllBelongsTo,
@@ -442,44 +440,6 @@ function saveSync (data, changedFields) {
     throw e;
   }
 }
-
-/*
-function read (_id, callback) {
-  var self = this;
-  this.find(_id, function (e, record) {
-    if (e) {
-      callback(e);
-    } else if (record) {
-      callback(null, self.schemas.presentAll(record));
-    } else { // no data found
-      callback(null, null);
-    }
-  })  
-}
-
-function readSync (_id) {
-  var data = this.findSync(_id);
-  return data ? this.schemas.presentAll(data): null;
-}
-
-function readBy (name, value, callback) {
-  var self = this;
-  this.findBy(name, value, function (e, record) {
-    if (e) {
-      callback(e);
-    } else if (record) {
-      callback(null, self.schemas.presentAll(record));
-    } else {
-      callback(null, null);
-    }
-  });
-}
-
-function readBySync (name, value) {
-  var data = this.findBySync(name, value);
-  return data ? this.schemas.presentAll(data) : null;
-}
-*/
 
 function count (filters, callback) {
   var self = this;

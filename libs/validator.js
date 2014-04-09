@@ -31,7 +31,8 @@ var Messages = {
   216: 'Invalid value, it should be less than <%s>',
   217: 'Invalid value, it should be greater than <%s>',
   218: 'Duplicated value found, <%s> already exists',
-  219: 'Invalid reference'
+  219: 'Invalid reference',
+  220: 'Invalid array value, it should be between 0 with %d',
 };
 
 function create (schemas, messages) {
@@ -128,6 +129,7 @@ function checkType (name, field, value) {
   switch (field.type) {
     case 'int':
     case 'timestamp':
+    case 'array':
       pass = validator.isInt(value);
       break;
     case 'float':
@@ -258,6 +260,11 @@ function checkValue (name, field, value) {
   
   if (field.type == 'enum' && field.values.indexOf(value) == -1) {
     this.addMessage(name, 213, field.values.join(','));
+    return;
+  }
+  
+  if (field.type == 'array' && (value < 0 || value >= field.values.length)) {
+    this.addMessage(name, 220, field.values.length);
     return;
   }
   
