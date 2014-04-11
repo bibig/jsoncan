@@ -231,6 +231,7 @@ Conn.prototype.readTableUniqueAutoIncrementFile = function (table, name) {
 
 Conn.prototype.writeTableUniqueAutoIncrementFile = function (table, name, value, callback) {
   var autoIncrementFile = this.getTableUniqueAutoIncrementFile(table, name);
+  // console.log(autoIncrementFile);
   fs.writeFile(autoIncrementFile, value, callback);
 };
 
@@ -356,17 +357,17 @@ Conn.prototype.queryAllSync = function (table, ids, options) {
   var record, records = [];
   var _this = this;
   
-  for (var i = 0; i < limit; i++) {
-    if (max < 1) { break; }
+  for (var i = 0; i < max; i++) {
+    if (limit < 1) { break; }
     record = _this.readSync(table, ids[i]);
     if (Query.checkHash(record, filters)) {
       if (skip > 0) {
         skip--;
       } else {
         records.push(record);
+        limit--;
       }
     }
-    max--;
   }
 
   return records;

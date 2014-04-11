@@ -12,6 +12,7 @@ var libs = require('./table_libs');
 var Query = require('./table_query');
 var Model = require('./table_model');
 var Finder = require('./table_finder');
+var Ref = require('./table_reference');
 var Eventchain = require('eventchain');
 
 var Table = function (conn, table, schemas, validator) {
@@ -92,6 +93,7 @@ Table.prototype.insert = function (_data, callback) {
       self.bindUpdateAutoIncrementValuesEvents(afterInsert);
       self.bindAddIndexRecordsEvents(afterInsert);
       self.bindAddIdRecordEvent(afterInsert);
+      self.bindIncrementCountersEvent(afterInsert);
       
       afterInsert.emit(record, function (e) {
         callback(e, record);
@@ -120,6 +122,8 @@ Table.prototype.insertSync = function (data) {
   // add all index records
   this.addIndexRecordsSync(data);
   this.addIdRecordSync(data);
+  
+  this.incrementCountersSync(data);
   
   return data;
 };
@@ -370,6 +374,7 @@ Table.prototype.removeRecord = function (record, callback) {
         self.bindUnlinkEachUniqueFieldEvents(afterRemove);
         self.bindRemoveIndexRecordsEvents(afterRemove);
         self.bindRemoveIdRecordEvent(afterRemove);
+        self.bindDecrementCountersEvent(afterRemove);
         
         afterRemove.emit(record, function (e) {
           callback(e, record);
@@ -385,6 +390,7 @@ Table.prototype.removeRecordSync = function (record) {
   this.unlinkEachUniqueFieldSync(record);
   this.removeIndexRecordsSync(record);
   this.removeIdRecordSync(record);
+  this.decrementCountersSync(record);
 };
 
 Table.prototype.removeSync = function (_id) {
@@ -753,12 +759,13 @@ Table.prototype.bindUnlinkEachUniqueFieldEvents = function (event, targetFields)
  
 Table.prototype.bindUpdateAutoIncrementValuesEvents = function (event) {
   var self = this;
-  
+  // console.log('~1');
   this.schemas.forEachUniqueField(function (name, field, schemas) {
     var nextValue;
     if (schemas.isAutoIncrement(field)) {
       event.add(function (record, next) {
         var nextValue = schemas.getNextAutoIncrementValue(name, record[name]);
+        // console.log(nextValue);
         self.conn.writeTableUniqueAutoIncrementFile(self.table, name, nextValue, function (e) {
           next(e);
         });
@@ -829,6 +836,42 @@ Table.prototype.bindRemoveIdRecordEvent = function (event) {
   });
 };
 
+
+Table.prototype.bindUpdateCountersEvent = function (event, step) {
+  var self = this;
+  var counters;
+  if ( ! this.schemas.hasCounter() ) { return; }
+  counters = this.schemas.getCounters();
+  event.add(function (record, next) {
+    var updateEvent = Eventchain.create();
+    counters.forEach(function (info) {
+      var name = info[0];
+      var counterName = info[1];
+      
+      updateEvent.add(function (record, next) {
+        var referenceTableName =  Ref.getReferenceTable(name);
+        var referenceTable = create(self.conn, referenceTableName);
+        var fn = step > 0 ? referenceTable.increment : referenceTable.decrement;
+        fn.call(referenceTable, record[name], counterName, function (e, record) {
+          next(e, record);
+        }, Math.abs(step));
+      });
+    }); // counter foreach over
+    updateEvent.emit(record, next);
+  });
+};
+
+Table.prototype.bindIncrementCountersEvent = function (event, step) {
+  step = step || 1;
+  this.bindUpdateCountersEvent(event, step);
+};
+
+Table.prototype.bindDecrementCountersEvent = function (event, step) {
+  step = step || -1;
+  this.bindUpdateCountersEvent(event, step);
+};
+
+
 // ----------------------SYNC EVENTS---------------------------------
 
 /**
@@ -891,6 +934,32 @@ Table.prototype.addIdRecordSync = function (record) {
 
 Table.prototype.removeIdRecordSync = function (record) {
   this.conn.removeIdRecordSync(this.table, record._id);
+};
+
+Table.prototype.updateCountersSync = function (record, step) {
+  var self = this;
+  var counters;
+  if ( ! this.schemas.hasCounter() ) { return; }
+  
+  counters = this.schemas.getCounters();
+  counters.forEach(function (info) {
+    var name = info[0];
+    var counterName = info[1];
+    var referenceTableName =  Ref.getReferenceTable(name);
+    var referenceTable = create(self.conn, referenceTableName);
+    var fn = step > 0 ? referenceTable.incrementSync : referenceTable.decrementSync;
+    fn.call(referenceTable, record[name], counterName, Math.abs(step));
+  }); // counter foreach over
+};
+
+Table.prototype.incrementCountersSync = function (record, step) {
+  step = step || 1;
+  this.updateCountersSync(record, step);
+};
+
+Table.prototype.decrementCountersSync = function (record, step) {
+  step = step || -1;
+  this.updateCountersSync(record, step);
 };
 
 // ----------------------------------------------------------------

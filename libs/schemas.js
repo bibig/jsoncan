@@ -37,7 +37,8 @@ var ValidKeys = [
   'step', // only for 'autoIncrement' type
   'autoIncrement', // only for 'autoIncrement' type
   'isIndex', // is index field
-  'index'  // alias for isIndex
+  'index',  // alias for isIndex
+  'counter' // counter name
 ];
 */
 var RequiredKeys = ['type'];
@@ -99,6 +100,32 @@ Schemas.prototype.getFieldType = function (name) {
   return this.fields[name].type; 
 };
 
+Schemas.prototype.hasCounter = function () {
+  var self = this;
+  var has = false;
+  
+  this.forEachField(function (name, field) {
+    if (!has) {
+      has = self.isCounter(field);
+    }
+  });
+  
+  return has;
+};
+
+Schemas.prototype.getCounters = function () {
+  var self = this;
+  var targets = [];
+  
+  this.forEachField(function (name, field) {
+    if (self.isCounter(field)) {
+      targets.push([name, field.counter]);
+    }
+  });
+  
+  return targets;
+}
+
 Schemas.prototype.isType = function (name, type) { 
   return this.getFieldType(name) == type; 
 };
@@ -123,6 +150,11 @@ Schemas.prototype.isUnique = function (v) {
   return field.unique === true || field.isUnique === true || this.isAutoIncrement(v);
 };
 
+Schemas.prototype.isCounter = function (v) {
+  var field = this.getField(v);
+  return field.type === 'ref' && typeof field.counter === 'string' && field.counter !== '';
+};
+
 Schemas.prototype.isIndex = function (v) {
   var field = this.getField(v);
   return field.isIndex === true || field.index === true;
@@ -136,6 +168,40 @@ Schemas.prototype.isAutoIncrement = function (v) {
 Schemas.prototype.isReadOnly = function (v) {
   var field = this.getField(v);
   return field.isReadOnly || field.readOnly || this.isAutoIncrement(v);
+};
+
+Schemas.prototype.isSystemField = function (field) {
+  return ['primary', 'created', 'modified', 'random'].indexOf(field.type) > -1 || this.isAutoIncrement(field);
+};
+
+Schemas.prototype.isAliasField = function (field) {
+  return field.type == 'alias' && typeof field.logic == 'function';
+};
+
+// 是否是map字段
+Schemas.prototype.isMap = function (name) {
+  var field = this.fields[name];
+  if (!field) return false;
+  return ( field.type == 'hash' || field.type == 'map' ) && field.values;
+};
+
+Schemas.prototype.isEnum = function (name) {
+  var field = this.fields[name];
+  if (!field) return false;
+  // return ( field.type == 'enum') && Array.isArray(field.values);
+  if (field.type == 'enum') {
+    if (typeof field.values == 'string') {
+      return field.values.split(',').length > 0;
+    }
+    return Array.isArray(field.values);
+  }
+  return false;
+};
+
+Schemas.prototype.isArray = function (name) {
+  var field = this.fields[name];
+  if (!field) return false;
+  return ( field.type == 'array') && Array.isArray(field.values);
 };
 
 // 将原始的数据转换为可以放入表示层阅读的数据
@@ -204,55 +270,6 @@ Schemas.prototype.addPrefixAndSuffix = function (name, value) {
 Schemas.prototype.formatField = function (name, value, data) {
   // console.log(arguments);
   return this.fields[name].format(value, data); 
-};
-
-Schemas.prototype.isSystemField = function (field) {
-  return ['primary', 'created', 'modified', 'random'].indexOf(field.type) > -1 || this.isAutoIncrement(field);
-};
-
-Schemas.prototype.isAliasField = function (field) {
-  return field.type == 'alias' && typeof field.logic == 'function';
-};
-
-// 是否是map字段
-Schemas.prototype.isMap = function (name) {
-  var field = this.fields[name];
-  if (!field) return false;
-  return ( field.type == 'hash' || field.type == 'map' ) && field.values;
-};
-
-Schemas.prototype.isEnum = function (name) {
-  var field = this.fields[name];
-  if (!field) return false;
-  // return ( field.type == 'enum') && Array.isArray(field.values);
-  if (field.type == 'enum') {
-    if (typeof field.values == 'string') {
-      return field.values.split(',').length > 0;
-    }
-    return Array.isArray(field.values);
-  }
-  return false;
-};
-
-Schemas.prototype.isArray = function (name) {
-  var field = this.fields[name];
-  if (!field) return false;
-  return ( field.type == 'array') && Array.isArray(field.values);
-};
-
-// ready to deprecate
-// 获取所有isInput的fields
-Schemas.prototype.inputFields = function () {
-  var fields = {};
-  
-  this.forEachField(function (name, field, _this) {
-    if (field.isInput) {
-      fields[name] = field;
-      fields[name].name = name;
-    }
-  });
-  
-  return fields;
 };
 
 Schemas.prototype.getUniqueFields = function () {
