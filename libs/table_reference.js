@@ -4,6 +4,8 @@ exports.belongsTo = belongsTo;
 exports.hasMany = hasMany;
 exports.populateRecordSync = populateRecordSync;
 exports.populateRecord = populateRecord;
+exports.getReferenceName = getReferenceName;
+exports.getReferenceTable = getReferenceTable;
 exports.hasReference = hasReference;
 
 
@@ -45,6 +47,10 @@ function getReferenceName (tableName) {
   // console.log(tableName);
   // console.log('_' + inflection.singularize(tableName));
   return '_' + inflection.singularize(tableName);
+}
+
+function getReferenceTable (name) {
+  return inflection.pluralize(name.substring(1));
 }
 
 function hasMany (parent, table, options) {

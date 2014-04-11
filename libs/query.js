@@ -63,27 +63,6 @@ function key (name) {
  *  4. selelct(['id', 'name', 'age'])
  */
 function select (/*fields*/) {
-  /*var fields = [];
-  if (arguments.length > 1) {
-    for (var i = 0; i < arguments.length; i++) {
-      fields.push(arguments[i]);
-    }
-  } else if (arguments.length == 1) {
-    fields = arguments[0];
-  } else {
-    return this.records;
-  }
-
-  if (typeof fields == 'string') {
-    fields = fields.replace(/[\s]/g, '');
-    if (fields.indexOf(',') > -1) { // 支持select('id, name, age');
-      fields = fields.split(',');
-    } else {
-      fields = [fields];
-    }
-  }
-  */
-  
   var fields = parseSelectArguments.apply(this, arguments);
   
   if (!fields) {
