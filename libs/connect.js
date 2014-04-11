@@ -229,7 +229,12 @@ Conn.prototype.readTableUniqueAutoIncrementFile = function (table, name) {
   }
 };
 
-Conn.prototype.writeTableUniqueAutoIncrementFile = function (table, name, value) {
+Conn.prototype.writeTableUniqueAutoIncrementFile = function (table, name, value, callback) {
+  var autoIncrementFile = this.getTableUniqueAutoIncrementFile(table, name);
+  fs.writeFile(autoIncrementFile, value, callback);
+};
+
+Conn.prototype.writeTableUniqueAutoIncrementFileSync = function (table, name, value) {
   var autoIncrementFile = this.getTableUniqueAutoIncrementFile(table, name);
   fs.writeFileSync(autoIncrementFile, value);
 };
@@ -240,17 +245,33 @@ Conn.prototype.writeTableUniqueAutoIncrementFile = function (table, name, value)
  * @value: field value
  * @_id:  primary key value
  */
-Conn.prototype.addIndexRecord = function (table, name, value, _id) {
+Conn.prototype.addIndexRecord = function (table, name, value, _id, callback) {
+  var indexFile = this.getTableIndexFile(table, name);
+  fs.appendFile(indexFile, _indexRecordFormatedString(['+', _id, value + '']), callback);
+};
+
+Conn.prototype.addIndexRecordSync = function (table, name, value, _id) {
   var indexFile = this.getTableIndexFile(table, name);
   fs.appendFileSync(indexFile, _indexRecordFormatedString(['+', _id, value + '']));
 };
 
-Conn.prototype.removeIndexRecord = function  (table, name, value, _id) {
+
+Conn.prototype.removeIndexRecord = function  (table, name, value, _id, callback) {
+  var indexFile = this.getTableIndexFile(table, name);
+  fs.appendFile(indexFile, _indexRecordFormatedString(['-', _id, value + '']), callback);
+};
+
+Conn.prototype.removeIndexRecordSync = function  (table, name, value, _id) {
   var indexFile = this.getTableIndexFile(table, name);
   fs.appendFileSync(indexFile, _indexRecordFormatedString(['-', _id, value + '']));
 };
 
-Conn.prototype.addIdRecord = function (table, _id) {
+Conn.prototype.addIdRecord = function (table, _id, callback) {
+  var indexFile = this.getTableIndexFile(table, '_id');
+  fs.appendFile(indexFile, _indexRecordFormatedString(['+', _id]), callback);
+};
+
+Conn.prototype.addIdRecordSync = function (table, _id) {
   var indexFile = this.getTableIndexFile(table, '_id');
   fs.appendFileSync(indexFile, _indexRecordFormatedString(['+', _id]));
 };
@@ -276,7 +297,12 @@ Conn.prototype.resetIndexFile = function (table, name) {
   fs.writeFileSync(indexFile, content);
 };
 
-Conn.prototype.removeIdRecord = function (table, _id) {
+Conn.prototype.removeIdRecord = function (table, _id, callback) {
+  var indexFile = this.getTableIndexFile(table, '_id');
+  fs.appendFile(indexFile, _indexRecordFormatedString(['-', _id]), callback);
+};
+
+Conn.prototype.removeIdRecordSync = function (table, _id) {
   var indexFile = this.getTableIndexFile(table, '_id');
   fs.appendFileSync(indexFile, _indexRecordFormatedString(['-', _id]));
 };

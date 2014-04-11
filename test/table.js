@@ -177,7 +177,7 @@ describe('test table.js', function () {
       done();
     });
   });
-  
+
   // now, three people in db
   it('primary ids should be appended info index file', function () {
     var exist = fs.existsSync(Table.conn.getTableIndexFile(tableName, '_id'));
@@ -185,6 +185,7 @@ describe('test table.js', function () {
     assert.equal(ids.length, 3);
     assert.ok(exist);
   });
+  
   
   it('test query skip,limit', function (done) {
     

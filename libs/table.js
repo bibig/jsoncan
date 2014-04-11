@@ -12,8 +12,10 @@ var libs = require('./table_libs');
 var Query = require('./table_query');
 var Model = require('./table_model');
 var Finder = require('./table_finder');
+var Eventchain = require('eventchain');
 
 var Table = function (conn, table, schemas, validator) {
+  this.id = rander.string(8);
   this.conn = conn;
   this.table = table;
   this.schemas = schemas;
@@ -38,7 +40,6 @@ var Table = function (conn, table, schemas, validator) {
 function create (conn, table) {
   var schemas = Schemas.create(conn.tables[table]);
   var validator = Validator.create(schemas, conn.validateMessages);
-  
   // build table root path and unique fields paths
   conn.createTablePaths(table, schemas.getUniqueFields());
   
@@ -78,19 +79,23 @@ Table.prototype.insert = function (_data, callback) {
   
   var self = this;
   var data = this.schemas.filterData(_data); // filter data, make sure it is safe
-
+  var afterInsert;
+  
   // 补充default值, _id值
   data = this.schemas.addValues(data);
   this.save(data, function (e, record) {
     if (e) {
       callback(e);
     } else {
-      libs.linkEachUniqueField.call(self, record);
-      libs.updateAutoIncrementValues.call(self, record);
-      // add all index records
-      libs.addIndexRecords.call(self, record);
-      libs.addIdRecord.call(self, record._id);
-      callback(null, record);
+      afterInsert = Eventchain.create();
+      self.bindLinkEachUniqueFieldEvents(afterInsert);
+      self.bindUpdateAutoIncrementValuesEvents(afterInsert);
+      self.bindAddIndexRecordsEvents(afterInsert);
+      self.bindAddIdRecordEvent(afterInsert);
+      
+      afterInsert.emit(record, function (e) {
+        callback(e, record);
+      });
     }
   });
 };
@@ -109,11 +114,12 @@ Table.prototype.insertSync = function (data) {
   data = this.saveSync(data);
   
   // link files
-  libs.linkEachUniqueField.call(this, data);
-  libs.updateAutoIncrementValues.call(this, data);
+  this.linkEachUniqueFieldSync(data);
+  this.updateAutoIncrementValuesSync(data);
+  
   // add all index records
-  libs.addIndexRecords.call(this, data);
-  libs.addIdRecord.call(this, data._id);
+  this.addIndexRecordsSync(data);
+  this.addIdRecordSync(data);
   
   return data;
 };
@@ -125,6 +131,7 @@ Table.prototype.insertAll = function (datas, callback) {
     async.series(tasks, callback);  
   } else {
     async.parallelLimit(tasks, 100, callback);
+    // async.series(tasks, callback);
   }
 };
 
@@ -139,46 +146,131 @@ Table.prototype.insertAllSync = function (records) {
   return results;
 };
 
+
 /** 
- * 先根据data._id查出整个记录，然后合并数据，最后再保存数据
- * 如果unique字段更改，需要删除旧的link文件，建立新的link文件
- * @data: 要保存的数据
+ * first: find record by _id
+ * second: figure out which fields need to update
+ * third: save the data
+ * forth: handler after-save events
  * @callback(err, record)
- */ 
+ */
+
 Table.prototype.update = function (_id, data, callback) {
   var self = this;
   
-  this.find(_id).exec(function (err, record) {
-    if (err) {
-      callback(err);
+  this.find(_id).exec(function (e, record) {
+    if (e) {
+      callback(e);
+    } else if (!record) {
+      callback(error(1400, '_id', _id));
     } else {
-      libs.update.call(self, data, record, callback);
+      self.updateRecord(record, data, callback);
     }
-  });
-};
-
-/** 
- * update sync version
- */ 
-Table.prototype.updateSync = function (_id, data) {
-  var self = this;
-  var record = this.find(_id).execSync();
-  return libs.updateSync.call(self, data, record);
+  }); // end of find
+  
 };
 
 Table.prototype.updateBy = function (field, value, data, callback) {
   var self = this;
+  
   this.findBy(field, value).exec(function (err, record) {
     if (err) {
       callback(err);
     } else if (!record) {
       callback(error(1400, field, value));
     } else {
-      libs.update.call(self, data, record, callback);
+      self.updateRecord(record, data, callback);
     }
   });
 };
 
+
+Table.prototype.updateRecord = function (record, data, callback) {
+  var self = this;
+  var changedFields = this.schemas.getChangedFields(data, record);
+  var afterUpdate;
+      
+  if (changedFields.length == 0 ) { // 数据没有更改
+    return callback(null, record);
+  }
+  
+  data = this.schemas.getRealUpdateData(data, record);
+  
+  // save data.
+  this.save(data, function (e, updatedRecord) {
+    if (e) {
+      callback(e);
+    } else {
+      // create temporary event to handler after-update events
+      afterUpdate = Eventchain.create();
+      
+      // handler old record which replaced by updated data
+      afterUpdate.add(function (args, next) {
+        var record = args[0];
+        var updatedRecord = args[1];
+        var changedFields = args[2];
+        var oldDataHandler = Eventchain.create(); // Inception, event in event
+        
+        self.bindUnlinkEachUniqueFieldEvents(oldDataHandler, changedFields);
+        self.bindRemoveIndexRecordsEvents(oldDataHandler, changedFields);
+        
+        oldDataHandler.emit(record, function (e) {
+          next(e, [updatedRecord, changedFields]);
+        });
+      }); // end of add
+      
+      // handler new updated record
+      afterUpdate.add(function (args, next) {
+        var updatedRecord = args[0];
+        var changedFields = args[1];
+        var newDataHandler = Eventchain.create();
+        
+        self.bindLinkEachUniqueFieldEvents(newDataHandler, changedFields);
+        self.bindAddIndexRecordsEvents(newDataHandler, changedFields);
+        
+        newDataHandler.emit(updatedRecord, function (e) {
+          next(e, updatedRecord);
+        });
+      }); // end of add
+    
+      afterUpdate.emit([record, updatedRecord, changedFields], callback);
+    }
+  }, changedFields); // end of save
+};
+
+/** 
+ * _update sync version
+ */ 
+Table.prototype.updateRecordSync = function (record, _data) {
+  var data = this.schemas.filterData(_data);
+  var changedFields = this.schemas.getChangedFields(data, record);
+  var safe;
+  
+  if (changedFields.length == 0 ) { // 数据没有更改,
+    return record;
+  }
+  
+  try{
+    this.unlinkEachUniqueFieldSync(record, changedFields);
+    safe = this.saveSync(this.schemas.getRealUpdateData(data, record), changedFields);
+    this.linkEachUniqueFieldSync(safe, changedFields);
+    this.removeIndexRecordsSync(record, changedFields);
+    this.addIndexRecordsSync(safe, changedFields);
+    return safe;
+  } catch (e) {
+    this.linkEachUniqueFieldSync(record, changedFields);
+    throw e;
+  }
+};
+
+
+/** 
+ * update sync version
+ */ 
+Table.prototype.updateSync = function (_id, data) {
+  var record = this.find(_id).execSync();
+  return this.updateRecordSync(record, data);
+};
 
 /** 
  * updateBy sync version
@@ -188,7 +280,7 @@ Table.prototype.updateBySync = function (field, value, data) {
   if (!record) {
     throw error(1400, field, value);
   }
-  return libs.updateSync.call(this, data, record);
+  return this.updateRecordSync(record, data);
 };
 
 Table.prototype.updateAll = function (options, data, callback) {
@@ -199,7 +291,7 @@ Table.prototype.updateAll = function (options, data, callback) {
     
     records.forEach(function (record) {
       tasks.push(function (callback) {
-        libs.update.call(self, data, record, callback);
+        self.updateRecord(record, data, callback);
       });
     });
     
@@ -214,6 +306,7 @@ Table.prototype.updateAll = function (options, data, callback) {
       if (records.length > 0) { // no data found after filter,
         tasks = _makeUpdateTasks(records);
         async.parallelLimit(tasks, 150, callback);
+        // async.series(tasks, callback);
       } else {
         callback(null);
       }
@@ -227,7 +320,7 @@ Table.prototype.updateAllSync = function (options, data) {
   var results = [];
   var records = this.query(options).execSync();
   records.forEach(function (record) {
-    results.push(libs.updateSync.call(self, data, record));
+    results.push(self.updateRecordSync(record, data));
   });
   return results;
 };
@@ -245,17 +338,9 @@ Table.prototype.remove = function (_id, callback) {
     if (err) {
       callback(err);
     } else {
-      libs.remove.call(self, record, callback);
+      self.removeRecord(record, callback);
     }
   });
-};
-
-Table.prototype.removeSync = function (_id) {
-  if (this.schemas.hasUniqueField()) {
-    libs.removeSync.call(this, this.finder(_id).execSync());
-  } else {
-    this.conn.removeSync(this.table, _id);
-  }
 };
 
 Table.prototype.removeBy = function (field, value, callback) {
@@ -265,13 +350,53 @@ Table.prototype.removeBy = function (field, value, callback) {
     if (err) {
       callback(err);
     } else {
-      libs.remove.call(self, record, callback);
+      self.removeRecord(record, callback);
     }
   });
 };
 
+Table.prototype.removeRecord = function (record, callback) {
+  var self = this;
+  var afterRemove;
+  // no data found
+  if (!record) {
+    callback();
+  } else {
+    this.conn.remove(this.table, record._id, function (e) {
+      if (e) {
+        callback(e);
+      } else {
+        afterRemove = Eventchain.create();
+        self.bindUnlinkEachUniqueFieldEvents(afterRemove);
+        self.bindRemoveIndexRecordsEvents(afterRemove);
+        self.bindRemoveIdRecordEvent(afterRemove);
+        
+        afterRemove.emit(record, function (e) {
+          callback(e, record);
+        });
+      }
+    });
+  }
+}
+
+Table.prototype.removeRecordSync = function (record) {
+  if (!record) return;
+  this.conn.removeSync(this.table, record._id);
+  this.unlinkEachUniqueFieldSync(record);
+  this.removeIndexRecordsSync(record);
+  this.removeIdRecordSync(record);
+};
+
+Table.prototype.removeSync = function (_id) {
+  if (this.schemas.hasUniqueField()) {
+    this.removeRecordSync(this.finder(_id).execSync());
+  } else {
+    this.conn.removeSync(this.table, _id);
+  }
+};
+
 Table.prototype.removeBySync = function (field, value, callback) {
-  this.removeSync(this.finder(field, value).execSync());
+  this.removeRecordSync(this.finder(field, value).execSync());
 };
 
 Table.prototype.removeAll = function (options, callback) {
@@ -282,7 +407,8 @@ Table.prototype.removeAll = function (options, callback) {
     
     records.forEach(function (record) {
       tasks.push(function (callback) {
-        libs.remove.call(self, record, callback);
+        // libs.remove.call(self, record, callback);
+        self.removeRecord(record, callback);
       });
     });
     
@@ -294,7 +420,8 @@ Table.prototype.removeAll = function (options, callback) {
       callback(err);
     } else {
       if (records.length > 0) {
-        async.parallelLimit(_makeRemoveTasks(records), 150, callback);
+        // async.parallelLimit(_makeRemoveTasks(records), 150, callback);
+        async.series(_makeRemoveTasks(records), callback);
       } else {
         callback(null);
       }
@@ -307,7 +434,7 @@ Table.prototype.removeAllSync = function (options, callback) {
   var self = this;
   var records = this.query(options).select().execSync();
   records.forEach(function (record) {
-    libs.removeSync.call(self, record);
+    self.removeRecordSync(record);
   });
   return records;
 };
@@ -353,6 +480,33 @@ Table.prototype.checkReference = function (table, name) {
   throw error(1006, name);
 };
 
+
+/**
+ * 检查unique字段值的唯一性
+ * @name: 字段名
+ * @value: 值
+ * @throw: 1100, 1101
+ */
+Table.prototype.checkUniqueFieldValue = function (name, value, isReturn) {
+  var linkFile = this.conn.getTableUniqueFile(this.table, name, value);
+  if (isReturn) {
+    return !fs.existsSync(linkFile);
+  } else if (fs.existsSync(linkFile)) {
+    throw error(1101, value, name);
+  }
+};
+
+
+Table.prototype.validate = function (data, changedFields) {
+  var self = this;
+
+  this.validator.isUnique = function (name, field, value) {
+    return self.checkUniqueFieldValue(name, value, true);
+  };
+  
+  return this.validator.check(data, changedFields);
+};
+
 /**
  * 保存数据
  * @data: 要保存的数据
@@ -361,7 +515,7 @@ Table.prototype.checkReference = function (table, name) {
  */
 Table.prototype.save = function (data, callback, changedFields) {
   var e;
-  var check = libs.validate.call(this, data, changedFields);
+  var check = this.validate(data, changedFields);
   
   if (check.isValid()) {
     data = this.schemas.clearFakeFields(data);
@@ -382,7 +536,7 @@ Table.prototype.save = function (data, callback, changedFields) {
  * @throw error 1300 表示数据校验失败
  */
 Table.prototype.saveSync = function (data, changedFields) {
-  var check = libs.validate.call(this, data, changedFields);
+  var check = this.validate(data, changedFields);
   if (check.isValid()) {
     data = this.schemas.clearFakeFields(data);
     data = this.schemas.convertEachField(data, changedFields);
@@ -511,6 +665,235 @@ Table.prototype.hasManyQuery = function (_id, ref) {
   
   return query;
 };
+
+Table.prototype.increment = function (_id, name, callback, step) {
+  var self = this;
+  step = step || 1;
+  // console.log(arguments);
+  this.find(_id).exec(function (e, record) {
+    var data = {};
+    if (e) { callback(e); } else {
+      // console.log(record);
+      data[name] = record[name] + step;
+      self.updateRecord(record, data, callback);
+    }
+  });
+};
+
+Table.prototype.decrement = function (_id, name, callback, step) {
+  var self = this;
+  step = step || 1;
+  
+  this.find(_id).exec(function (e, record) {
+    var data = {};
+    if (e) { callback(e); } else {
+      data[name] = record[name] - step;
+      self.updateRecord(record, data, callback);
+    }
+  });
+};
+
+Table.prototype.incrementSync = function (_id, name, step) {
+  var record = this.find(_id).execSync();
+  var data = {};
+  step = step || 1;
+  data[name] = record[name] + step;
+  return this.updateRecordSync(record, data);
+};
+
+Table.prototype.decrementSync = function (_id, name, step) {
+  var record = this.find(_id).execSync();
+  var data = {};
+  step = step || 1;
+  data[name] = record[name] - step;
+  return this.updateRecordSync(record, data);
+};
+
+//----------------------------EVENTS---------------------------------------------
+
+/**
+ * register create symbol link event for each unique field.
+ * @event: an instance of Eventchain
+ */
+Table.prototype.bindLinkEachUniqueFieldEvents = function (event, targetFields) {
+  var self = this;
+
+  this.schemas.forEachUniqueField(function (name, field) {
+    event.add(function (record, next) {
+      var _id = record._id;
+      var value = record[name];
+      self.conn.linkTableUniqueFile(self.table, _id, name, value, function (e) {
+        next(e);
+      });
+    });
+  }, targetFields);
+};
+
+/**
+ * register remove symbol link event for each unique field.
+ * @event: an instance of Eventchain
+ * @targetFields
+ */
+Table.prototype.bindUnlinkEachUniqueFieldEvents = function (event, targetFields) {
+  var self = this;
+  
+  this.schemas.forEachUniqueField(function (name, field) {
+    event.add(function (record, next) {
+      self.conn.unlinkTableUniqueFile(self.table, name, record[name], function (e) {
+        next(e);
+      });
+    });
+  }, targetFields);
+}
+
+/**
+ * update autoincrement values for table if they exist
+ * @event: an instance of Eventchain
+ */
+ 
+Table.prototype.bindUpdateAutoIncrementValuesEvents = function (event) {
+  var self = this;
+  
+  this.schemas.forEachUniqueField(function (name, field, schemas) {
+    var nextValue;
+    if (schemas.isAutoIncrement(field)) {
+      event.add(function (record, next) {
+        var nextValue = schemas.getNextAutoIncrementValue(name, record[name]);
+        self.conn.writeTableUniqueAutoIncrementFile(self.table, name, nextValue, function (e) {
+          next(e);
+        });
+      });
+    }
+  });
+};
+
+/**
+ * appending newly added index info into index file of table
+ * @event: an instance of Eventchain
+ */
+ 
+Table.prototype.bindAddIndexRecordsEvents = function (event, targetFields) {
+  var self = this;
+  
+  this.schemas.forEachIndexField(function (name, field) {
+    event.add(function (record, next) {
+      var _id = record._id;
+      var value = record[name];
+      self.conn.addIndexRecord(self.table, name, value, _id, function (e) {
+        next(e);
+      });
+    });
+  }, targetFields);
+};
+
+/**
+ * appending newly removed index info into index file of table
+ * @event: an instance of Eventchain
+ */
+
+Table.prototype.bindRemoveIndexRecordsEvents = function (event, targetFields) {
+  var self = this;
+  
+  this.schemas.forEachIndexField(function (name, field) {
+    event.add(function (record, next) {
+      var _id = record._id;
+      var value = record[name];
+      self.conn.removeIndexRecord(self.table, name, value, _id, function (e) {
+        next(e);
+      });
+    });
+  }, targetFields);
+};
+
+/**
+ * appending newly added _id info into primary index file of table
+ * @event: an instance of Eventchain
+ */
+ 
+Table.prototype.bindAddIdRecordEvent = function (event) {
+  var self = this;
+  
+  event.add(function (record, next) {
+    self.conn.addIdRecord(self.table, record._id, function (e) {
+      next(e);
+    });  
+  });
+};
+
+Table.prototype.bindRemoveIdRecordEvent = function (event) {
+  var self = this;
+  event.add(function (record, next) {
+    self.conn.removeIdRecord(self.table, record._id, function (e) {
+      next(e);
+    });
+  });
+};
+
+// ----------------------SYNC EVENTS---------------------------------
+
+/**
+ * 为每一个unique字段创建一个symbol link文件，指向以本record的id文件
+ * 前提：已经保证unique值是唯一的
+ * @record: 准备保存到数据库的记录
+ * @fields: 特别指定的字段范围
+ */
+Table.prototype.linkEachUniqueFieldSync = function (record, targetFields) {
+  var self = this;
+
+  this.schemas.forEachUniqueField(function (name, field) {
+    self.conn.linkTableUniqueFileSync(self.table, record._id, name, record[name]);
+  }, targetFields);
+};
+
+/**
+ * 删除每一个unique字段的symbol link文件
+ * 调用此方法的前提是：已经保证unique值是唯一的
+ * @record: 准备保存到数据库的记录
+ * @targetFields: 特别指定的字段范围
+ */
+Table.prototype.unlinkEachUniqueFieldSync = function (record, targetFields) {
+  var self = this;
+  this.schemas.forEachUniqueField(function (name, field) {
+    self.conn.unlinkTableUniqueFileSync(self.table, name, record[name]);
+  }, targetFields);
+};
+
+Table.prototype.updateAutoIncrementValuesSync = function (data) {
+  var self = this;
+  this.schemas.forEachUniqueField(function (name, field, schemas) {
+    var nextValue;
+    if (schemas.isAutoIncrement(field)) {
+      nextValue = schemas.getNextAutoIncrementValue(name, data[name]);
+      self.conn.writeTableUniqueAutoIncrementFileSync(self.table, name, nextValue);
+    }
+  });
+};
+
+Table.prototype.addIndexRecordsSync = function (data, targetFields) {
+  var self = this;
+  
+  this.schemas.forEachIndexField(function (name, field) {
+    self.conn.addIndexRecordSync(self.table, name, data[name], data._id);
+  }, targetFields);
+};
+
+Table.prototype.removeIndexRecordsSync = function (data, targetFields) {
+  var self = this;
+  
+  this.schemas.forEachIndexField(function (name, field) {
+    self.conn.removeIndexRecordSync(self.table, name, data[name], data._id);
+  }, targetFields);
+};
+
+Table.prototype.addIdRecordSync = function (record) {
+  this.conn.addIdRecordSync(this.table, record._id);
+};
+
+Table.prototype.removeIdRecordSync = function (record) {
+  this.conn.removeIdRecordSync(this.table, record._id);
+};
+
+// ----------------------------------------------------------------
 
 Table.prototype.resetIdsFile = function () {
   var ids = this.conn.readTableIdsDirSync(this.table);
