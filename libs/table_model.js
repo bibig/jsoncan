@@ -46,7 +46,7 @@ function create (data) {
   
   m.validate = function () {
     var data = parent.schemas.addValues(this.data);
-    var check = libs.validate.call(parent, this.data);
+    var check = parent.validate(this.data);
     this.errors = this.messages = check.getMessages();
     this.isValid = check.isValid();
     return this.isValid;
