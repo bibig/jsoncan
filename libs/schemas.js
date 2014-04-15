@@ -206,10 +206,17 @@ Schemas.prototype.isArray = function (name) {
 
 // 将原始的数据转换为可以放入表示层阅读的数据
 Schemas.prototype.presentAll = function (data) {
-  var presentations = {};
+  var presentations = {
+    _raw: {}
+  };
   data = data || {};
   this.forEachField(function (name, field, _this) {
-    presentations[name] = _this.present(name, data[name], data);
+    var value = data[name];
+    var presentValue = _this.present(name, value, data);
+    presentations[name] = presentValue;
+    if (value != presentValue) {
+      presentations._raw[name] = value;
+    }
   }, data);
   return presentations;
 };

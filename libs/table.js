@@ -638,7 +638,6 @@ Table.prototype.findAllHasMany = function (_id, ref, callback) {
 };
 
 Table.prototype.findAllHasManySync = function (_id, ref) {
-  // console.log(ref);
   var query = this.hasManyQuery(_id, ref);
   return query.execSync();
 };
@@ -679,9 +678,13 @@ Table.prototype.increment = function (_id, name, callback, step) {
   this.find(_id).exec(function (e, record) {
     var data = {};
     if (e) { callback(e); } else {
-      // console.log(record);
-      data[name] = record[name] + step;
-      self.updateRecord(record, data, callback);
+      if ( ! record ) { 
+        callback(); 
+      } else {
+        // console.log(record);
+        data[name] = record[name] + step;
+        self.updateRecord(record, data, callback);
+      }
     }
   });
 };
@@ -693,8 +696,12 @@ Table.prototype.decrement = function (_id, name, callback, step) {
   this.find(_id).exec(function (e, record) {
     var data = {};
     if (e) { callback(e); } else {
-      data[name] = record[name] - step;
-      self.updateRecord(record, data, callback);
+      if ( ! record ) { 
+        callback(); 
+      } else {
+        data[name] = record[name] - step;
+        self.updateRecord(record, data, callback);
+      }
     }
   });
 };
@@ -702,6 +709,7 @@ Table.prototype.decrement = function (_id, name, callback, step) {
 Table.prototype.incrementSync = function (_id, name, step) {
   var record = this.find(_id).execSync();
   var data = {};
+  if ( ! record ) { return null;}
   step = step || 1;
   data[name] = record[name] + step;
   return this.updateRecordSync(record, data);
@@ -710,6 +718,7 @@ Table.prototype.incrementSync = function (_id, name, step) {
 Table.prototype.decrementSync = function (_id, name, step) {
   var record = this.find(_id).execSync();
   var data = {};
+  if ( ! record ) { return null;}
   step = step || 1;
   data[name] = record[name] - step;
   return this.updateRecordSync(record, data);

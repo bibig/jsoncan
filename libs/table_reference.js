@@ -95,7 +95,9 @@ function populateRecord (parent, record, callback) {
         tasks.push(function (callback) {
           parent.findAllHasMany(record._id, ref, function (e, sons) {
             if (e) { callback(e); } else {
+              // console.log(sons);
               record[ref.table] = sons;
+              // console.log(record);
               callback();
             }
           });

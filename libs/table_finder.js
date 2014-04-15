@@ -69,17 +69,17 @@ function create () {
 
   function selectFilter (record) {
     var fields;
-    
+   
     if ( !record ) return record;
     
     fields = Query.parseSelectArguments.call(this, this.options.select);
     parent.schemas.convertBackEachField(record);
     // parent.schemas.addDefaultValues(record, fields);
-    
+    // console.log(fields);
     if (fields) {
       record = utils.clone(record, fields);
     }
-    
+
     if (this.options.isFormat) {
       record = libs.format.call(parent, record);
     }
@@ -101,7 +101,7 @@ function create () {
     select: function () { return Ref.select.apply(this, arguments); },
     format: function () { return Ref.format.apply(this) },
     belongsTo: belongsTo,
-    hasMany: function (table, name, options) { return Ref.hasMany.apply(this, [parent, table, name, options]) },
+    hasMany: function (table, options) { return Ref.hasMany.apply(this, [parent, table, options]) },
     ref: belongsTo, // alias
     exec: exec,
     execSync: execSync
