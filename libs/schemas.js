@@ -93,6 +93,7 @@ var Schemas = function (fields) {
 
 function create (fields) {
   checkFields(fields);
+  // console.log(fields);
   return new Schemas(fields);
 }
 
