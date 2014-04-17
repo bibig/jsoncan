@@ -218,6 +218,10 @@ Table.prototype.updateRecord = function (record, data, callback) {
         self.bindUnlinkEachUniqueFieldEvents(oldDataHandler, changedFields);
         self.bindRemoveIndexRecordsEvents(oldDataHandler, changedFields);
         
+        if (self.schemas.hasCounter(changedFields)) {
+          self.bindDecrementCountersEvent(oldDataHandler, changedFields);
+        }
+        
         oldDataHandler.emit(record, function (e) {
           next(e, [updatedRecord, changedFields]);
         });
@@ -231,6 +235,10 @@ Table.prototype.updateRecord = function (record, data, callback) {
         
         self.bindLinkEachUniqueFieldEvents(newDataHandler, changedFields);
         self.bindAddIndexRecordsEvents(newDataHandler, changedFields);
+        
+        if (self.schemas.hasCounter(changedFields)) {
+          self.bindIncrementCountersEvent(newDataHandler, changedFields);
+        }
         
         newDataHandler.emit(updatedRecord, function (e) {
           next(e, updatedRecord);
@@ -254,17 +262,29 @@ Table.prototype.updateRecordSync = function (record, _data) {
     return record;
   }
   
-  try{
+  
     this.unlinkEachUniqueFieldSync(record, changedFields);
-    safe = this.saveSync(this.schemas.getRealUpdateData(data, record), changedFields);
+    if (this.schemas.hasCounter(changedFields)) {
+      this.decrementCountersSync(record, changedFields);
+    }
+    
+    try{
+      safe = this.saveSync(this.schemas.getRealUpdateData(data, record), changedFields);
+    } catch (e) {
+      if (this.schemas.hasCounter(changedFields)) {
+        this.incrementCountersSync(record, changedFields);
+      }
+      this.linkEachUniqueFieldSync(record, changedFields);
+      throw e;
+    }
+    
     this.linkEachUniqueFieldSync(safe, changedFields);
     this.removeIndexRecordsSync(record, changedFields);
     this.addIndexRecordsSync(safe, changedFields);
+    if (this.schemas.hasCounter(changedFields)) {
+      this.incrementCountersSync(safe, changedFields);
+    }
     return safe;
-  } catch (e) {
-    this.linkEachUniqueFieldSync(record, changedFields);
-    throw e;
-  }
 };
 
 
@@ -862,7 +882,7 @@ Table.prototype.bindRemoveIdRecordEvent = function (event) {
 };
 
 
-Table.prototype.bindUpdateCountersEvent = function (event, step) {
+Table.prototype.bindUpdateCountersEvent = function (event, step, fields) {
   var self = this;
   var counters;
   if ( ! this.schemas.hasCounter() ) { return; }
@@ -872,6 +892,10 @@ Table.prototype.bindUpdateCountersEvent = function (event, step) {
     counters.forEach(function (info) {
       var name = info[0];
       var counterName = info[1];
+      
+      if (Array.isArray(fields)) {
+        if (fields.indexOf(name) == -1) { return; }
+      }
       
       updateEvent.add(function (record, next) {
         var referenceTableName =  Ref.getReferenceTable(name);
@@ -886,14 +910,12 @@ Table.prototype.bindUpdateCountersEvent = function (event, step) {
   });
 };
 
-Table.prototype.bindIncrementCountersEvent = function (event, step) {
-  step = step || 1;
-  this.bindUpdateCountersEvent(event, step);
+Table.prototype.bindIncrementCountersEvent = function (event, fields) {
+  this.bindUpdateCountersEvent(event, 1, fields);
 };
 
-Table.prototype.bindDecrementCountersEvent = function (event, step) {
-  step = step || -1;
-  this.bindUpdateCountersEvent(event, step);
+Table.prototype.bindDecrementCountersEvent = function (event, fields) {
+  this.bindUpdateCountersEvent(event, -1, fields);
 };
 
 
@@ -961,7 +983,7 @@ Table.prototype.removeIdRecordSync = function (record) {
   this.conn.removeIdRecordSync(this.table, record._id);
 };
 
-Table.prototype.updateCountersSync = function (record, step) {
+Table.prototype.updateCountersSync = function (record, step, fields) {
   var self = this;
   var counters;
   if ( ! this.schemas.hasCounter() ) { return; }
@@ -969,22 +991,26 @@ Table.prototype.updateCountersSync = function (record, step) {
   counters = this.schemas.getCounters();
   counters.forEach(function (info) {
     var name = info[0];
-    var counterName = info[1];
-    var referenceTableName =  Ref.getReferenceTable(name);
-    var referenceTable = create(self.conn, referenceTableName);
-    var fn = step > 0 ? referenceTable.incrementSync : referenceTable.decrementSync;
+    var counterName, referenceTableName, referenceTable, fn;
+    
+    if (Array.isArray(fields)) {
+      if (fields.indexOf(name) == -1) { return; }
+    }
+    
+    counterName = info[1];
+    referenceTableName =  Ref.getReferenceTable(name);
+    referenceTable = create(self.conn, referenceTableName);
+    fn = step > 0 ? referenceTable.incrementSync : referenceTable.decrementSync;
     fn.call(referenceTable, record[name], counterName, Math.abs(step));
   }); // counter foreach over
 };
 
-Table.prototype.incrementCountersSync = function (record, step) {
-  step = step || 1;
-  this.updateCountersSync(record, step);
+Table.prototype.incrementCountersSync = function (record, fields) {
+  this.updateCountersSync(record, 1, fields);
 };
 
-Table.prototype.decrementCountersSync = function (record, step) {
-  step = step || -1;
-  this.updateCountersSync(record, step);
+Table.prototype.decrementCountersSync = function (record, fields) {
+  this.updateCountersSync(record, -1, fields);
 };
 
 // ----------------------------------------------------------------

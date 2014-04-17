@@ -101,7 +101,7 @@ Schemas.prototype.getFieldType = function (name) {
   return this.fields[name].type; 
 };
 
-Schemas.prototype.hasCounter = function () {
+Schemas.prototype.hasCounter = function (fields) {
   var self = this;
   var has = false;
   
@@ -109,7 +109,7 @@ Schemas.prototype.hasCounter = function () {
     if (!has) {
       has = self.isCounter(field);
     }
-  });
+  }, fields);
   
   return has;
 };
@@ -457,7 +457,7 @@ Schemas.prototype.getTimestamp = function () {
 };
 
 Schemas.prototype.getPrimaryId = function () {
-  return require('crypto').randomBytes(16).toString('hex');
+  return require('crypto').randomBytes(20).toString('hex');
 };
 
 /** 

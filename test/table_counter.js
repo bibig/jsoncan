@@ -88,7 +88,6 @@ describe('counter update test', function () {
     assert.equal(recordB.comments, bBlogCommentCount);
   });
   
-
   it('check insert async way', function (done) {
     var recordA = Blogs.query().where('title', 'a').where('comments', '>', 0).limit(1).execSync()[0];
     Blogs.insert({ title: 'aa', _category: recordA._category}, function (e, record) {

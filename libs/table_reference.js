@@ -72,6 +72,8 @@ function hasMany (parent, table, options) {
 function populateRecordSync (parent, record) {
   var self = this;
   
+  if ( ! record ) return record;
+  
   this.references.forEach(function (ref) {
     var cache, _id;
     if (ref.type == 'hasMany') {
@@ -89,6 +91,11 @@ function populateRecord (parent, record, callback) {
   var tasks = [];
   var self = this;
 
+  if ( ! record ) {
+    callback();
+    return ;
+  }
+  
   this.references.forEach(function (ref) {
     switch (ref.type) {
       case 'hasMany':
