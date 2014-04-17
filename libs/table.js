@@ -16,7 +16,7 @@ var Ref = require('./table_reference');
 var Eventchain = require('eventchain');
 
 var Table = function (conn, table, schemas, validator) {
-  this.id = rander.string(8);
+  // this.id = rander.string(8);
   this.conn = conn;
   this.table = table;
   this.schemas = schemas;
@@ -608,18 +608,34 @@ Table.prototype.countSync = function (filters) {
 
 Table.prototype.findAllBelongsTo = function (ref, callback) {
   var Reference = create(this.conn, ref.table);
-  var fields = utils.clone(ref.fields);
-  if (Array.isArray(fields)) {
-    fields.unshift('_id');
+  var filters = ref.filters || {};
+  var fields = utils.clone(ref.select);
+  var order = ref.order;
+  var query = Reference.query(filters).map();
+  
+  if (fields) {
+    if (typeof fields === 'string') {
+      fields = fields.split(',');
+    }
+    if (Array.isArray(fields)) {
+      fields.unshift('_id');
+      query = query.select(fields);
+    }
   }
-  Reference.query(ref.filters || {}).select(fields).map().exec(callback);
+  
+  if (Array.isArray(order)) {
+    query = query.order(order[0], order[1]);
+  }
+  
+  if (callback) {
+    query.exec(callback);
+  } else {
+    return query.execSync();
+  }
 };
 
 Table.prototype.findAllBelongsToSync = function (ref) {
-  var Reference = create(this.conn, ref.table);
-  var fields = utils.clone(ref.fields);
-  fields.unshift('_id');
-  return Reference.query(ref.filters || {}).select(fields).map().execSync();
+  return this.findAllBelongsTo(ref);
 };
 
 Table.prototype.findInOtherTable = function (_id, table, callback) {
@@ -638,7 +654,6 @@ Table.prototype.findAllHasMany = function (_id, ref, callback) {
 };
 
 Table.prototype.findAllHasManySync = function (_id, ref) {
-  // console.log(ref);
   var query = this.hasManyQuery(_id, ref);
   return query.execSync();
 };
@@ -679,9 +694,13 @@ Table.prototype.increment = function (_id, name, callback, step) {
   this.find(_id).exec(function (e, record) {
     var data = {};
     if (e) { callback(e); } else {
-      // console.log(record);
-      data[name] = record[name] + step;
-      self.updateRecord(record, data, callback);
+      if ( ! record ) { 
+        callback(); 
+      } else {
+        // console.log(record);
+        data[name] = record[name] + step;
+        self.updateRecord(record, data, callback);
+      }
     }
   });
 };
@@ -693,8 +712,12 @@ Table.prototype.decrement = function (_id, name, callback, step) {
   this.find(_id).exec(function (e, record) {
     var data = {};
     if (e) { callback(e); } else {
-      data[name] = record[name] - step;
-      self.updateRecord(record, data, callback);
+      if ( ! record ) { 
+        callback(); 
+      } else {
+        data[name] = record[name] - step;
+        self.updateRecord(record, data, callback);
+      }
     }
   });
 };
@@ -702,6 +725,7 @@ Table.prototype.decrement = function (_id, name, callback, step) {
 Table.prototype.incrementSync = function (_id, name, step) {
   var record = this.find(_id).execSync();
   var data = {};
+  if ( ! record ) { return null;}
   step = step || 1;
   data[name] = record[name] + step;
   return this.updateRecordSync(record, data);
@@ -710,6 +734,7 @@ Table.prototype.incrementSync = function (_id, name, step) {
 Table.prototype.decrementSync = function (_id, name, step) {
   var record = this.find(_id).execSync();
   var data = {};
+  if ( ! record ) { return null;}
   step = step || 1;
   data[name] = record[name] - step;
   return this.updateRecordSync(record, data);

@@ -60,14 +60,14 @@ function formatAll (records) {
   var list = [];
   var self = this;
   records.forEach(function (record) {
-    // list.push(self.schemas.presentAll(record));
     list.push(format.call(self, record));
   });
   return list;
 }
 
+// be careful, the reference fields should not be filtered!
 function format (record) {
-  return this.schemas.presentAll(record);
+  return utils.merge(this.schemas.presentAll(record), record);
 }
 
 // make insert tasks

@@ -101,7 +101,7 @@ function create (filters) {
     format: function () { return Ref.format.apply(this) },
     map: map,
     belongsTo: belongsTo,
-    hasMany: function (table, name, options) { return Ref.hasMany.apply(this, [parent, table, name, options]) },
+    hasMany: function (table, options) { return Ref.hasMany.apply(this, [parent, table, options]) },
     ref: belongsTo, // alias
     exec: exec,
     execSync: execSync,
