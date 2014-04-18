@@ -6,7 +6,7 @@ var async = require('async');
 var Query = require('./query');
 
 var Conn = function (path) {
-  this.PATH = path; 
+  this.PATH = path;
 };
 
 // 创建connection
@@ -189,13 +189,16 @@ Conn.prototype.unlinkTableUniqueFileSync = function (table, name, value) {
 };
 
 Conn.prototype.linkTableUniqueFile = function (table, _id, name, value, callback) {
-  var idFile = this.getTableIdFile(table, _id);
+  // var idFile = this.getTableIdFile(table, _id);
+  var idFile = path.join('../_id/', _id);
   var linkFile = this.getTableUniqueFile(table, name, value);
+  
   fs.symlink(idFile, linkFile, callback);
 };
 
 Conn.prototype.linkTableUniqueFileSync = function (table, _id, name, value) {
-  var idFile = this.getTableIdFile(table, _id);
+  // var idFile = this.getTableIdFile(table, _id);
+  var idFile = path.join('../_id/', _id);
   var linkFile = this.getTableUniqueFile(table, name, value);
   fs.symlinkSync(idFile, linkFile);
 };
