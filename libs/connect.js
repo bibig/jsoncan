@@ -366,7 +366,7 @@ Conn.prototype.queryAllSync = function (table, ids, options) {
     if (limit < 1) { break; }
     record = self.readSync(table, ids[i]);
     
-    if (!record) { break; }
+    if (!record) { continue; }
     
     if (Query.checkHash(record, filters)) {
       if (skip > 0) {
@@ -457,7 +457,6 @@ Conn.prototype.readIndexSync = function (table, name, convertFn) {
 Conn.prototype.readTableIdsFilesSync = function (table, ids) {
   var _path = this.getTableIdPath(table);
   var list = [];
-  
   ids.forEach(function (_id) {
     var content = fs.readFileSync(path.join(_path, _id), {encoding: 'utf8'});
     list.push(JSON.parse(content));
@@ -469,7 +468,7 @@ Conn.prototype.readTableIdsFilesSync = function (table, ids) {
 Conn.prototype.readAllSync = function (table) {
   var _path = this.getTableIdPath(table);
   var ids = fs.readdirSync(_path);
-  
+
   return this.readTableIdsFilesSync (table, ids);
 };
 
