@@ -59,7 +59,7 @@ Conn.prototype.getTableIndexFile = function (table, name) {
 Conn.prototype.createTablePaths = function (table, uniqueFields) {
   var root = this.getTablePath(table);
   var idPath = this.getTableIdPath(table);
-  var _this = this;
+  var self = this;
   
   if (!fs.existsSync(idPath)) {
     if (!fs.existsSync(root)) {
@@ -69,7 +69,7 @@ Conn.prototype.createTablePaths = function (table, uniqueFields) {
   }
   
   Object.keys(uniqueFields).forEach(function (name) {
-    var uniquePath = _this.getTableUniquePath(table, name);
+    var uniquePath = self.getTableUniquePath(table, name);
     var autoIncrementFromNumber = uniqueFields[name];
     var autoIncrementFile;
     
@@ -78,7 +78,7 @@ Conn.prototype.createTablePaths = function (table, uniqueFields) {
     }
     
     if (autoIncrementFromNumber > 0) {
-      autoIncrementFile = _this.getTableUniqueAutoIncrementFile(table, name);
+      autoIncrementFile = self.getTableUniqueAutoIncrementFile(table, name);
       if (!fs.existsSync(autoIncrementFile)) {
         fs.writeFileSync(autoIncrementFile, autoIncrementFromNumber);
       }
@@ -107,7 +107,7 @@ Conn.prototype.readBySync = function (table, fieldName, fieldValue) {
 };
 
 Conn.prototype.readTableIdsDir = function (table, callback) {
-  var _this = this;
+  var self = this;
   var dir = this.getTableIdPath(table);
   var ids = [];
   
@@ -124,7 +124,7 @@ Conn.prototype.readTableIdsDir = function (table, callback) {
 };
 
 Conn.prototype.readTableIdsDirSync = function (table) {
-  var _this = this;
+  var self = this;
   var dir = this.getTableIdPath(table);
   var ids = [];
   
@@ -138,7 +138,7 @@ Conn.prototype.readTableIdsDirSync = function (table) {
 
 
 Conn.prototype.readTableIdIndexFile = function (table, callback) {
-  var _this = this;
+  var self = this;
   var idsFile = this.getTableIndexFile(table, '_id');
 
   fs.readFile(idsFile, function (e, raw) {
@@ -317,7 +317,7 @@ Conn.prototype.queryAll = function (table, ids, options, callback) {
   var filters = options.filters;
   var count = 0;
   var records = [];
-  var _this = this;
+  var self = this;
   
   async.whilst(
     function () {
@@ -325,10 +325,12 @@ Conn.prototype.queryAll = function (table, ids, options, callback) {
     },
     function (callback) {
       var _id = ids.shift();
-      _this.read(table, _id, function (e, record) {
+      self.read(table, _id, function (e, record) {
         if (e) {
           callback(e);
-        } else {
+        } else if ( ! record ) { // null value
+          callback();
+        } else  {
           if (Query.checkHash(record, filters)) {
             if (skip > 0) {
               skip--;
@@ -358,11 +360,14 @@ Conn.prototype.queryAllSync = function (table, ids, options) {
   var skip = options.skip || 0;
   var filters = options.filters;
   var record, records = [];
-  var _this = this;
+  var self = this;
   
   for (var i = 0; i < max; i++) {
     if (limit < 1) { break; }
-    record = _this.readSync(table, ids[i]);
+    record = self.readSync(table, ids[i]);
+    
+    if (!record) { break; }
+    
     if (Query.checkHash(record, filters)) {
       if (skip > 0) {
         skip--;
@@ -378,18 +383,18 @@ Conn.prototype.queryAllSync = function (table, ids, options) {
 
 Conn.prototype.readAllIndexes = function (table, names, callback) {
   var tasks = {};
-  var _this = this;
+  var self = this;
   
   Object.keys(names).forEach(function (name) {
     tasks[name] = function (callback) {
-      _this.readIndex(table, name, names[name], callback);
+      self.readIndex(table, name, names[name], callback);
     }
   });
   
   async.series(
     [
       function (callback) {
-        _this.readTableIdIndexFile(table, callback);
+        self.readTableIdIndexFile(table, callback);
       },
       function (callback) {
         async.parallel(tasks, callback);  
@@ -408,10 +413,10 @@ Conn.prototype.readAllIndexes = function (table, names, callback) {
 Conn.prototype.readAllIndexesSync = function (table, names) {
   var indexes = {};
   var ids = this.readTableIdIndexFileSync(table);
-  var _this = this;
+  var self = this;
   
   Object.keys(names).forEach(function (name) {
-    indexes[name] = _this.readIndexSync(table, name, names[name]);
+    indexes[name] = self.readIndexSync(table, name, names[name]);
   });
   
   return _mergeIndexesToRecords(ids, indexes);
@@ -462,7 +467,6 @@ Conn.prototype.readTableIdsFilesSync = function (table, ids) {
 };
 
 Conn.prototype.readAllSync = function (table) {
-  var list = [];
   var _path = this.getTableIdPath(table);
   var ids = fs.readdirSync(_path);
   
@@ -471,15 +475,14 @@ Conn.prototype.readAllSync = function (table) {
 
 // 将读出所有记录
 Conn.prototype.readAll = function (table, callback) {
-  var list = [];
   var _path = this.getTableIdPath(table);
-  var _this = this;
+  var self = this;
   
   fs.readdir(_path, function (err, ids) {
     if (err) {
       callback(err);
     } else {
-      _this.readTableIdsFiles(table, ids, callback);
+      self.readTableIdsFiles(table, ids, callback);
     }
   });
 };

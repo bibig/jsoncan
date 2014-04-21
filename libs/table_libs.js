@@ -231,10 +231,15 @@ function makeConnQueryOptions (options) {
 }
 
 function localQuery (records, options) {
-  var noneIndexOrders = getNoneIndexOrders.call(this, options.orders);
-  var noneIndexOrdersKeys = Object.keys(noneIndexOrders);
+  var noneIndexOrders, noneIndexOrdersKeys;
   var self = this;
   var query, fields;
+  
+  if ( ! Array.isArray(records) ) { return []; }
+  if ( records.length == 0 ) { return []; }
+  
+  noneIndexOrders = getNoneIndexOrders.call(this, options.orders);
+  noneIndexOrdersKeys = Object.keys(noneIndexOrders);
 
   if (noneIndexOrdersKeys.length > 0) {
     query = Query.create(records);
