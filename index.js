@@ -1,7 +1,5 @@
 var Conn = require('./libs/connect');
-// var Schemas = require('./libs/schemas');
 var Table = require('./libs/table');
-
 
 exports = module.exports = function (path, tableSchemas, validateMessages) {
   this.conn = Conn.create(path);
@@ -20,5 +18,6 @@ exports = module.exports = function (path, tableSchemas, validateMessages) {
     Object.keys(this.conn.tables).forEach(function (name) {
       _this.table(name).refresh();
     });
-  }
+  };
+
 };
