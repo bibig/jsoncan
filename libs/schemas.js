@@ -211,9 +211,9 @@ Schemas.prototype.presentAll = function (data) {
     _raw: {}
   };
   data = data || {};
-  this.forEachField(function (name, field, _this) {
+  this.forEachField(function (name, field, self) {
     var value = data[name];
-    var presentValue = _this.present(name, value, data);
+    var presentValue = self.present(name, value, data);
     presentations[name] = presentValue;
     if (value != presentValue) {
       presentations._raw[name] = value;
@@ -282,8 +282,8 @@ Schemas.prototype.formatField = function (name, value, data) {
 
 Schemas.prototype.getUniqueFields = function () {
   var map = {};
-  this.forEachUniqueField(function (name, field, _this) {
-    map[name] = _this.isAutoIncrement(field) ? ( field.autoIncrement || 1 ) : 0;
+  this.forEachUniqueField(function (name, field, self) {
+    map[name] = self.isAutoIncrement(field) ? ( field.autoIncrement || 1 ) : 0;
   });
   return map;
 };
@@ -298,9 +298,9 @@ Schemas.prototype.hasUniqueField = function () {
 
 Schemas.prototype.hasAutoIncrementField = function () {
   var result = false;
-  this.forEachField(function (name, field, _this) {
+  this.forEachField(function (name, field, self) {
     if (result) { return; }
-    if (_this.isAutoIncrement(field)) { result = true; }
+    if (self.isAutoIncrement(field)) { result = true; }
   });
   
   return result;
@@ -311,7 +311,7 @@ Schemas.prototype.hasAutoIncrementField = function () {
  * @callback(field name, field object, context)
  */
 Schemas.prototype.forEachField = function (callback, fields, filter) {
-  var _this = this;
+  var self = this;
   var targets;
 
   if (Array.isArray(fields)) {
@@ -323,26 +323,26 @@ Schemas.prototype.forEachField = function (callback, fields, filter) {
   }
   
   targets.forEach(function (name) {
-    var field = _this.fields[name];
+    var field = self.fields[name];
     if (typeof field === 'undefined') return;
     if (typeof filter == 'function') {
       if (!filter(field)) return;
     }
-    callback(name, field, _this);
+    callback(name, field, self);
   });
 };
 
 Schemas.prototype.forEachUniqueField = function (callback, fields) {
-  var _this = this;
+  var self = this;
   this.forEachField(callback, fields, function (field) {
-    return _this.isUnique(field);
+    return self.isUnique(field);
   });
 };
 
 Schemas.prototype.forEachIndexField = function (callback, fields) {
-  var _this = this;
+  var self = this;
   this.forEachField(callback, fields, function (field) {
-    return _this.isIndex(field);
+    return self.isIndex(field);
   });
 };
 
@@ -368,8 +368,8 @@ Schemas.prototype.clearFakeFields = function (data) {
  * convert value for json file, accoring to the field type
  */
 Schemas.prototype.convertEachField = function (data, fields) {
-  this.forEachField(function (name, field, _this) {
-    data[name] = _this.convert(field, data[name]);
+  this.forEachField(function (name, field, self) {
+    data[name] = self.convert(field, data[name]);
   }, fields);
   return data;
 }
@@ -417,8 +417,8 @@ Schemas.prototype.convert = function (field, value) {
  * convert back from json
  */
 Schemas.prototype.convertBackEachField = function (data) {
-  this.forEachField(function (name, field, _this) {
-    data[name] = _this.convertBack(field, data[name]);
+  this.forEachField(function (name, field, self) {
+    data[name] = self.convertBack(field, data[name]);
   }, data);
   return data;
 };
@@ -465,15 +465,9 @@ Schemas.prototype.getPrimaryId = function () {
  * @type: 类型(string or int)
  * @len: 长度
  */
-Schemas.prototype.getRandom = function (type, len) {
-  len = len || 8;  
-  switch (type) {
-    case 'int':
-      return rander.number(len);
-    case 'string':
-    default:
-      return rander.string(len);
-  }
+Schemas.prototype.getRandom = function (len) {
+  len = len || 8;
+  return rander.string(len);
 };
 
 Schemas.prototype.addDefaultValues = function (data, fields) {
@@ -494,38 +488,38 @@ Schemas.prototype.addDefaultValues = function (data, fields) {
 };
 
 Schemas.prototype.addSystemValues = function (data) {
-  var _this = this;
+  var self = this;
   
   this.forEachField(function (name, field) {
     switch (field.type) {
       case 'primary':
         if (!data[name]) {
-          data[name] = _this.getPrimaryId();
+          data[name] = self.getPrimaryId();
         }
         break;
       case 'random':
         if (!data[name]) {
-          data[name] = _this.getRandom();
+          data[name] = self.getRandom(field.size);
         }
         break;
       case 'increment':
       case 'autoIncrement':
-        // console.log('autoIncrement: %s', _this.getAutoIncrementValue(name));
+        // console.log('autoIncrement: %s', self.getAutoIncrementValue(name));
         if (!data[name]) {
-          data[name] = parseInt(_this.getAutoIncrementValue(name) || 1, 10);
+          data[name] = parseInt(self.getAutoIncrementValue(name) || 1, 10);
         }
         break;
       case 'created':
         if (!data[name]) {
-          data[name] = _this.getTimestamp();
+          data[name] = self.getTimestamp();
         }
         break;
       case 'modified':
-        data[name] = _this.getTimestamp();
+        data[name] = self.getTimestamp();
         break;
     }
   }, null, function (field) {
-    return _this.isSystemField(field);
+    return self.isSystemField(field);
   });
   
   return data;
@@ -534,7 +528,7 @@ Schemas.prototype.addSystemValues = function (data) {
 Schemas.prototype.addAliasValues = function (data) {
   var self = this;
   
-  this.forEachField(function (name, field, _this) {
+  this.forEachField(function (name, field, self) {
     data[name] = field.logic(data);
   }, null, function (field) {
     return self.isAliasField(field);
@@ -558,8 +552,8 @@ Schemas.prototype.addValues = function (data) {
 Schemas.prototype.filterData = function (data) {
   var safe = {};
   
-  this.forEachField(function (name, field, _this) {
-    if (_this.isSystemField(field)) { return; }
+  this.forEachField(function (name, field, self) {
+    if (self.isSystemField(field)) { return; }
     if (data[name] !== undefined) {
       safe[name] = data[name];
     }
