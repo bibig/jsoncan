@@ -235,7 +235,7 @@ function checkCustom (name, field, value, data) {
 
 // 注意： unique field不能为空
 function checkNull (name, field, value) {
-  if ((field.isRequired || field.required || field.isNull === false || field.null === false || field.isUnique )) {
+  if ( field.default === undefined && (field.isRequired || field.required || field.isNull === false || field.null === false || field.isUnique )) {
     if (isEmpty(value)) {
       this.addMessage(name, 200);
     }
