@@ -388,7 +388,7 @@ Schemas.prototype.convert = function (field, value) {
     }
   }
 
-  if ((field.type == 'int') && typeof (value) == 'string') {
+  if ((field.type == 'int' || field.type == 'array') && typeof (value) == 'string') {
     return parseInt(value, 10);
   }
 

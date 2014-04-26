@@ -164,4 +164,13 @@ describe('populate test', function () {
     });
   });
   
+  it('test findAll by ref field', function (done) {
+    var categoryA = Categories.query({name: 'a'}).execSync()[0];
+    var query = Blogs.query({_category: categoryA._id}).exec(function (e, records) {
+      should.not.exists(e);
+      assert.ok(records.length > 0);
+      done();
+    });
+  });
+  
 });
