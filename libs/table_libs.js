@@ -222,7 +222,7 @@ function makeConnQueryOptions (options) {
   var noneIndexOrdersKeys = Object.keys(noneIndexOrders);
   var newOptions = { filters: noneIndexFilters };
   
-  if (noneIndexOrdersKeys.length == 0) {
+  if (noneIndexOrdersKeys.length === 0) {
     newOptions.limit = options.limit;
     newOptions.skip = options.skip;
   }
@@ -236,7 +236,7 @@ function localQuery (records, options) {
   var query, fields;
   
   if ( ! Array.isArray(records) ) { return []; }
-  if ( records.length == 0 ) { return []; }
+  if ( records.length === 0 ) { return []; }
   
   noneIndexOrders = getNoneIndexOrders.call(this, options.orders);
   noneIndexOrdersKeys = Object.keys(noneIndexOrders);

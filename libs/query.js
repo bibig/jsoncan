@@ -118,7 +118,7 @@ function count () {
  * @return this
  */
 function average (field) {
-  var _sum = this.sum(field)
+  var _sum = this.sum(field);
   return _sum / this.records.length;
 }
 
@@ -279,6 +279,8 @@ function filter (options) {
  * @return boolean
  */
 function compare (fieldValue, operator, value) {
+  var i;
+
   switch(operator.toLowerCase()) {
     case '=':
       return fieldValue == value;
@@ -294,14 +296,14 @@ function compare (fieldValue, operator, value) {
     case '!=':
       return fieldValue != value;
     case 'in':
-      for (var i = 0; i < value.length; i++) {
+      for (i = 0; i < value.length; i++) {
         if (fieldValue == value[i]) {
           return true;
         }
       }
       return false;
     case 'not in':
-      for (var i = 0; i < value.length; i++) {
+      for (i = 0; i < value.length; i++) {
         if (fieldValue == value[i]) {
           return false;
         }
@@ -316,7 +318,7 @@ function compare (fieldValue, operator, value) {
       } else {
         throw error(1201, value);
       }
-      
+      break;
     case 'like': // 必须包含%
       var pattern1 = /^%[^%]+$/i;  // %开头
       var pattern2 = /^[^%]+%$/i;  // %结尾
@@ -329,7 +331,7 @@ function compare (fieldValue, operator, value) {
       }
       
       if (pattern2.test(value)) {
-        return index == 0;
+        return index === 0;
       }
       
       if (pattern3.test(value)) {
@@ -364,6 +366,6 @@ function parseSelectArguments () {
     }
   }
   
-  return fields
+  return fields;
   
 }

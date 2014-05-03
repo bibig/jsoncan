@@ -99,9 +99,9 @@ function create () {
       isFormat: false
     },
     select: function () { return Ref.select.apply(this, arguments); },
-    format: function () { return Ref.format.apply(this) },
+    format: function () { return Ref.format.apply(this); },
     belongsTo: belongsTo,
-    hasMany: function (table, options) { return Ref.hasMany.apply(this, [parent, table, options]) },
+    hasMany: function (table, options) { return Ref.hasMany.apply(this, [parent, table, options]); },
     ref: belongsTo, // alias
     exec: exec,
     execSync: execSync

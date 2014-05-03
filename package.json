@@ -1,7 +1,7 @@
 {
   "author": "Bibig <bibig@me.com> (https://twitter.com/bibig)",
   "name": "jsoncan",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "an agile json based database engine",
   "preferGlobal": "true",
   "main": "index.js",
