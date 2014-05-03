@@ -29,7 +29,7 @@ function create (filters) {
     libs.findAll.call(parent, self.options, function (e, records) {
       if (e) { callback(e); } else {
         if (self.options.isFormat) {
-          records = libs.formatAll.call(parent, records)
+          records = libs.formatAll.call(parent, records);
         }
         
         if (Ref.hasReference.call(self)) {
@@ -98,10 +98,10 @@ function create (filters) {
     limit: limit,
     skip: skip,
     select: function () { return Ref.select.apply(this, arguments); },
-    format: function () { return Ref.format.apply(this) },
+    format: function () { return Ref.format.apply(this); },
     map: map,
     belongsTo: belongsTo,
-    hasMany: function (table, options) { return Ref.hasMany.apply(this, [parent, table, options]) },
+    hasMany: function (table, options) { return Ref.hasMany.apply(this, [parent, table, options]); },
     ref: belongsTo, // alias
     exec: exec,
     execSync: execSync,

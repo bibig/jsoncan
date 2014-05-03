@@ -11,7 +11,7 @@ exports = module.exports = function (path, tableSchemas, validateMessages) {
       this.conn.tables[name] = fields;
     }
     return Table.create(this.conn, name);
-  }
+  };
   
   this.refresh = function () {
     var _this = this;

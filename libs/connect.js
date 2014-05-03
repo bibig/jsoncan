@@ -216,7 +216,7 @@ Conn.prototype.save = function (table, _id, data, callback) {
 Conn.prototype.saveSync = function (table, _id, data) {
   fs.writeFileSync(this.getTableIdFile(table, _id), JSON.stringify(data));
   return data;
-}
+};
 
 Conn.prototype.readTableUniqueAutoIncrementFile = function (table, name) {
   try {
@@ -295,7 +295,7 @@ Conn.prototype.resetIndexFile = function (table, name) {
   var records = this.readAllSync(table);
   var content = '';
   records.forEach(function (record) {
-    content += _indexRecordFormatedString(['+', record['_id'], record[name]]);
+    content += _indexRecordFormatedString(['+', record._id, record[name]]);
   });
 
   fs.writeFileSync(indexFile, content);
@@ -388,7 +388,7 @@ Conn.prototype.readAllIndexes = function (table, names, callback) {
   Object.keys(names).forEach(function (name) {
     tasks[name] = function (callback) {
       self.readIndex(table, name, names[name], callback);
-    }
+    };
   });
   
   async.series(
@@ -408,7 +408,7 @@ Conn.prototype.readAllIndexes = function (table, names, callback) {
       }
     }
   );
-} // end of readAllIndexes
+}; // end of readAllIndexes
 
 Conn.prototype.readAllIndexesSync = function (table, names) {
   var indexes = {};
@@ -446,7 +446,7 @@ Conn.prototype.readIndexSync = function (table, name, convertFn) {
     return _parseIndexFile(content, convertFn);
   } catch (e) {
     if (e.code === "ENOENT") {
-      return {}
+      return {};
     } else {
       throw e;
     }
@@ -498,7 +498,7 @@ Conn.prototype.readTableIdsFiles = function (table, ids, callback) {
         } else {
           callback(null, JSON.parse(content));
         }
-      })
+      });
     });
   });
   
@@ -558,7 +558,7 @@ function _extortIds (content) {
   var targets = [];
   var sign, _id;
   
-  while (line = re.exec(content)) {
+  while ( (line = re.exec(content)) !== null ) {
     sign = line[1];
     _id = line[2];
     if (sign == '+') {
@@ -582,7 +582,8 @@ function _parseIndexFile (content, convertFn) {
   var line;  
   var records = {};
   var sign, _id, indexValue;
-  while (line = re.exec(content)) {
+
+  while ( (line = re.exec(content)) !== null )  {
     sign = line[1];
     _id = line[2];
     indexValue = convertFn ? convertFn(line[3]) : line[3];

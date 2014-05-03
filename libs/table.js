@@ -26,7 +26,7 @@ var Table = function (conn, table, schemas, validator) {
   this.finder = Finder.create;
   this.findAll = Query.create;
   this.query = Query.create;
-  this.model = Model.create,
+  this.model = Model.create;
   this.create = Model.create; // alias model
 };
 
@@ -46,7 +46,7 @@ function create (conn, table) {
   
   schemas.getAutoIncrementValue = function (name) {
     return conn.readTableUniqueAutoIncrementFile(table, name);
-  }
+  };
   
   return new Table(conn, table, schemas, validator);
 }
@@ -194,7 +194,7 @@ Table.prototype.updateRecord = function (record, data, callback) {
   var changedFields = this.schemas.getChangedFields(data, record);
   var afterUpdate;
       
-  if (changedFields.length == 0 ) { // 数据没有更改
+  if (changedFields.length === 0 ) { // 数据没有更改
     return callback(null, record);
   }
   
@@ -258,7 +258,7 @@ Table.prototype.updateRecordSync = function (record, _data) {
   var changedFields = this.schemas.getChangedFields(data, record);
   var safe;
   
-  if (changedFields.length == 0 ) { // 数据没有更改,
+  if (changedFields.length === 0 ) { // 数据没有更改,
     return record;
   }
   
@@ -402,7 +402,7 @@ Table.prototype.removeRecord = function (record, callback) {
       }
     });
   }
-}
+};
 
 Table.prototype.removeRecordSync = function (record) {
   if (!record) return;
@@ -454,7 +454,7 @@ Table.prototype.removeAll = function (options, callback) {
     }
   });
   
-}
+};
 
 Table.prototype.removeAllSync = function (options, callback) {
   var self = this;
@@ -554,7 +554,7 @@ Table.prototype.save = function (data, callback, changedFields) {
     e.invalid = true;
     callback(e);
   }
-}
+};
 
 /**
  * 同步保存数据
@@ -619,7 +619,7 @@ Table.prototype.countSync = function (filters) {
   records = this.conn.readAllIndexesSync(this.table, libs.getConnQueryIndexKeys.call(this, indexFilterKeys));
   ids = libs.getIdsFromIndexRecords.call(this, records, { filters: indexFilters });
   
-  if (noneIndexFilterKeys.length == 0) {
+  if (noneIndexFilterKeys.length === 0) {
     return ids.length;  
   } else {
     return this.conn.queryAllSync(this.table, ids, libs.makeConnQueryOptions.call(this, { filters: noneIndexFilters })).length;
@@ -795,7 +795,7 @@ Table.prototype.bindUnlinkEachUniqueFieldEvents = function (event, targetFields)
       });
     });
   }, targetFields);
-}
+};
 
 /**
  * update autoincrement values for table if they exist

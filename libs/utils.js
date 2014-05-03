@@ -9,7 +9,7 @@ function merge (targetObj, defaultObj) {
 	if (! defaultObj) { return targetObj; }
 	
  	Object.keys(defaultObj).forEach(function (key) {
-		if (targetObj[key] == undefined) {
+		if (targetObj[key] === undefined) {
 			targetObj[key] = defaultObj[key];
 		}
 	});

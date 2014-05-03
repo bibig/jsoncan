@@ -49,7 +49,7 @@ function create (schemas, messages) {
     schemas: schemas,
     data: {},
     isValid: function () {
-      return this.getCount() == 0;
+      return this.getCount() === 0;
     },
     isValidField: isValidField,
     getMessages: function () {
@@ -227,7 +227,8 @@ function checkCustom (name, field, value, data) {
   var message;
   
   if ( typeof field.validate == 'function' ) {
-    if ( message = field.validate(value, data)) {
+    message = field.validate(value, data);
+    if ( message ) {
       this.addMessage(name, message);
     }
   }
@@ -268,7 +269,7 @@ function checkValue (name, field, value) {
     return;
   }
   
-  if ((field.type == 'hash' || field.type == 'map') && field.values[value] == undefined) {
+  if ((field.type == 'hash' || field.type == 'map') && field.values[value] === undefined) {
     this.addMessage(name, 214, Object.keys(field.values));
     return;
   }

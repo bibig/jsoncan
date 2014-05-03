@@ -125,7 +125,7 @@ Schemas.prototype.getCounters = function () {
   });
   
   return targets;
-}
+};
 
 Schemas.prototype.isType = function (name, type) { 
   return this.getFieldType(name) == type; 
@@ -372,7 +372,7 @@ Schemas.prototype.convertEachField = function (data, fields) {
     data[name] = self.convert(field, data[name]);
   }, fields);
   return data;
-}
+};
 
 /**
  * convert for json file
@@ -584,7 +584,7 @@ Schemas.prototype.getChangedFields = function (data, record) {
   var fields = [];
   this.forEachField(function (name, field, self) {
     if (self.isReadOnly(field)) { return; }
-    if (data[name] == undefined) { return; }
+    if (data[name] === undefined) { return; }
     
     if (data[name] != record[name]) {
       fields.push(name);
@@ -602,7 +602,7 @@ Schemas.prototype.getChangedFields = function (data, record) {
 Schemas.prototype.getRealUpdateData = function (data, record) {
   var target = {}; // 避免data中夹杂schemas没有定义的数据
   this.forEachField(function (name, field) {
-    if (data[name] == undefined) {
+    if (data[name] === undefined) {
       target[name] = record[name];
     } else {
       target[name] = data[name];
@@ -625,7 +625,7 @@ Schemas.prototype.isValidType = isValidType;
 
 function checkField (name, field) {  
   RequiredKeys.forEach(function (key) {
-    if (field[key] == undefined) {
+    if (field[key] === undefined) {
       throw error(1001, key, name);
     }
   });
