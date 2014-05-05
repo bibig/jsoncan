@@ -1,10 +1,10 @@
 exports.create = create;
-exports.find = find;
+exports.find   = find;
 exports.findBy = findBy;
 
 var async = require('async');
-var libs = require('./table_libs');
-var Ref = require('./table_reference');
+var libs  = require('./table_libs');
+var Ref   = require('./table_reference');
 var Query = require('./query');
 var utils = require('./utils');
 
@@ -24,22 +24,24 @@ function create () {
   
   switch (arguments.length) {
     case 1:
-      fn = libs.find;
+      fn     = libs.find;
       syncFn = libs.findSync;
-      args = [arguments[0]];
+      args   = [arguments[0]];
       break;
     case 2:
-      fn = libs.findBy;
+      fn     = libs.findBy;
       syncFn = libs.findBySync;
-      args = [arguments[0], arguments[1]];
+      args   = [arguments[0], arguments[1]];
       break;
   }
   
   function exec (callback) {
-    var self = this;
+    var self     = this;
     var thisArgs = utils.clone(args);
     var finderCb = function (e, record) {
+
       if (e) { callback(e); } else {
+      
         if (Ref.hasReference.call(self)) {
           Ref.populateRecord.call(self, parent, record, function (e) {
             if (e) { callback(e); } else {
@@ -49,7 +51,9 @@ function create () {
         } else {
           callback(null, selectFilter.call(self, record));
         }
+        
       }
+
     };
     
     thisArgs.push(finderCb);

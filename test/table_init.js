@@ -29,7 +29,6 @@ describe('[init status]', function () {
       index: true
     }
   };
-  var table;
     
   before(function (done) {
     utils.clear(PATH, function () {

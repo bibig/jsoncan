@@ -8,7 +8,7 @@ var libs = require('./table_libs');
 
 function create (data) {
   var parent = this; // Table
-  var m = {};
+  var m      = {};
   
   m.isNew = data._id ? false : true;
   
@@ -37,18 +37,22 @@ function create (data) {
   };
   
   m.read = function (name) {
+
     if (name) {
       return libs.present.call(parent, name, this.data[name], this.data);
     } else {
       return parent.schemas.presentAll(this.data);
     }
+
   };
   
   m.validate = function () {
-    var data = parent.schemas.addValues(this.data);
+    var data  = parent.schemas.addValues(this.data);
     var check = parent.validate(this.data);
-    this.errors = this.messages = check.getMessages();
+
+    this.errors  = this.messages = check.getMessages();
     this.isValid = check.isValid();
+
     return this.isValid;
   };
   
@@ -59,34 +63,40 @@ function create (data) {
     
     if (this.isNew) { // update
       parent.insert(this.data, function (e, record) {
+
         if (e) {
           callback(e);
         } else {
           self.data = record;
           self.isNew = false;
           callback(null, record);
-        }  
+        }
+
       });        
     } else {
       parent.update(this.getPrimaryId(), this.data, function (e, record) {
+
         if (e) {
           callback(e);
         } else {
           self.data = record;
           callback(null, record);
-        }  
+        }
+
       });
     }
   };
   
   m.saveSync = function () {
     var self = this;
+
     if (this.isNew) { // update
       this.data = parent.insertSync(this.data);        
       this.isNew = false;
     } else {
       this.data = parent.updateSync(this.getPrimaryId(), this.data);
     }
+
     return this;
   };
   
@@ -100,11 +110,13 @@ function create (data) {
 
   m.isValidPassword = function (pass, passwordFieldName) {
     passwordFieldName = passwordFieldName || 'password';
+
     if (parent.schemas.isType(passwordFieldName, 'password')) { // check whether the field is password
       return parent.schemas.isValidPassword(this.data[passwordFieldName], pass);
     } else {
       return false;
     }
+    
   };
   
   return m;

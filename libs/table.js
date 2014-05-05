@@ -1,33 +1,33 @@
 exports.create = create;
 
-var fs = require('fs');
-var rander = require('rander');
-var async = require('async');
-var Schemas = require('./schemas');
-var error = require('./error');
-var Validator = require('./validator');
-var safepass = require('safepass');
-var utils = require('./utils');
-var libs = require('./table_libs');
-var Query = require('./table_query');
-var Model = require('./table_model');
-var Finder = require('./table_finder');
-var Ref = require('./table_reference');
+var fs         = require('fs');
+var rander     = require('rander');
+var async      = require('async');
+var Schemas    = require('./schemas');
+var error      = require('./error');
+var Validator  = require('./validator');
+var safepass   = require('safepass');
+var utils      = require('./utils');
+var libs       = require('./table_libs');
+var Query      = require('./table_query');
+var Model      = require('./table_model');
+var Finder     = require('./table_finder');
+var Ref        = require('./table_reference');
 var Eventchain = require('eventchain');
 
 var Table = function (conn, table, schemas, validator) {
   // this.id = rander.string(8);
-  this.conn = conn;
-  this.table = table;
-  this.schemas = schemas;
+  this.conn      = conn;
+  this.table     = table;
+  this.schemas   = schemas;
   this.validator = validator;
-  this.find = Finder.find;
-  this.findBy = Finder.findBy;
-  this.finder = Finder.create;
-  this.findAll = Query.create;
-  this.query = Query.create;
-  this.model = Model.create;
-  this.create = Model.create; // alias model
+  this.find      = Finder.find;
+  this.findBy    = Finder.findBy;
+  this.finder    = Finder.create;
+  this.findAll   = Query.create;
+  this.query     = Query.create;
+  this.model     = Model.create;
+  this.create    = Model.create; // alias model
 };
 
 /**
@@ -39,7 +39,7 @@ var Table = function (conn, table, schemas, validator) {
  * @return Object
  */
 function create (conn, table) {
-  var schemas = Schemas.create(conn.tables[table]);
+  var schemas   = Schemas.create(conn.tables[table]);
   var validator = Validator.create(schemas, conn.validateMessages);
   // build table root path and unique fields paths
   conn.createTablePaths(table, schemas.getUniqueFields());
@@ -57,13 +57,17 @@ Table.prototype.getFields = function () {
 
 Table.prototype.load = function (_id) {
   var data = this.finder(_id).execSync();
+
   if (!data) { return null; }
+
   return this.model(data);
 };
 
 Table.prototype.loadBy = function (name, value) {
   var data = this.finder(name, value).execSync();
+
   if (!data) { return null; }
+
   return this.model(data);
 };
 
@@ -85,6 +89,7 @@ Table.prototype.insert = function (_data, callback) {
   // 补充default值, _id值
   data = this.schemas.addValues(data);
   this.save(data, function (e, record) {
+
     if (e) {
       callback(e);
     } else {
@@ -99,7 +104,9 @@ Table.prototype.insert = function (_data, callback) {
         callback(e, record);
       });
     }
+
   });
+
 };
 
 /**
@@ -137,6 +144,7 @@ Table.prototype.insertAll = function (datas, callback) {
     async.parallelLimit(tasks, 100, callback);
     // async.series(tasks, callback);
   }
+
 };
 
 Table.prototype.insertAllSync = function (records) {
@@ -163,6 +171,7 @@ Table.prototype.update = function (_id, data, callback) {
   var self = this;
   
   this.find(_id).exec(function (e, record) {
+
     if (e) {
       callback(e);
     } else if (!record) {
@@ -170,6 +179,7 @@ Table.prototype.update = function (_id, data, callback) {
     } else {
       self.updateRecord(record, data, callback);
     }
+
   }); // end of find
   
 };
@@ -178,6 +188,7 @@ Table.prototype.updateBy = function (field, value, data, callback) {
   var self = this;
   
   this.findBy(field, value).exec(function (err, record) {
+
     if (err) {
       callback(err);
     } else if (!record) {
@@ -185,12 +196,14 @@ Table.prototype.updateBy = function (field, value, data, callback) {
     } else {
       self.updateRecord(record, data, callback);
     }
+
   });
+
 };
 
 
 Table.prototype.updateRecord = function (record, data, callback) {
-  var self = this;
+  var self          = this;
   var changedFields = this.schemas.getChangedFields(data, record);
   var afterUpdate;
       
@@ -202,6 +215,7 @@ Table.prototype.updateRecord = function (record, data, callback) {
   
   // save data.
   this.save(data, function (e, updatedRecord) {
+    
     if (e) {
       callback(e);
     } else {
@@ -210,9 +224,9 @@ Table.prototype.updateRecord = function (record, data, callback) {
       
       // handler old record which replaced by updated data
       afterUpdate.add(function (args, next) {
-        var record = args[0];
-        var updatedRecord = args[1];
-        var changedFields = args[2];
+        var record         = args[0];
+        var updatedRecord  = args[1];
+        var changedFields  = args[2];
         var oldDataHandler = Eventchain.create(); // Inception, event in event
         
         self.bindUnlinkEachUniqueFieldEvents(oldDataHandler, changedFields);
@@ -229,8 +243,8 @@ Table.prototype.updateRecord = function (record, data, callback) {
       
       // handler new updated record
       afterUpdate.add(function (args, next) {
-        var updatedRecord = args[0];
-        var changedFields = args[1];
+        var updatedRecord  = args[0];
+        var changedFields  = args[1];
         var newDataHandler = Eventchain.create();
         
         self.bindLinkEachUniqueFieldEvents(newDataHandler, changedFields);
@@ -247,7 +261,9 @@ Table.prototype.updateRecord = function (record, data, callback) {
     
       afterUpdate.emit([record, updatedRecord, changedFields], callback);
     }
+
   }, changedFields); // end of save
+
 };
 
 /** 
@@ -262,29 +278,34 @@ Table.prototype.updateRecordSync = function (record, _data) {
     return record;
   }
   
+  this.unlinkEachUniqueFieldSync(record, changedFields);
   
-    this.unlinkEachUniqueFieldSync(record, changedFields);
+  if (this.schemas.hasCounter(changedFields)) {
+    this.decrementCountersSync(record, changedFields);
+  }
+  
+  try{
+    safe = this.saveSync(this.schemas.getRealUpdateData(data, record), changedFields);
+  } catch (e) {
+  
     if (this.schemas.hasCounter(changedFields)) {
-      this.decrementCountersSync(record, changedFields);
+      this.incrementCountersSync(record, changedFields);
     }
-    
-    try{
-      safe = this.saveSync(this.schemas.getRealUpdateData(data, record), changedFields);
-    } catch (e) {
-      if (this.schemas.hasCounter(changedFields)) {
-        this.incrementCountersSync(record, changedFields);
-      }
-      this.linkEachUniqueFieldSync(record, changedFields);
-      throw e;
-    }
-    
-    this.linkEachUniqueFieldSync(safe, changedFields);
-    this.removeIndexRecordsSync(record, changedFields);
-    this.addIndexRecordsSync(safe, changedFields);
-    if (this.schemas.hasCounter(changedFields)) {
-      this.incrementCountersSync(safe, changedFields);
-    }
-    return safe;
+
+    this.linkEachUniqueFieldSync(record, changedFields);
+
+    throw e;
+  }
+  
+  this.linkEachUniqueFieldSync(safe, changedFields);
+  this.removeIndexRecordsSync(record, changedFields);
+  this.addIndexRecordsSync(safe, changedFields);
+  
+  if (this.schemas.hasCounter(changedFields)) {
+    this.incrementCountersSync(safe, changedFields);
+  }
+
+  return safe;
 };
 
 
@@ -293,6 +314,7 @@ Table.prototype.updateRecordSync = function (record, _data) {
  */ 
 Table.prototype.updateSync = function (_id, data) {
   var record = this.find(_id).execSync();
+
   return this.updateRecordSync(record, data);
 };
 
@@ -301,9 +323,11 @@ Table.prototype.updateSync = function (_id, data) {
  */ 
 Table.prototype.updateBySync = function (field, value, data) {
   var record = this.findBy(field, value).execSync();
+  
   if (!record) {
     throw error(1400, field, value);
   }
+
   return this.updateRecordSync(record, data);
 };
 
@@ -324,9 +348,11 @@ Table.prototype.updateAll = function (options, data, callback) {
   
   this.query(options).exec(function (err, records) {
     var tasks;
+
     if (err) {
       callback(err);
     } else {
+    
       if (records.length > 0) { // no data found after filter,
         tasks = _makeUpdateTasks(records);
         async.parallelLimit(tasks, 150, callback);
@@ -334,18 +360,22 @@ Table.prototype.updateAll = function (options, data, callback) {
       } else {
         callback(null);
       }
+
     }
     
   });
+
 };
 
 Table.prototype.updateAllSync = function (options, data) {
   var self = this;
   var results = [];
   var records = this.query(options).execSync();
+
   records.forEach(function (record) {
     results.push(self.updateRecordSync(record, data));
   });
+
   return results;
 };
 
@@ -358,25 +388,32 @@ Table.prototype.updateAllSync = function (options, data) {
 
 Table.prototype.remove = function (_id, callback) { 
   var self = this;
+
   this.finder(_id).exec(function (err, record) {
+
     if (err) {
       callback(err);
     } else {
       self.removeRecord(record, callback);
     }
+
   });
+
 };
 
 Table.prototype.removeBy = function (field, value, callback) {
   var self = this;
   
   this.finder(field, value).exec(function (err, record) {
+  
     if (err) {
       callback(err);
     } else {
       self.removeRecord(record, callback);
     }
+
   });
+
 };
 
 Table.prototype.removeRecord = function (record, callback) {
@@ -386,7 +423,9 @@ Table.prototype.removeRecord = function (record, callback) {
   if (!record) {
     callback();
   } else {
+
     this.conn.remove(this.table, record._id, function (e) {
+
       if (e) {
         callback(e);
       } else {
@@ -400,12 +439,17 @@ Table.prototype.removeRecord = function (record, callback) {
           callback(e, record);
         });
       }
+
     });
+
   }
+
 };
 
 Table.prototype.removeRecordSync = function (record) {
+  
   if (!record) return;
+
   this.conn.removeSync(this.table, record._id);
   this.unlinkEachUniqueFieldSync(record);
   this.removeIndexRecordsSync(record);
@@ -414,11 +458,13 @@ Table.prototype.removeRecordSync = function (record) {
 };
 
 Table.prototype.removeSync = function (_id) {
+
   if (this.schemas.hasUniqueField()) {
     this.removeRecordSync(this.finder(_id).execSync());
   } else {
     this.conn.removeSync(this.table, _id);
   }
+
 };
 
 Table.prototype.removeBySync = function (field, value, callback) {
@@ -442,16 +488,20 @@ Table.prototype.removeAll = function (options, callback) {
   }
   
   this.query(options).exec(function (err, records) {
+
     if (err) {
       callback(err);
     } else {
+    
       if (records.length > 0) {
         // async.parallelLimit(_makeRemoveTasks(records), 150, callback);
         async.series(_makeRemoveTasks(records), callback);
       } else {
         callback(null);
       }
+
     }
+
   });
   
 };
@@ -459,50 +509,64 @@ Table.prototype.removeAll = function (options, callback) {
 Table.prototype.removeAllSync = function (options, callback) {
   var self = this;
   var records = this.query(options).select().execSync();
+
   records.forEach(function (record) {
     self.removeRecordSync(record);
   });
+
   return records;
 };
 
 Table.prototype.checkFields = function (names) {
   var self = this;
+
   if (!Array.isArray(names)) {
+
     if (typeof names == 'object') {
       names = Object.keys(names);
     } else {
       names = [];
     }
+
   }
   
   names.forEach(function (name) {
     self.checkField(name);
   });
+
 };
 
 Table.prototype.checkTable = function (name) {
+
   if (!this.conn.tables[name]) {
     throw error(1005, name);
   }
+
 };
 
 Table.prototype.checkField = function (name) {
+  
   if (!this.schemas.isField(name)) {
     throw error(1003, name);
   }
+
 };
 
 Table.prototype.checkUniqueField = function (name) {
   this.checkField(name);
+
   if (!this.schemas.isUnique(name)) { 
     throw error(1004, name); 
   }
+
 };
 
 Table.prototype.checkReference = function (table, name) {
+  
   if (this.conn.tables[table] && this.schemas.isField(name)) {
     return true;
   }
+
   throw error(1006, name);
 };
 
@@ -515,6 +579,7 @@ Table.prototype.checkReference = function (table, name) {
  */
 Table.prototype.checkUniqueFieldValue = function (name, value, isReturn) {
   var linkFile = this.conn.getTableUniqueFile(this.table, name, value);
+  
   if (isReturn) {
     return !fs.existsSync(linkFile);
   } else if (fs.existsSync(linkFile)) {
@@ -554,6 +619,7 @@ Table.prototype.save = function (data, callback, changedFields) {
     e.invalid = true;
     callback(e);
   }
+
 };
 
 /**
@@ -563,6 +629,7 @@ Table.prototype.save = function (data, callback, changedFields) {
  */
 Table.prototype.saveSync = function (data, changedFields) {
   var check = this.validate(data, changedFields);
+  
   if (check.isValid()) {
     data = this.schemas.clearFakeFields(data);
     data = this.schemas.convertEachField(data, changedFields);
@@ -574,29 +641,35 @@ Table.prototype.saveSync = function (data, changedFields) {
     // console.error(e);
     throw e;
   }
+
 };
 
 Table.prototype.count = function (filters, callback) {
   var self = this;
+
   this.checkFields(filters);
   
   async.waterfall([
     function (callback) {
       var indexFilters = libs.getIndexFilters.call(self, filters);
       var indexFilterKeys = Object.keys(indexFilters);
+
       self.conn.readAllIndexes(self.table, libs.getConnQueryIndexKeys.call(self, indexFilterKeys), function (e, records) {
         var ids;
+
         if (e) {
           callback(e);
         } else {
           ids = libs.getIdsFromIndexRecords.call(self, records, { filters: indexFilters });
           callback(null, ids);
         }
+
       });
     },
     function (ids, callback) {
       var noneIndexFilters = libs.getNoneIndexFilters.call(self, filters);
       var noneIndexFilterKeys = Object.keys(noneIndexFilters);
+
       if (noneIndexFilterKeys.length > 0) {
         self.conn.queryAll(self.table, ids, libs.makeConnQueryOptions.call(self, { filters: noneIndexFilters }), function (e, records) {
           callback(null, records.length);
@@ -604,43 +677,49 @@ Table.prototype.count = function (filters, callback) {
       } else {
         callback(null, ids.length);
       }
+
     }
   ], callback);
 };
 
 Table.prototype.countSync = function (filters) {
   var indexFilters, indexFilterKeys, noneIndexFilters, noneIndexFilterKeys, ids, records;
+
   this.checkFields(filters);
   
-  indexFilters = libs.getIndexFilters.call(this, filters);
-  indexFilterKeys = Object.keys(indexFilters);
-  noneIndexFilters = libs.getNoneIndexFilters.call(this, filters);
+  indexFilters        = libs.getIndexFilters.call(this, filters);
+  indexFilterKeys     = Object.keys(indexFilters);
+  noneIndexFilters    = libs.getNoneIndexFilters.call(this, filters);
   noneIndexFilterKeys = Object.keys(noneIndexFilters);
-  records = this.conn.readAllIndexesSync(this.table, libs.getConnQueryIndexKeys.call(this, indexFilterKeys));
-  ids = libs.getIdsFromIndexRecords.call(this, records, { filters: indexFilters });
+  records             = this.conn.readAllIndexesSync(this.table, libs.getConnQueryIndexKeys.call(this, indexFilterKeys));
+  ids                 = libs.getIdsFromIndexRecords.call(this, records, { filters: indexFilters });
   
   if (noneIndexFilterKeys.length === 0) {
     return ids.length;  
   } else {
     return this.conn.queryAllSync(this.table, ids, libs.makeConnQueryOptions.call(this, { filters: noneIndexFilters })).length;
   }
+
 };
 
 Table.prototype.findAllBelongsTo = function (ref, callback) {
   var Reference = create(this.conn, ref.table);
-  var filters = ref.filters || {};
-  var fields = utils.clone(ref.select);
-  var order = ref.order;
-  var query = Reference.query(filters).map();
+  var filters   = ref.filters || {};
+  var fields    = utils.clone(ref.select);
+  var order     = ref.order;
+  var query     = Reference.query(filters).map();
   
   if (fields) {
+
     if (typeof fields === 'string') {
       fields = fields.split(',');
     }
+
     if (Array.isArray(fields)) {
       fields.unshift('_id');
       query = query.select(fields);
     }
+
   }
   
   if (Array.isArray(order)) {
@@ -652,6 +731,7 @@ Table.prototype.findAllBelongsTo = function (ref, callback) {
   } else {
     return query.execSync();
   }
+
 };
 
 Table.prototype.findAllBelongsToSync = function (ref) {
@@ -660,34 +740,38 @@ Table.prototype.findAllBelongsToSync = function (ref) {
 
 Table.prototype.findInOtherTable = function (_id, table, callback) {
   var Table = create(this.conn, table);
+
   Table.finder(_id).exec(callback);
 };
 
 Table.prototype.findInOtherTableSync = function (_id, table) {
   var Table = create(this.conn, table);
+
   return Table.finder(_id).execSync();
 };
 
 Table.prototype.findAllHasMany = function (_id, ref, callback) {
-  var query = this.hasManyQuery(_id, ref);  
+  var query = this.hasManyQuery(_id, ref);
+
   query.exec(callback);
 };
 
 Table.prototype.findAllHasManySync = function (_id, ref) {
   var query = this.hasManyQuery(_id, ref);
+
   return query.execSync();
 };
 
 // return table.query();
 Table.prototype.hasManyQuery = function (_id, ref) {
   var Reference = create(this.conn, ref.table);
+  var options   = utils.clone(ref.options, ['filters', 'order', 'select', 'limit', 'skip']);
   var query;
-  var options = utils.clone(ref.options, ['filters', 'order', 'select', 'limit', 'skip']);
   
-  options.filters = options.filters || {};
+  options.filters         = options.filters || {};
   options.filters[ref.on] = _id;
-  
-  query = Reference.query(options.filters);
+  query                   = Reference.query(options.filters);
+
   if (Array.isArray(options.order)) {
     query.order(options.order[0], options.order[1] || false);
   }
@@ -709,11 +793,14 @@ Table.prototype.hasManyQuery = function (_id, ref) {
 
 Table.prototype.increment = function (_id, name, callback, step) {
   var self = this;
+
   step = step || 1;
   // console.log(arguments);
   this.find(_id).exec(function (e, record) {
     var data = {};
+
     if (e) { callback(e); } else {
+
       if ( ! record ) { 
         callback(); 
       } else {
@@ -721,16 +808,21 @@ Table.prototype.increment = function (_id, name, callback, step) {
         data[name] = record[name] + step;
         self.updateRecord(record, data, callback);
       }
+
     }
+
   });
+
 };
 
 Table.prototype.decrement = function (_id, name, callback, step) {
   var self = this;
+
   step = step || 1;
   
   this.find(_id).exec(function (e, record) {
     var data = {};
+
     if (e) { callback(e); } else {
       if ( ! record ) { 
         callback(); 
@@ -739,24 +831,32 @@ Table.prototype.decrement = function (_id, name, callback, step) {
         self.updateRecord(record, data, callback);
       }
     }
+
   });
+
 };
 
 Table.prototype.incrementSync = function (_id, name, step) {
   var record = this.find(_id).execSync();
-  var data = {};
+  var data   = {};
+
   if ( ! record ) { return null;}
+
   step = step || 1;
   data[name] = record[name] + step;
+
   return this.updateRecordSync(record, data);
 };
 
 Table.prototype.decrementSync = function (_id, name, step) {
   var record = this.find(_id).execSync();
-  var data = {};
+  var data   = {};
+
   if ( ! record ) { return null;}
+
   step = step || 1;
   data[name] = record[name] - step;
+
   return this.updateRecordSync(record, data);
 };
 
@@ -771,13 +871,15 @@ Table.prototype.bindLinkEachUniqueFieldEvents = function (event, targetFields) {
 
   this.schemas.forEachUniqueField(function (name, field) {
     event.add(function (record, next) {
-      var _id = record._id;
+      var _id   = record._id;
       var value = record[name];
+
       self.conn.linkTableUniqueFile(self.table, _id, name, value, function (e) {
         next(e);
       });
     });
   }, targetFields);
+
 };
 
 /**
@@ -795,6 +897,7 @@ Table.prototype.bindUnlinkEachUniqueFieldEvents = function (event, targetFields)
       });
     });
   }, targetFields);
+
 };
 
 /**
@@ -804,13 +907,14 @@ Table.prototype.bindUnlinkEachUniqueFieldEvents = function (event, targetFields)
  
 Table.prototype.bindUpdateAutoIncrementValuesEvents = function (event) {
   var self = this;
-  // console.log('~1');
+
   this.schemas.forEachUniqueField(function (name, field, schemas) {
     var nextValue;
+
     if (schemas.isAutoIncrement(field)) {
       event.add(function (record, next) {
         var nextValue = schemas.getNextAutoIncrementValue(name, record[name]);
-        // console.log(nextValue);
+        
         self.conn.writeTableUniqueAutoIncrementFile(self.table, name, nextValue, function (e) {
           next(e);
         });
@@ -829,13 +933,15 @@ Table.prototype.bindAddIndexRecordsEvents = function (event, targetFields) {
   
   this.schemas.forEachIndexField(function (name, field) {
     event.add(function (record, next) {
-      var _id = record._id;
+      var _id   = record._id;
       var value = record[name];
+
       self.conn.addIndexRecord(self.table, name, value, _id, function (e) {
         next(e);
       });
     });
   }, targetFields);
+
 };
 
 /**
@@ -848,13 +954,15 @@ Table.prototype.bindRemoveIndexRecordsEvents = function (event, targetFields) {
   
   this.schemas.forEachIndexField(function (name, field) {
     event.add(function (record, next) {
-      var _id = record._id;
+      var _id   = record._id;
       var value = record[name];
+
       self.conn.removeIndexRecord(self.table, name, value, _id, function (e) {
         next(e);
       });
     });
   }, targetFields);
+
 };
 
 /**
@@ -874,6 +982,7 @@ Table.prototype.bindAddIdRecordEvent = function (event) {
 
 Table.prototype.bindRemoveIdRecordEvent = function (event) {
   var self = this;
+
   event.add(function (record, next) {
     self.conn.removeIdRecord(self.table, record._id, function (e) {
       next(e);
@@ -885,10 +994,13 @@ Table.prototype.bindRemoveIdRecordEvent = function (event) {
 Table.prototype.bindUpdateCountersEvent = function (event, step, fields) {
   var self = this;
   var counters;
+
   if ( ! this.schemas.hasCounter() ) { return; }
+
   counters = this.schemas.getCounters();
   event.add(function (record, next) {
     var updateEvent = Eventchain.create();
+
     counters.forEach(function (info) {
       var name = info[0];
       var counterName = info[1];
@@ -899,15 +1011,18 @@ Table.prototype.bindUpdateCountersEvent = function (event, step, fields) {
       
       updateEvent.add(function (record, next) {
         var referenceTableName =  Ref.getReferenceTable(name);
-        var referenceTable = create(self.conn, referenceTableName);
-        var fn = step > 0 ? referenceTable.increment : referenceTable.decrement;
+        var referenceTable     = create(self.conn, referenceTableName);
+        var fn                 = step > 0 ? referenceTable.increment : referenceTable.decrement;
+
         fn.call(referenceTable, record[name], counterName, function (e, record) {
           next(e, record);
         }, Math.abs(step));
       });
     }); // counter foreach over
+
     updateEvent.emit(record, next);
   });
+
 };
 
 Table.prototype.bindIncrementCountersEvent = function (event, fields) {
@@ -943,6 +1058,7 @@ Table.prototype.linkEachUniqueFieldSync = function (record, targetFields) {
  */
 Table.prototype.unlinkEachUniqueFieldSync = function (record, targetFields) {
   var self = this;
+
   this.schemas.forEachUniqueField(function (name, field) {
     self.conn.unlinkTableUniqueFileSync(self.table, name, record[name]);
   }, targetFields);
@@ -950,6 +1066,7 @@ Table.prototype.unlinkEachUniqueFieldSync = function (record, targetFields) {
 
 Table.prototype.updateAutoIncrementValuesSync = function (data) {
   var self = this;
+
   this.schemas.forEachUniqueField(function (name, field, schemas) {
     var nextValue;
     if (schemas.isAutoIncrement(field)) {
@@ -986,9 +1103,11 @@ Table.prototype.removeIdRecordSync = function (record) {
 Table.prototype.updateCountersSync = function (record, step, fields) {
   var self = this;
   var counters;
+
   if ( ! this.schemas.hasCounter() ) { return; }
   
   counters = this.schemas.getCounters();
+
   counters.forEach(function (info) {
     var name = info[0];
     var counterName, referenceTableName, referenceTable, fn;
@@ -997,12 +1116,13 @@ Table.prototype.updateCountersSync = function (record, step, fields) {
       if (fields.indexOf(name) == -1) { return; }
     }
     
-    counterName = info[1];
+    counterName        = info[1];
     referenceTableName =  Ref.getReferenceTable(name);
-    referenceTable = create(self.conn, referenceTableName);
-    fn = step > 0 ? referenceTable.incrementSync : referenceTable.decrementSync;
+    referenceTable     = create(self.conn, referenceTableName);
+    fn                 = step > 0 ? referenceTable.incrementSync : referenceTable.decrementSync;
     fn.call(referenceTable, record[name], counterName, Math.abs(step));
   }); // counter foreach over
+
 };
 
 Table.prototype.incrementCountersSync = function (record, fields) {
@@ -1017,11 +1137,13 @@ Table.prototype.decrementCountersSync = function (record, fields) {
 
 Table.prototype.resetIdsFile = function () {
   var ids = this.conn.readTableIdsDirSync(this.table);
+
   this.conn.resetIdsFile(this.table, ids);
 };
 
 Table.prototype.resetAllIndexFiles = function () {
   var self = this;
+  
   this.schemas.forEachIndexField(function (name) {
     self.resetIndexFile(name);
   });

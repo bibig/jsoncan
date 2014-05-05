@@ -20,7 +20,7 @@ describe('table.read feature unit test', function () {
       text: 'created at',
       type: 'created',
       format: function (d) {
-        var d = new Date(d);
+        d = new Date(d);
         return [d.getFullYear(), d.getMonth() + 1, d.getDate()].join('-');
       }
     }
@@ -39,7 +39,7 @@ describe('table.read feature unit test', function () {
       if (e) console.error(e);
       // console.log(records);
       done();
-    })
+    });
   });
   
   /*

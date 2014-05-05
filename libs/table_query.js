@@ -1,8 +1,8 @@
 exports.create = create;
 
 var async = require('async');
-var libs = require('./table_libs');
-var Ref = require('./table_reference');
+var libs  = require('./table_libs');
+var Ref   = require('./table_reference');
 var utils = require('./utils');
 
 // new version of query
@@ -11,6 +11,7 @@ function create (filters) {
   
   function popluateRecords (records, callback) {
     var self = this;
+
     async.each(records, function (record, callback) {
       Ref.populateRecord.apply(self, [parent, record, callback]);
     }, callback);
@@ -18,6 +19,7 @@ function create (filters) {
   
   function popluateRecordsSync (records, callback) {
     var self = this;
+
     records.forEach(function (record) {
       Ref.populateRecordSync.apply(self, [parent, record]);
     });
@@ -27,7 +29,9 @@ function create (filters) {
     var self = this;
 
     libs.findAll.call(parent, self.options, function (e, records) {
+
       if (e) { callback(e); } else {
+
         if (self.options.isFormat) {
           records = libs.formatAll.call(parent, records);
         }
@@ -48,7 +52,9 @@ function create (filters) {
           }
           callback(null, records);
         }
+
       }
+
     }); // end of _findAll
   }
   
@@ -85,28 +91,28 @@ function create (filters) {
   return {
     references: [],
     options: {
-      filters: filters || {}, 
-      orders: {},
-      limit: null,
-      skip: null,
-      select: null,
-      isFormat: false,
-      isMap: false
+      filters  : filters || {}, 
+      orders   : {},
+      limit    : null,
+      skip     : null,
+      select   : null,
+      isFormat : false,
+      isMap    : false
     },
-    where: where,
-    order: order,
-    limit: limit,
-    skip: skip,
-    select: function () { return Ref.select.apply(this, arguments); },
-    format: function () { return Ref.format.apply(this); },
-    map: map,
-    belongsTo: belongsTo,
-    hasMany: function (table, options) { return Ref.hasMany.apply(this, [parent, table, options]); },
-    ref: belongsTo, // alias
-    exec: exec,
-    execSync: execSync,
-    count: count,
-    countSync: countSync
+    where     : where,
+    order     : order,
+    limit     : limit,
+    skip      : skip,
+    select    : function () { return Ref.select.apply(this, arguments); },
+    format    : function () { return Ref.format.apply(this); },
+    map       : map,
+    belongsTo : belongsTo,
+    hasMany   : function (table, options) { return Ref.hasMany.apply(this, [parent, table, options]); },
+    ref       : belongsTo, // alias
+    exec      : exec,
+    execSync  : execSync,
+    count     : count,
+    countSync : countSync
   };
 } // end of create
 
@@ -122,25 +128,30 @@ function where (field/*filter*/) {
   }
   
   this.options.filters[field] = filter;
+
   return this;
 }
 
 function order (field, isDescend) {
   this.options.orders[field] = isDescend ? true : false;
+
   return this;
 }
 
 function limit (n) {
   this.options.limit = n;
+
   return this;
 }
 
 function skip (n) {
   this.options.skip = n;
+
   return this;
 }
 
 function map () {
   this.options.isMap = true;
+  
   return this;
 }

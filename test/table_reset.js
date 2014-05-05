@@ -30,7 +30,6 @@ describe('test index fields', function () {
       index: true
     }
   };
-  var table;
   
   function addData () {
     var record;

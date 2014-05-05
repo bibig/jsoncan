@@ -105,7 +105,7 @@ describe('test table.js', function () {
   
   it('should make table root fold', function () {
     var root = fs.existsSync(path.join(PATH, tableName));
-    root.should.be.ok;
+    assert.ok(root);
   });
   
   it('should create all unique fields folds', function () {
@@ -113,9 +113,9 @@ describe('test table.js', function () {
     var mobilePath = fs.existsSync(Table.conn.getTableUniquePath(tableName, 'mobile'));
     var idPath = fs.existsSync(Table.conn.getTableUniquePath(tableName, 'id'));
     
-    emailPath.should.be.ok;
-    mobilePath.should.be.ok;
-    idPath.should.be.ok;
+    assert.ok(emailPath);
+    assert.ok(mobilePath);
+    assert.ok(idPath);
     
   });
   
@@ -260,7 +260,7 @@ describe('test table.js', function () {
       should.not.exist(err);
       data.should.have.property('_id', record._id);
       done();
-    })
+    });
   });
 
   it('test findByEmail', function (done) {
@@ -268,7 +268,7 @@ describe('test table.js', function () {
       should.not.exist(err);
       data.should.have.property('_id', record._id);
       done();
-    })
+    });
   });
   
   it('test findByMobile', function (done) {
@@ -276,7 +276,7 @@ describe('test table.js', function () {
       should.not.exist(err);
       data.should.have.property('_id', record._id);
       done();
-    })
+    });
   });
   
   it('test query.select', function (done) {
@@ -364,7 +364,7 @@ describe('test table.js', function () {
       should.not.exist(err);
       data.should.have.property('_id', record._id);
       done();
-    })
+    });
   });
 
   
@@ -383,10 +383,13 @@ describe('test table.js', function () {
       var oldMobileExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', record.mobile));
       var newEmailExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'email', newRecord.email));
       var newMobileExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', newRecord.mobile));
-      oldEmailExists.should.not.be.ok;
-      oldMobileExists.should.not.be.ok;
-      newEmailExists.should.be.ok;
-      newMobileExists.should.be.ok;
+
+      assert.ok( ! oldEmailExists );
+      assert.ok( ! oldMobileExists );
+
+      assert.ok(newEmailExists);
+      assert.ok(newMobileExists);
+
       assert.ok(newRecord.modified > record.modified);
       assert.equal(newRecord.email, email);
       assert.equal(newRecord.mobile, mobile);
@@ -433,10 +436,10 @@ describe('test table.js', function () {
       var mobileExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', record.mobile));
       
       should.not.exist(err);
-      primaryIdExists.should.not.be.ok;
-      idExists.should.not.be.ok;
-      emailExists.should.not.be.ok;
-      mobileExists.should.not.be.ok;
+      assert.ok( ! primaryIdExists );
+      assert.ok( ! idExists );
+      assert.ok( ! emailExists );
+      assert.ok( ! mobileExists );
       
       done();
     });
@@ -475,7 +478,7 @@ describe('test table.js', function () {
       should.not.exist(err);
       assert.ok(!data);
       done();
-    })
+    });
   });
   
   it('test find all none exist', function (done) {

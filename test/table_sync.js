@@ -101,9 +101,9 @@ describe('test sync actions in table.js', function () {
     var mobilePath = fs.existsSync(Table.conn.getTableUniquePath(tableName, 'mobile'));
     var idPath = fs.existsSync(Table.conn.getTableUniquePath(tableName, 'id'));
     
-    emailPath.should.be.ok;
-    mobilePath.should.be.ok;
-    idPath.should.be.ok;
+    assert.ok(emailPath);
+    assert.ok(mobilePath);
+    assert.ok(idPath);
     
   });
   
@@ -172,7 +172,7 @@ describe('test sync actions in table.js', function () {
       err.invalidMessages.should.have.property('email');
       err.invalidMessages.should.have.property('mobile');
       err.invalidMessages.should.have.property('age');
-    };
+    }
   });
   
   it('test insert duplicate', function () {
@@ -242,10 +242,13 @@ describe('test sync actions in table.js', function () {
     var oldMobileExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', record.mobile));
     var newEmailExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'email', newRecord.email));
     var newMobileExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', newRecord.mobile));
-    oldEmailExists.should.not.be.ok;
-    oldMobileExists.should.not.be.ok;
-    newEmailExists.should.be.ok;
-    newMobileExists.should.be.ok;
+
+    assert.ok( ! oldEmailExists );
+    assert.ok( ! oldMobileExists);
+
+    assert.ok(newEmailExists);
+    assert.ok(newMobileExists);
+
     assert.ok(newRecord.modified > record.modified);
   });
   
@@ -274,17 +277,18 @@ describe('test sync actions in table.js', function () {
   });
   
   it('test removeSync', function () {
-    Table.removeSync(record._id)
+    Table.removeSync(record._id);
 
     var primaryIdExists = fs.existsSync(Table.conn.getTableIdFile(tableName, record._id));
     var idExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'id', record.id));
     var emailExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'email', record.email));
     var mobileExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', record.mobile));
       
-    primaryIdExists.should.not.be.ok;
-    idExists.should.not.be.ok;
-    emailExists.should.not.be.ok;
-    mobileExists.should.not.be.ok;
+    assert.ok( ! primaryIdExists );
+    assert.ok( ! idExists );
+    assert.ok( ! emailExists );
+    assert.ok( ! mobileExists );
+    
   });
   
   it('after remove, link files should be deleted', function () {
@@ -300,7 +304,7 @@ describe('test sync actions in table.js', function () {
   
   it('test remove all', function () {
     Table.removeAllSync({age: ['>', 10]});
-    assert.ok(Table.query().execSync().length == 0);
+    assert.ok(Table.query().execSync().length === 0);
   });
   
   it('test find one none exist', function () {
@@ -310,7 +314,7 @@ describe('test sync actions in table.js', function () {
   
   it('test find all none exist', function () {
     records = Table.query({age: ['>', 10]}).execSync();
-    assert.ok(records.length == 0);
+    assert.ok(records.length === 0);
   });
 
 });
