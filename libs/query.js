@@ -7,9 +7,9 @@
  *
  */
 
-exports.create = create;
-exports.compare = compare;
-exports.checkHash = checkHash;
+exports.create               = create;
+exports.compare              = compare;
+exports.checkHash            = checkHash;
 exports.parseSelectArguments = parseSelectArguments;
 
 var util = require('util');
@@ -23,19 +23,19 @@ var error = require('./error');
  */
 function create (records) {
   return {
-    fields: null,
-    records: records,
-    isEmpty: isEmpty,
-    select: select,
-    key: key,
-    skip: skip,
-    limit: limit,
-    where: where,
-    order: order,
-    count: count,
-    sum: sum,
-    average: average,
-    filter: filter
+    fields  : null,
+    records : records,
+    isEmpty : isEmpty,
+    select  : select,
+    key     : key,
+    skip    : skip,
+    limit   : limit,
+    where   : where,
+    order   : order,
+    count   : count,
+    sum     : sum,
+    average : average,
+    filter  : filter
   };
 }
 
@@ -46,9 +46,11 @@ function isEmpty () {
 
 function key (name) {
   var list = [];
+
   this.records.forEach(function (record) {
     list.push(record[name]);
   });
+
   return list;
 }
 
@@ -78,13 +80,17 @@ function select (/*fields*/) {
   
   function _select (records, fields) {
     var list = [];
+
     records.forEach(function (record) {
       var newRecord = {};
+
       fields.forEach(function (field) {
         newRecord[field] = record[field];
       });
+
       list.push(newRecord);
     });
+
     return list;
   }
   
@@ -98,6 +104,7 @@ function select (/*fields*/) {
  */
 function sum (field) {
   var _sum = 0;
+
   this.records.forEach(function (record) {
       _sum += record[field] || 0;
   });
@@ -119,6 +126,7 @@ function count () {
  */
 function average (field) {
   var _sum = this.sum(field);
+
   return _sum / this.records.length;
 }
 
@@ -130,7 +138,7 @@ function average (field) {
  */
 function limit (n) {
   var list = [];
-  var max = this.records.length;
+  var max  = this.records.length;
   
   if (n > max) {
     n = max;
@@ -156,12 +164,15 @@ function skip (n) {
   var max = this.records.length;
   
   if (n < max) {
+
     for (var i = n; i < max; i++) {
       list.push(this.records[i]);
     }
+
   } 
   
   this.records = list;
+
   return this;
 }
 
@@ -172,16 +183,25 @@ function skip (n) {
  * @return this
  */
 function order (field, isDescend) {
+
   if (this.records.length > 0) {
+
     this.records.sort(function (a, b) {
       // return isDescend ? ( a[field] - b[field] ) : ( a[field] - b[field] );
-      if (a[field] < b[field])
-         return isDescend ? 1 : -1;
-      if (a[field] > b[field])
+      if (a[field] < b[field]) {
+        return isDescend ? 1 : -1;
+      }
+
+      if (a[field] > b[field]) {
         return isDescend ? -1 : 1;
+      }
+
       return 0;
+
     });
-  }  
+
+  }
+
   return this;
 }
 
@@ -204,6 +224,7 @@ function where (field/*, operator, value|values*/) {
   var list = [];
   
   if (arguments.length == 2) {
+
     if (Array.isArray(arguments[1])) {
       operator = arguments[1][0];
       value = arguments[1][1];
@@ -211,6 +232,7 @@ function where (field/*, operator, value|values*/) {
       operator = '=';
       value = arguments[1];
     }
+
   } else if (arguments.length == 3) {
     operator = arguments[1];
     value = arguments[2];
@@ -220,12 +242,15 @@ function where (field/*, operator, value|values*/) {
   }
   
   this.records.forEach(function (record) {
+    
     if (compare(record[field], operator, value)) {
       list.push(record);
     }
+
   });
   
   this.records = list;
+
   return this;
 }
 
@@ -245,11 +270,15 @@ function checkValue (value, options) {
 
 function checkHash (hash, options) {
   var keys = Object.keys(options  || {});
+
   for (var i = 0; i < keys.length; i++) {
+  
     if ( ! checkValue(hash[keys[i]], options[keys[i]])) {
       return false;
     }
+
   }
+
   return true;  
 }
 
@@ -259,15 +288,20 @@ function filter (options) {
   
   keys.forEach(function (key) {
     var params = [key];
+
     if (util.isArray(options[key])) {
+      
       options[key].forEach(function (param) {
         params.push(param);
       });
+
     } else {
       params.push(options[key]);
     }
+
     _this = _this.where.apply(_this, params);
   });
+
   return _this;  
 }
 
@@ -297,27 +331,33 @@ function compare (fieldValue, operator, value) {
       return fieldValue != value;
     case 'in':
       for (i = 0; i < value.length; i++) {
+
         if (fieldValue == value[i]) {
           return true;
         }
+
       }
       return false;
     case 'not in':
       for (i = 0; i < value.length; i++) {
+
         if (fieldValue == value[i]) {
           return false;
         }
+
       }
       return true;
     case 'between':
       return fieldValue > value[0] && fieldValue < value[1];
     case 're':
     case 'regex':
+
       if (util.isRegExp(value)) {
         return value.test(fieldValue);  
       } else {
         throw error(1201, value);
       }
+
       break;
     case 'like': // 必须包含%
       var pattern1 = /^%[^%]+$/i;  // %开头
@@ -339,6 +379,7 @@ function compare (fieldValue, operator, value) {
       }
       
       throw error(1202, value);
+
     default:
       throw error(1200, operator);
   }
@@ -346,10 +387,13 @@ function compare (fieldValue, operator, value) {
 
 function parseSelectArguments () {
   var fields = [];
+
   if (arguments.length > 1) {
+
     for (var i = 0; i < arguments.length; i++) {
       fields.push(arguments[i]);
     }
+
   } else if (arguments.length == 1) {
     fields = arguments[0];
   } else {
@@ -359,6 +403,7 @@ function parseSelectArguments () {
   
   if (typeof fields == 'string') {
     fields = fields.replace(/[\s]/g, '');
+
     if (fields.indexOf(',') > -1) { // 支持select('id, name, age');
       fields = fields.split(',');
     } else {
@@ -367,5 +412,4 @@ function parseSelectArguments () {
   }
   
   return fields;
-  
 }

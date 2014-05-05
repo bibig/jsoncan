@@ -1,20 +1,21 @@
-exports.select = select;
-exports.format = format;
-exports.belongsTo = belongsTo;
-exports.hasMany = hasMany;
+exports.select             = select;
+exports.format             = format;
+exports.belongsTo          = belongsTo;
+exports.hasMany            = hasMany;
 exports.populateRecordSync = populateRecordSync;
-exports.populateRecord = populateRecord;
-exports.getReferenceName = getReferenceName;
-exports.getReferenceTable = getReferenceTable;
-exports.hasReference = hasReference;
+exports.populateRecord     = populateRecord;
+exports.getReferenceName   = getReferenceName;
+exports.getReferenceTable  = getReferenceTable;
+exports.hasReference       = hasReference;
 
 
-var utils = require('./utils');
-var async = require('async');
+var utils      = require('./utils');
+var async      = require('async');
 var inflection = require('inflection');
 
 function select () {
   var args = [];
+
   if (arguments.length == 1) {
     this.options.select = arguments[0];
   } else if (arguments.length > 1) {
@@ -23,23 +24,27 @@ function select () {
     }
     this.options.select = args;
   }
+
   return this;
 }
 
 function format () {
   this.options.isFormat = true;
+
   return this;
 }
 
 function belongsTo (parent, table, name) {
   var info = {};
+
   name = name || getReferenceName(table);
   parent.checkReference(table, name);
-  info.type = 'belongsTo';
+  info.type  = 'belongsTo';
   info.table = table;
-  info.on = name;
+  info.on    = name;
   // console.log(info);
   this.references.push(info);
+
   return this;
 }
 
@@ -55,6 +60,7 @@ function getReferenceTable (name) {
 
 function hasMany (parent, table, options) {
   var info;
+  
   parent.checkTable(table);
   options = options || {};
   info = {
@@ -65,6 +71,7 @@ function hasMany (parent, table, options) {
   };
   
   this.references.push(info);
+
   return this;
 }
 
@@ -97,6 +104,7 @@ function populateRecord (parent, record, callback) {
   }
   
   this.references.forEach(function (ref) {
+
     switch (ref.type) {
       case 'hasMany':
         tasks.push(function (callback) {
@@ -127,6 +135,7 @@ function populateRecord (parent, record, callback) {
         }); // end of push
         break;
     }
+    
   }); // end of forEach
   
   async.waterfall(tasks, callback);

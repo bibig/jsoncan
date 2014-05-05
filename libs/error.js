@@ -51,5 +51,6 @@ function createError (code/*,var1, var2*/) {
   
   error = new Error(message);
   error.code = code;
+  
   return error;
 }

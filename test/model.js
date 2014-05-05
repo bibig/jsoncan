@@ -145,7 +145,6 @@ describe('test model way', function () {
       record.should.have.property('created', Gary.get('created'));
       record.should.have.property('modified', Gary.get('modified'));
       record.should.have.property('_id', Gary.getPrimaryId());
-      Table.forEachField
       done();
     });
   });
@@ -265,7 +264,7 @@ describe('test model way', function () {
         should.not.exist(e);
         assert.ok(!record);
         done();
-      })
+      });
     });
   });
   

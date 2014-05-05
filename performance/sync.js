@@ -30,9 +30,9 @@
 
  */
 
-var util = require('./util');
+var util  = require('./util');
 var faker = require('faker');
-var max = 1000;
+var max   = 1000;
 var Table;
 
 util.run(function () {
@@ -50,6 +50,7 @@ util.run(function () {
 function insertAll () {
   var list = util.prepareData();
   var records;
+
   util.setTime();
   records = Table.insertAllSync(list);
   util.report('1. inserted %d records', records.length);
@@ -57,6 +58,7 @@ function insertAll () {
 
 function findAll () {
   var records;
+
   util.setTime();
   records = Table.query().execSync();
   util.report('2. finded %d records', records.length);
@@ -64,6 +66,7 @@ function findAll () {
 
 function updateAll () {
   var records;
+
   util.setTime();
   records = Table.updateAllSync({id: ['<>', 0]}, {name: faker.Name.findName()});
   util.report('3. updated %d records', records.length);
@@ -71,6 +74,7 @@ function updateAll () {
 
 function removeAll () {
   var records;
+  
   util.setTime();
   records = Table.removeAllSync({id: ['<>', 0]});
   util.report('4. removed %d records', records.length);

@@ -1,11 +1,11 @@
-exports.isNumber = isNumber;
-exports.create = create;
-exports.isEmpty = isEmpty;
+exports.isNumber         = isNumber;
+exports.create           = create;
+exports.isEmpty          = isEmpty;
 exports.isValidPrimaryId = isValidPrimaryId;
 
 var validator = require('validator');
-var util = require('util');
-var error = require('./error');
+var util      = require('util');
+var error     = require('./error');
 
 var Messages = {
   100: 'Invalid type, should be <%s>',
@@ -44,38 +44,39 @@ function create (schemas, messages) {
   }
 
   return {
-    Map: {},
-    Messages: Messages,
-    schemas: schemas,
-    data: {},
-    isValid: function () {
-      return this.getCount() === 0;
-    },
-    isValidField: isValidField,
-    getMessages: function () {
+    Map          : {},
+    Messages     : Messages,
+    schemas      : schemas,
+    data         : {},
+    isValidField : isValidField,
+    isUnique     : null,  // 需要外部注入
+    addMessage   : addMessage,
+    check        : check,
+    validate     : validate,
+    checkType    : checkType,
+    checkSize    : checkSize,
+    checkUnique  : checkUnique,
+    checkNull    : checkNull,
+    checkValue   : checkValue,
+    checkCustom  : checkCustom,
+    getMessages : function () {
       // console.log(Map);
       return this.Map;
     },
     getCount: function () {
       return Object.keys(this.Map).length;
     },
-    isUnique: null,  // 需要外部注入
-    addMessage: addMessage,
-    check: check,
-    validate: validate,
-    checkType: checkType,
-    checkSize: checkSize,
-    checkUnique: checkUnique,
-    checkNull: checkNull,
-    checkValue: checkValue,
-    checkCustom: checkCustom
+    isValid  : function () {
+      return this.getCount() === 0;
+    }
   };
 
 }
 
 function check (data, changedFields) {
   var _this = this;
-  this.Map = {};
+  
+  this.Map  = {};
   this.data = data;
   
   /*
@@ -86,31 +87,44 @@ function check (data, changedFields) {
   */
   
   this.schemas.forEachField(function (name, field, ctx) {
-    if (changedFields) { if (changedFields.indexOf(name) == -1) return; }
+
+    if (changedFields) { 
+
+      if (changedFields.indexOf(name) == -1) { return; } 
+
+    } 
+
     _this.validate(name, ctx.fields[name], _this.data[name], data);
   });
+
   return this;
 }
 
 function validate (name, field, value, data) {
-  if (this.schemas.isSystemField(field) || this.schemas.isAliasField(field)) return;
+
+  if (this.schemas.isSystemField(field) || this.schemas.isAliasField(field)) { return; }
   
   this.checkNull.apply(this, arguments);
-  if ( !this.isValidField(name) ) return;
+
+  if ( !this.isValidField(name) ) { return; }
   
   // null value is valid, do not need check type, size and value
   if (value !== undefined && value !== '' && value !== null) { 
     this.checkType.apply(this, arguments);
-    if ( !this.isValidField(name) ) return;
+
+    if ( !this.isValidField(name) ) { return; }
     
     this.checkSize.apply(this, arguments);
-    if ( !this.isValidField(name) ) return;
+
+    if ( !this.isValidField(name) ) { return; }
   
     this.checkValue.apply(this, arguments);
-    if ( !this.isValidField(name) ) return;
+
+    if ( !this.isValidField(name) ) { return; }
     
     this.checkUnique.apply(this, arguments);
-    if ( !this.isValidField(name) ) return;
+
+    if ( !this.isValidField(name) ) { return; }
   }
   
   this.checkCustom.apply(this, arguments);
@@ -122,6 +136,7 @@ function isValidField (name) {
 
 function checkType (name, field, value) {
   var pass;
+
   if (!this.schemas.isValidType(field.type)) {
     throw new Error('invalid field type <' + field.type + '>');
   }
@@ -207,7 +222,7 @@ function checkType (name, field, value) {
 }
 
 function checkSize (name, field, value) {
-  var len = value.length;
+  var len   = value.length;
   var fixed = field.size || field.length;
   
   if (fixed && len != fixed) {
@@ -221,6 +236,7 @@ function checkSize (name, field, value) {
   if (field.min && len < field.min) {
     this.addMessage(name, 103, field.min);
   }
+
 }
 
 function checkCustom (name, field, value, data) {
@@ -228,74 +244,92 @@ function checkCustom (name, field, value, data) {
   
   if ( typeof field.validate == 'function' ) {
     message = field.validate(value, data);
+
     if ( message ) {
       this.addMessage(name, message);
     }
+
   }
 }
 
 // 注意： unique field不能为空
 function checkNull (name, field, value) {
+
   if ( field.default === undefined && (field.isRequired || field.required || field.isNull === false || field.null === false || field.isUnique )) {
+  
     if (isEmpty(value)) {
       this.addMessage(name, 200);
     }
+
   }
+
 }
 
 function checkValue (name, field, value) {
   if (field.pattern && !validator.matches(value, field.pattern, 'i')) {
     this.addMessage(name, 201, field.pattern);
+
     return;
   }
   
   if (field.shouldAfter && !validator.isAfter(value, field.shouldAfter)) {
     this.addMessage(name, 211, field.shouldAfter);
+
     return;
   }
   
   if (field.shouldBefore && !validator.isBefore(value, field.shouldBefore)) {
     this.addMessage(name, 212, field.shouldBefore);
+
     return;
   }
   
-  if (field.type == 'enum' && field.values.indexOf(value) == -1) {
+  if (field.type === 'enum' && field.values.indexOf(value) == -1) {
     this.addMessage(name, 213, field.values.join(','));
+
     return;
   }
   
-  if (field.type == 'array' && (value < 0 || value >= field.values.length)) {
+  if (field.type === 'array' && (value < 0 || value >= field.values.length)) {
     this.addMessage(name, 220, field.values.length);
+
     return;
   }
   
-  if ((field.type == 'hash' || field.type == 'map') && field.values[value] === undefined) {
+  if ((field.type === 'hash' || field.type === 'map') && field.values[value] === undefined) {
     this.addMessage(name, 214, Object.keys(field.values));
+
     return;
   }
   
   if (field.maxValue && value > field.maxValue) {
     this.addMessage(name, 216, field.maxValue);
+
     return;
   }
 
   if (field.minValue && value < field.minValue) {
     this.addMessage(name, 217, field.minValue);
+
     return;
   }
   
 }
 
 function checkUnique (name, field, value) {
+
   if ( field.isUnique && typeof this.isUnique == 'function') {
+
     if (!this.isUnique(name, field, value)) {
       this.addMessage(name, 218, value);  
     }
+
   }
+
 }
 
 function addMessage (name, codeOrMessage/*, param1, param2*/) {
-  var message = typeof codeOrMessage == 'number' ? this.Messages[codeOrMessage] : codeOrMessage;
+  var message = typeof codeOrMessage === 'number' ? this.Messages[codeOrMessage] : codeOrMessage;
   var params = [message];
   
   for (var i = 2; i < arguments.length; i++) {
@@ -311,24 +345,31 @@ function isNumber (n) {
 }
 
 function isEmpty () {
+
   function _isEmpty (s) {
+
     if (Array.isArray(s)) {
       return s.length === 0;  
     } else {
       return s === undefined || s === null || s === '';
     }
+
   }
   
   for (var i = 0; i < arguments.length; i++) {
+
     if (_isEmpty(arguments[i])) { return true; }
+
   }
   
   return false;
 }
 
 function isValidPrimaryId (s) {
+
   if (typeof s === 'string') {
     return /[0-9a-f]+/.test(s);
   }
+
   return false;
 }

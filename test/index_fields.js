@@ -49,8 +49,9 @@ describe('test index fields', function () {
   
   function addData () {
     var record;
+    var i;
   
-    for (var i = 0; i< pastCount; i++) {
+    for (i = 0; i< pastCount; i++) {
       record = table.insertSync({
         date: new Date(new Date() - 24 * 3600 * 1000 - Math.random() * 10000000000),
         name: faker.Name.findName(),
@@ -59,7 +60,7 @@ describe('test index fields', function () {
       // console.log(record);
     }
     
-    for (var i = 0; i < todayCount; i++) {
+    for (i = 0; i < todayCount; i++) {
       record = table.insertSync({
         date: getToday(),
         name: (i < steveCount ? 'steve' : faker.Name.findName()),
@@ -68,7 +69,7 @@ describe('test index fields', function () {
       // console.log(record);
     }
     
-    for (var i = 0; i < todayInLastYearCount; i++) {
+    for (i = 0; i < todayInLastYearCount; i++) {
       record = table.insertSync({
         date: getTodayInLastYear(),
         name: faker.Name.findName(),
@@ -134,11 +135,11 @@ describe('test index fields', function () {
       assert.equal(count, pastCount + todayCount + todayInLastYearCount);
       done();
     });
-  })
+  });
   
   it('test countSync', function () {
     assert.equal(table.query().countSync(), pastCount + todayCount + todayInLastYearCount);
-  })
+  });
   
   it('test query all records', function (done) {
     

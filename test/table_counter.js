@@ -45,20 +45,21 @@ describe('counter update test', function () {
     var categoryB = Categories.insertSync({name: 'b'});
     var blogA = Blogs.insertSync({ _category: categoryA, title: 'a'});
     var blogB = Blogs.insertSync({ _category: categoryB, title: 'b'});
+    var i;
     // console.log(categoryA);
-    for (var i = 1; i < aCategoryCount; i++) {
+    for (i = 1; i < aCategoryCount; i++) {
       Blogs.insertSync({ _category: categoryA, title: 'a'});
     }
     
-    for (var i = 1; i < bCategoryCount; i++) {
+    for (i = 1; i < bCategoryCount; i++) {
       Blogs.insertSync({ _category: categoryB, title: 'b'});
     }
         
-    for (var i = 0; i < aBlogCommentCount; i++) {
+    for (i = 0; i < aBlogCommentCount; i++) {
       Comments.insertSync({ _blog: blogA, title: '...' });
     }
     
-    for (var i = 0; i < bBlogCommentCount; i++) {
+    for (i = 0; i < bBlogCommentCount; i++) {
       Comments.insertSync({ _blog: blogB, title: '...' });
     }
   }
