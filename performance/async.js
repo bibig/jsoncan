@@ -54,8 +54,8 @@
 */
 
 var faker = require('faker');
-var util = require('./util');
-var max = 1000;
+var util  = require('./util');
+var max   = 1000;
 
 var Table;
 
@@ -71,7 +71,9 @@ function insertAll () {
   var list = util.prepareData();
   // console.log('ready to insertAll in async way');
   util.setTime();
+
   Table.insertAll(list, function (e, records) {
+  
     if (e) {
       console.log(e);
     } else {
@@ -85,27 +87,30 @@ function insertAll () {
 function findAll () {
   // console.log('ready to findAll in async way');
   util.setTime();
+
   Table.query().exec(function (e, records) {
     // console.log(records);
     util.report('2. finded %d records', records.length);
     updateAll();
-  })
+  });
 }
 
 
 function updateAll () {
   // console.log('ready to updateAll in async way');
   util.setTime();
+
   Table.updateAll({id: ['<>', 0]}, {name: faker.Name.findName()}, function (e, records) {
     // console.log(records);
     util.report('3. updated %d records', records.length);
     removeAll();
-  })
+  });
 }
 
 function removeAll () {
   // console.log('ready to removeAll in async way');
   util.setTime();
+
   Table.removeAll({id: ['<>', 0]}, function (e, records) {
     util.report('4. removed %d records', records.length);
     util.allTime();

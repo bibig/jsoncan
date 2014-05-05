@@ -1,49 +1,55 @@
-exports.find = find;
-exports.findSync = findSync;
-exports.findBy = findBy;
-exports.findBySync = findBySync;
-exports.findAll = findAll;
-exports.findAllSync = findAllSync;
-exports.present = present;
-exports.format = format;
-exports.formatAll = formatAll;
-exports.makeInsertTasks = makeInsertTasks;
-exports.getIndexOrders = getIndexOrders;
-exports.getNoneIndexOrders = getNoneIndexOrders;
-exports.getIndexFilters = getIndexFilters;
-exports.getNoneIndexFilters = getNoneIndexFilters;
-exports.getConnQueryIndexKeys = getConnQueryIndexKeys;
+exports.find                   = find;
+exports.findSync               = findSync;
+exports.findBy                 = findBy;
+exports.findBySync             = findBySync;
+exports.findAll                = findAll;
+exports.findAllSync            = findAllSync;
+exports.present                = present;
+exports.format                 = format;
+exports.formatAll              = formatAll;
+exports.makeInsertTasks        = makeInsertTasks;
+exports.getIndexOrders         = getIndexOrders;
+exports.getNoneIndexOrders     = getNoneIndexOrders;
+exports.getIndexFilters        = getIndexFilters;
+exports.getNoneIndexFilters    = getNoneIndexFilters;
+exports.getConnQueryIndexKeys  = getConnQueryIndexKeys;
 exports.getIdsFromIndexRecords = getIdsFromIndexRecords;
-exports.makeConnQueryOptions = makeConnQueryOptions;
-exports.localQuery = localQuery;
-exports.arrayToMap = arrayToMap;
+exports.makeConnQueryOptions   = makeConnQueryOptions;
+exports.localQuery             = localQuery;
+exports.arrayToMap             = arrayToMap;
 
-var Query = require('./query');
-var error = require('./error');
-var async = require('async');
-var fs = require('fs');
-var utils = require('./utils');
+var Query     = require('./query');
+var error     = require('./error');
+var async     = require('async');
+var fs        = require('fs');
+var utils     = require('./utils');
 var Validator = require('./validator');
 
 function find (_id, callback) { 
   if (Validator.isEmpty(_id)) { return callback(); }
+
   this.conn.read(this.table, _id, callback);
 }
 
 function findSync (_id) { 
   if (Validator.isEmpty(_id)) { return null; }
+
   return this.conn.readSync(this.table, _id); 
 }
 
 function findBy (name, value, callback) {
   this.checkUniqueField(name);
+
   if (Validator.isEmpty(name, value)) { return callback(); }
+
   this.conn.readBy(this.table, name, value, callback); 
 }
 
 function findBySync (name, value) {
   this.checkUniqueField(name);
+
   if (Validator.isEmpty(name, value)) { return null; }
+
   return this.conn.readBySync(this.table, name, value); 
 }
 
@@ -59,9 +65,11 @@ function present (name, value, data) {
 function formatAll (records) {
   var list = [];
   var self = this;
+
   records.forEach(function (record) {
     list.push(format.call(self, record));
   });
+
   return list;
 }
 
@@ -72,13 +80,15 @@ function format (record) {
 
 // make insert tasks
 function makeInsertTasks (datas) {
-  var self = this;
+  var self  = this;
   var tasks = [];
+
   datas.forEach(function (data) {
     tasks.push(function (callback) {
       self.insert(data, callback);
     });
   });
+
   return tasks;
 }
 
@@ -100,9 +110,11 @@ function getNoneIndexOrders (orders) {
   if (!orders) return {};
   
   this.schemas.forEachField(function (name, field, that) {
+
     if (!that.isIndex(field)) {
       noneIndexOrders[name] = orders[name];
     }
+
   }, orders);
   
   return noneIndexOrders;
@@ -112,6 +124,7 @@ function getIndexFilters (options) {
   var indexOptions = {};
   
   if (!options) return {};
+
   this.schemas.forEachIndexField(function (name, field) {
     indexOptions[name] = options[name];
   }, options);
@@ -129,9 +142,11 @@ function getNoneIndexFilters (options) {
   if (!options) return {};
   
   this.schemas.forEachField(function (name, field, that) {
+
     if (!that.isIndex(field)) {
       noneIndexOptions[name] = options[name];
     }
+
   }, options);
   
   if (utils.hasKeys(noneIndexOptions)) {
@@ -139,39 +154,45 @@ function getNoneIndexFilters (options) {
   } else {
     return {};
   }
+
 }
 
 function findAll (options, callback) {
   var self = this;
+
   this.checkFields(options.filters);
   this.checkFields(options.orders);
 
   async.waterfall([
     function (callback) {
-      var indexFilters = getIndexFilters.call(self, options.filters);
+      var indexFilters    = getIndexFilters.call(self, options.filters);
       var indexFilterKeys = Object.keys(indexFilters);
-      var indexOrders = getIndexOrders.call(self, options.orders);
-      var indexOrderKeys = Object.keys(indexOrders);
-      var usedIndexKeys = utils.mergeArray(indexFilterKeys, indexOrderKeys);
+      var indexOrders     = getIndexOrders.call(self, options.orders);
+      var indexOrderKeys  = Object.keys(indexOrders);
+      var usedIndexKeys   = utils.mergeArray(indexFilterKeys, indexOrderKeys);
       
       self.conn.readAllIndexes(self.table, getConnQueryIndexKeys.call(self, usedIndexKeys), function (e, records) {
         var ids;
+
         if (e) {
           callback(e);
         } else {
           ids = getIdsFromIndexRecords.call(self, records, options);
           callback(null, ids);
         }
+
       });
     },
     
     function (ids, callback) {
       self.conn.queryAll(self.table, ids, makeConnQueryOptions.call(self, options), function (e, records) {
+
         if (e) {
           callback(e);
         } else {
           callback(null, localQuery.call(self, records, options)); 
         }
+
       });
     }
   
@@ -180,34 +201,37 @@ function findAll (options, callback) {
 
 function findAllSync (options) {
   var indexFilters, indexFilterKeys, indexOrders, indexOrderKeys, usedIndexKeys, indexRecords, ids, records;  
+  
   this.checkFields(options.filters);
   this.checkFields(options.orders);
   
-  indexFilters = getIndexFilters.call(this, options.filters);
+  indexFilters    = getIndexFilters.call(this, options.filters);
   indexFilterKeys = Object.keys(indexFilters);
-  indexOrders = getIndexOrders.call(this, options.orders);
-  indexOrderKeys = Object.keys(indexOrders);
-  usedIndexKeys = utils.mergeArray(indexFilterKeys, indexOrderKeys);
-  indexRecords = this.conn.readAllIndexesSync(this.table, getConnQueryIndexKeys.call(this, usedIndexKeys));
-  ids = getIdsFromIndexRecords.call(this, indexRecords, options);
-  records = this.conn.queryAllSync(this.table, ids, makeConnQueryOptions.call(this, options));
+  indexOrders     = getIndexOrders.call(this, options.orders);
+  indexOrderKeys  = Object.keys(indexOrders);
+  usedIndexKeys   = utils.mergeArray(indexFilterKeys, indexOrderKeys);
+  indexRecords    = this.conn.readAllIndexesSync(this.table, getConnQueryIndexKeys.call(this, usedIndexKeys));
+  ids             = getIdsFromIndexRecords.call(this, indexRecords, options);
+  records         = this.conn.queryAllSync(this.table, ids, makeConnQueryOptions.call(this, options));
   
   return localQuery.call(this, records, options);
 }
 
 function getConnQueryIndexKeys (usedIndexKeys) {
-  var map = {};
+  var map  = {};
   var self = this;
+
   usedIndexKeys.forEach(function (name) {
     map[name] = self.schemas.fieldValueConvertFn(name);
   });
+
   return map;
 }
 
 function getIdsFromIndexRecords (records, options) {
   var indexFilters = getIndexFilters.call(this, options.filters);
-  var indexOrders = getIndexOrders.call(this, options.orders);
-  var query = Query.create(records).filter(indexFilters);
+  var indexOrders  = getIndexOrders.call(this, options.orders);
+  var query        = Query.create(records).filter(indexFilters);
   // using index orders
   Object.keys(indexOrders).forEach(function (name) {
     query.order(name, indexOrders[name]);
@@ -217,14 +241,14 @@ function getIdsFromIndexRecords (records, options) {
 }
 
 function makeConnQueryOptions (options) {
-  var noneIndexFilters = getNoneIndexFilters.call(this, options.filters);
-  var noneIndexOrders = getNoneIndexOrders.call(this, options.orders);
+  var noneIndexFilters    = getNoneIndexFilters.call(this, options.filters);
+  var noneIndexOrders     = getNoneIndexOrders.call(this, options.orders);
   var noneIndexOrdersKeys = Object.keys(noneIndexOrders);
-  var newOptions = { filters: noneIndexFilters };
+  var newOptions          = { filters: noneIndexFilters };
   
   if (noneIndexOrdersKeys.length === 0) {
     newOptions.limit = options.limit;
-    newOptions.skip = options.skip;
+    newOptions.skip  = options.skip;
   }
   
   return newOptions;
@@ -236,9 +260,10 @@ function localQuery (records, options) {
   var query, fields;
   
   if ( ! Array.isArray(records) ) { return []; }
+
   if ( records.length === 0 ) { return []; }
   
-  noneIndexOrders = getNoneIndexOrders.call(this, options.orders);
+  noneIndexOrders     = getNoneIndexOrders.call(this, options.orders);
   noneIndexOrdersKeys = Object.keys(noneIndexOrders);
 
   if (noneIndexOrdersKeys.length > 0) {
@@ -259,10 +284,12 @@ function localQuery (records, options) {
   }
   
   if (options.select) {
+
     if (!query) {
       query = Query.create(records);
     }
     records = query.select(options.select);
+
   }
   
   if (query) {
@@ -280,8 +307,10 @@ function localQuery (records, options) {
 
 function arrayToMap (records) {
   var map = {};
+
   records.forEach(function (record) {
     map[record._id] = record;
   });
+  
   return map;
 }
