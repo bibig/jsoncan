@@ -6,7 +6,7 @@ var async = require('async');
 var libs  = require('./table_libs');
 var Ref   = require('./table_reference');
 var Query = require('./query');
-var utils = require('./utils');
+var yi    = require('yi');
 
 
 function find (_id) {
@@ -37,7 +37,7 @@ function create () {
   
   function exec (callback) {
     var self     = this;
-    var thisArgs = utils.clone(args);
+    var thisArgs = yi.clone(args);
     var finderCb = function (e, record) {
 
       if (e) { callback(e); } else {
@@ -81,7 +81,7 @@ function create () {
     // parent.schemas.addDefaultValues(record, fields);
     // console.log(fields);
     if (fields) {
-      record = utils.clone(record, fields);
+      record = yi.clone(record, fields);
     }
 
     if (this.options.isFormat) {

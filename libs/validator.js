@@ -1,11 +1,10 @@
-exports.isNumber         = isNumber;
 exports.create           = create;
-exports.isEmpty          = isEmpty;
 exports.isValidPrimaryId = isValidPrimaryId;
 
 var validator = require('validator');
 var util      = require('util');
 var error     = require('./error');
+var yi        = require('yi');
 
 var Messages = {
   100: 'Invalid type, should be <%s>',
@@ -256,8 +255,8 @@ function checkCustom (name, field, value, data) {
 function checkNull (name, field, value) {
 
   if ( field.default === undefined && (field.isRequired || field.required || field.isNull === false || field.null === false || field.isUnique )) {
-  
-    if (isEmpty(value)) {
+
+    if (yi.isEmpty(value)) {
       this.addMessage(name, 200);
     }
 
@@ -337,32 +336,6 @@ function addMessage (name, codeOrMessage/*, param1, param2*/) {
   }
   
   this.Map[name] = util.format.apply(util, params);
-}
-
-function isNumber (n) {
-  // return n!= null && n!= '' && !isNaN(n);
-  return validator.isInt(n) || validator.isFloat(n);
-}
-
-function isEmpty () {
-
-  function _isEmpty (s) {
-
-    if (Array.isArray(s)) {
-      return s.length === 0;  
-    } else {
-      return s === undefined || s === null || s === '';
-    }
-
-  }
-  
-  for (var i = 0; i < arguments.length; i++) {
-
-    if (_isEmpty(arguments[i])) { return true; }
-
-  }
-  
-  return false;
 }
 
 function isValidPrimaryId (s) {

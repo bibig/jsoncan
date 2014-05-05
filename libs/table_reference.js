@@ -9,7 +9,7 @@ exports.getReferenceTable  = getReferenceTable;
 exports.hasReference       = hasReference;
 
 
-var utils      = require('./utils');
+var yi         = require('yi');
 var async      = require('async');
 var inflection = require('inflection');
 
@@ -143,5 +143,5 @@ function populateRecord (parent, record, callback) {
 } // end of function
 
 function hasReference () { 
-  return utils.hasKeys(this.references); 
+  return ! yi.isEmpty(this.references); 
 }
