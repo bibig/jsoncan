@@ -7,7 +7,7 @@ var Schemas    = require('./schemas');
 var error      = require('./error');
 var Validator  = require('./validator');
 var safepass   = require('safepass');
-var utils      = require('./utils');
+var yi         = require('yi');
 var libs       = require('./table_libs');
 var Query      = require('./table_query');
 var Model      = require('./table_model');
@@ -705,7 +705,7 @@ Table.prototype.countSync = function (filters) {
 Table.prototype.findAllBelongsTo = function (ref, callback) {
   var Reference = create(this.conn, ref.table);
   var filters   = ref.filters || {};
-  var fields    = utils.clone(ref.select);
+  var fields    = yi.clone(ref.select);
   var order     = ref.order;
   var query     = Reference.query(filters).map();
   
@@ -765,7 +765,7 @@ Table.prototype.findAllHasManySync = function (_id, ref) {
 // return table.query();
 Table.prototype.hasManyQuery = function (_id, ref) {
   var Reference = create(this.conn, ref.table);
-  var options   = utils.clone(ref.options, ['filters', 'order', 'select', 'limit', 'skip']);
+  var options   = yi.clone(ref.options, ['filters', 'order', 'select', 'limit', 'skip']);
   var query;
   
   options.filters         = options.filters || {};

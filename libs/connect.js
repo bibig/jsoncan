@@ -585,10 +585,10 @@ function _encrypt (s) {
 
   if (s !== '' && (typeof s === 'string' || typeof s === 'number')) {
     s = s + '';
-	  return require('crypto').createHash('sha1').update(s).digest('hex');
-	} else {
-	  throw new Error('invalid string param:' + s);
-	}
+    return require('crypto').createHash('sha1').update(s).digest('hex');
+  } else {
+    throw new Error('invalid string param:' + s);
+  }
 
 }
 

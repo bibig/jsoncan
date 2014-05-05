@@ -22,17 +22,16 @@ var Query     = require('./query');
 var error     = require('./error');
 var async     = require('async');
 var fs        = require('fs');
-var utils     = require('./utils');
-var Validator = require('./validator');
+var yi        = require('yi');
 
 function find (_id, callback) { 
-  if (Validator.isEmpty(_id)) { return callback(); }
+  if (yi.isEmpty(_id)) { return callback(); }
 
   this.conn.read(this.table, _id, callback);
 }
 
 function findSync (_id) { 
-  if (Validator.isEmpty(_id)) { return null; }
+  if (yi.isEmpty(_id)) { return null; }
 
   return this.conn.readSync(this.table, _id); 
 }
@@ -40,7 +39,7 @@ function findSync (_id) {
 function findBy (name, value, callback) {
   this.checkUniqueField(name);
 
-  if (Validator.isEmpty(name, value)) { return callback(); }
+  if (yi.isEmpty(name, value)) { return callback(); }
 
   this.conn.readBy(this.table, name, value, callback); 
 }
@@ -48,7 +47,7 @@ function findBy (name, value, callback) {
 function findBySync (name, value) {
   this.checkUniqueField(name);
 
-  if (Validator.isEmpty(name, value)) { return null; }
+  if (yi.isEmpty(name, value)) { return null; }
 
   return this.conn.readBySync(this.table, name, value); 
 }
@@ -75,7 +74,7 @@ function formatAll (records) {
 
 // be careful, the reference fields should not be filtered!
 function format (record) {
-  return utils.merge(this.schemas.presentAll(record), record);
+  return yi.merge(this.schemas.presentAll(record), record);
 }
 
 // make insert tasks
@@ -129,7 +128,7 @@ function getIndexFilters (options) {
     indexOptions[name] = options[name];
   }, options);
   
-  if (utils.hasKeys(indexOptions)) {
+  if (! yi.isEmpty(indexOptions)) {
     return this.schemas.convertEachField(indexOptions, indexOptions);
   } else {
     return {};
@@ -149,7 +148,7 @@ function getNoneIndexFilters (options) {
 
   }, options);
   
-  if (utils.hasKeys(noneIndexOptions)) {
+  if ( ! yi.isEmpty(noneIndexOptions) ) {
     return this.schemas.convertEachField(noneIndexOptions, noneIndexOptions);
   } else {
     return {};
@@ -169,7 +168,7 @@ function findAll (options, callback) {
       var indexFilterKeys = Object.keys(indexFilters);
       var indexOrders     = getIndexOrders.call(self, options.orders);
       var indexOrderKeys  = Object.keys(indexOrders);
-      var usedIndexKeys   = utils.mergeArray(indexFilterKeys, indexOrderKeys);
+      var usedIndexKeys   = yi.mergeArray(indexFilterKeys, indexOrderKeys);
       
       self.conn.readAllIndexes(self.table, getConnQueryIndexKeys.call(self, usedIndexKeys), function (e, records) {
         var ids;
@@ -209,7 +208,7 @@ function findAllSync (options) {
   indexFilterKeys = Object.keys(indexFilters);
   indexOrders     = getIndexOrders.call(this, options.orders);
   indexOrderKeys  = Object.keys(indexOrders);
-  usedIndexKeys   = utils.mergeArray(indexFilterKeys, indexOrderKeys);
+  usedIndexKeys   = yi.mergeArray(indexFilterKeys, indexOrderKeys);
   indexRecords    = this.conn.readAllIndexesSync(this.table, getConnQueryIndexKeys.call(this, usedIndexKeys));
   ids             = getIdsFromIndexRecords.call(this, indexRecords, options);
   records         = this.conn.queryAllSync(this.table, ids, makeConnQueryOptions.call(this, options));

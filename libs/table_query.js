@@ -3,7 +3,6 @@ exports.create = create;
 var async = require('async');
 var libs  = require('./table_libs');
 var Ref   = require('./table_reference');
-var utils = require('./utils');
 
 // new version of query
 function create (filters) {
