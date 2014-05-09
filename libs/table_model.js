@@ -45,10 +45,17 @@ function create (data) {
     }
 
   };
-  
+   
   m.validate = function () {
     var data  = parent.schemas.addValues(this.data);
-    var check = parent.validate(this.data);
+    var record, changedFields, check;
+
+    if ( ! this.isNew ) {
+      record = parent.find(data._id).execSync();
+      changedFields = parent.schemas.getChangedFields(data, record);
+    }
+
+    check = parent.validate(this.data, changedFields);
 
     this.errors  = this.messages = check.getMessages();
     this.isValid = check.isValid();
