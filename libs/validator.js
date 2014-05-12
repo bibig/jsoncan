@@ -3,7 +3,6 @@ exports.isValidPrimaryId = isValidPrimaryId;
 
 var validator = require('validator');
 var util      = require('util');
-var error     = require('./error');
 var yi        = require('yi');
 
 var Messages = {

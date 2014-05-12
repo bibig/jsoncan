@@ -19,7 +19,6 @@ exports.localQuery             = localQuery;
 exports.arrayToMap             = arrayToMap;
 
 var Xun   = require('xun');
-var error = require('./error');
 var async = require('async');
 var fs    = require('fs');
 var yi    = require('yi');
@@ -37,7 +36,7 @@ function findSync (_id) {
 }
 
 function findBy (name, value, callback) {
-  this.checkUniqueField(name);
+  this.schemas.checkUniqueField(name);
 
   if (yi.isEmpty(name, value)) { return callback(); }
 
@@ -45,7 +44,7 @@ function findBy (name, value, callback) {
 }
 
 function findBySync (name, value) {
-  this.checkUniqueField(name);
+  this.schemas.checkUniqueField(name);
 
   if (yi.isEmpty(name, value)) { return null; }
 

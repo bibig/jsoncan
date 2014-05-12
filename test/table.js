@@ -515,7 +515,7 @@ describe('test table.js', function () {
       can.open('none-exist');
     } catch (err) {
       should.exist(err);
-      should(err.code).eql(1102);
+      should(err.code).eql(2000);
     }
   });
   

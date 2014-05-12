@@ -4,6 +4,10 @@ var fs    = require('fs');
 var path  = require('path');
 var async = require('async');
 var Xun   = require('xun');
+var myna  = require('myna')({
+  900: 'Cannot build the jsoncan data path [%s]',
+  901: 'invalid string param: %s in creating table unique file',
+});
 
 var Conn = function (path) {
   this.PATH = path;
@@ -13,11 +17,13 @@ var Conn = function (path) {
 function create (_path) {
 
   if (!fs.existsSync(_path)) {
+
     try {
       fs.mkdirSync(_path);
     } catch (e) {
-      throw new Error('Cannot build the jsoncan data path [' + _path + ']');
+      throw myna.speak(900, _path);
     }
+
   }
 
   return new Conn(_path);
@@ -587,7 +593,7 @@ function _encrypt (s) {
     s = s + '';
     return require('crypto').createHash('sha1').update(s).digest('hex');
   } else {
-    throw new Error('invalid string param:' + s);
+    throw myna.speak(901, s);
   }
 
 }

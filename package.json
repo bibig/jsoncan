@@ -27,7 +27,8 @@
     "inflection" : "*",
     "eventchain" : "*",
     "yi"         : "^0.0.4",
-    "xun"        : "^0.0.1"
+    "xun"        : "^0.0.1",
+    "myna"       : "^0.0.1"
   },
   "devDependencies": {
     "mocha"  : "*",

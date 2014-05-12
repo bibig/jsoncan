@@ -1,7 +1,6 @@
 exports.create = create;
 
 var yi       = require('yi');
-var error    = require('./error');
 var rander   = require('rander');
 var safepass = require('safepass');
 /*
@@ -81,6 +80,14 @@ var ValidTypes = [
   'object' // array, hash, function ....
 ];
 
+var myna = require('Myna')({
+  //schemas
+  // 1000: 'Invalid schema element <%s> found in field <%s>.',
+  1001: 'Missing basic schema element <%s> in field <%s>.',
+  1002: 'Invalid field\'s type <%s> found in field <%s>.',
+  1003: 'Undefined field <%s>',
+  1004: '<%s> is not an unique field, cannot use findBy feature.'
+});
 
 var Schemas = function (fields) {
   fields._id = {
@@ -97,6 +104,27 @@ function create (fields) {
   // console.log(fields);
   return new Schemas(fields);
 }
+
+
+//-------------------error check functions-------------------
+//
+Schemas.prototype.checkField = function (name) {
+  
+  if ( ! this.isField(name)) {
+    throw myna.speak(1003, name);
+  }
+
+};
+
+Schemas.prototype.checkUniqueField = function (name) {
+  this.checkField(name);
+
+  if ( ! this.isUnique(name)) { 
+    throw myna.speak(1004, name); 
+  }
+
+};
+
 
 Schemas.prototype.getFieldType = function (name) { 
   return this.fields[name].type; 
@@ -713,13 +741,13 @@ function checkField (name, field) {
   RequiredKeys.forEach(function (key) {
   
     if (field[key] === undefined) {
-      throw error(1001, key, name);
+      throw myna.speak(1001, key, name);
     }
 
   });
   
   if (!isValidType(field.type)) {
-    throw error(1002, field.type, name);
+    throw myna.speak(1002, field.type, name);
   }
   
 }

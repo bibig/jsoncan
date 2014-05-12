@@ -4,7 +4,6 @@ var fs         = require('fs');
 var rander     = require('rander');
 var async      = require('async');
 var Schemas    = require('./schemas');
-var error      = require('./error');
 var Validator  = require('./validator');
 var safepass   = require('safepass');
 var yi         = require('yi');
@@ -14,6 +13,14 @@ var Model      = require('./table_model');
 var Finder     = require('./table_finder');
 var Ref        = require('./table_reference');
 var Eventchain = require('eventchain');
+
+var myna       = require('Myna')({
+  2000: 'Undefined table <%s>',
+  2001: 'Duplicated value found <%s> in unique field <%s>.',
+  2100: 'invalid data found, save failed!',
+  2199: 'no data found, find by <%s=%s>'
+});
+
 
 var Table = function (conn, table, schemas, validator) {
   // this.id = rander.string(8);
@@ -45,7 +52,7 @@ function create (conn, table) {
 
 
   if ( ! tableSchemas ) {
-    throw error(1102, table);
+    throw myna.speak(2000, table);
   }
 
   schemas   = Schemas.create(tableSchemas);
@@ -59,6 +66,42 @@ function create (conn, table) {
   
   return new Table(conn, table, schemas, validator);
 }
+
+//-------------------myna.speak check functions-------------------
+
+Table.prototype.checkTable = function (name) {
+
+  if ( ! this.conn.tables[name]) {
+    throw myna.speak(2000, name);
+  }
+
+};
+
+Table.prototype.checkReference = function (table, name) {
+  
+  this.checkTable(table);
+  this.schemas.checkField(name);
+
+};
+
+
+/**
+ * 检查unique字段值的唯一性
+ * @name: 字段名
+ * @value: 值
+ * @throw: 2001
+ */
+Table.prototype.checkUniqueFieldValue = function (name, value, isReturn) {
+  var linkFile = this.conn.getTableUniqueFile(this.table, name, value);
+  
+  if (isReturn) {
+    return ! fs.existsSync(linkFile);
+  } else if (fs.existsSync(linkFile)) {
+    throw myna.speak(2001, value, name);
+  }
+};
+
+//-------------------end check functions-------------------
 
 Table.prototype.getFields = function () { 
   return this.schemas.fields; 
@@ -184,7 +227,7 @@ Table.prototype.update = function (_id, data, callback) {
     if (e) {
       callback(e);
     } else if (!record) {
-      callback(error(1400, '_id', _id));
+      callback(myna.speak(2199, '_id', _id));
     } else {
       self.updateRecord(record, data, callback);
     }
@@ -201,7 +244,7 @@ Table.prototype.updateBy = function (field, value, data, callback) {
     if (err) {
       callback(err);
     } else if (!record) {
-      callback(error(1400, field, value));
+      callback(myna.speak(2199, field, value));
     } else {
       self.updateRecord(record, data, callback);
     }
@@ -334,7 +377,7 @@ Table.prototype.updateBySync = function (field, value, data) {
   var record = this.findBy(field, value).execSync();
   
   if (!record) {
-    throw error(1400, field, value);
+    throw myna.speak(2199, field, value);
   }
 
   return this.updateRecordSync(record, data);
@@ -539,60 +582,9 @@ Table.prototype.checkFields = function (names) {
   }
   
   names.forEach(function (name) {
-    self.checkField(name);
+    self.schemas.checkField(name);
   });
 
-};
-
-Table.prototype.checkTable = function (name) {
-
-  if ( ! this.conn.tables[name]) {
-    throw error(1005, name);
-  }
-
-};
-
-Table.prototype.checkField = function (name) {
-  
-  if ( ! this.schemas.isField(name)) {
-    throw error(1003, name);
-  }
-
-};
-
-Table.prototype.checkUniqueField = function (name) {
-  this.checkField(name);
-
-  if ( ! this.schemas.isUnique(name)) { 
-    throw error(1004, name); 
-  }
-
-};
-
-Table.prototype.checkReference = function (table, name) {
-  
-  if (this.conn.tables[table] && this.schemas.isField(name)) {
-    return true;
-  }
-
-  throw error(1006, name);
-};
-
-
-/**
- * 检查unique字段值的唯一性
- * @name: 字段名
- * @value: 值
- * @throw: 1100, 1101
- */
-Table.prototype.checkUniqueFieldValue = function (name, value, isReturn) {
-  var linkFile = this.conn.getTableUniqueFile(this.table, name, value);
-  
-  if (isReturn) {
-    return ! fs.existsSync(linkFile);
-  } else if (fs.existsSync(linkFile)) {
-    throw error(1101, value, name);
-  }
 };
 
 
@@ -610,7 +602,7 @@ Table.prototype.validate = function (data, changedFields) {
  * 保存数据
  * @data: 要保存的数据
  * @callback(err, data or invalid messages)
- *  error 1300 表示数据校验失败
+ *  myna.speak 2100 表示数据校验失败
  */
 Table.prototype.save = function (data, callback, changedFields) {
   var e;
@@ -622,7 +614,7 @@ Table.prototype.save = function (data, callback, changedFields) {
     data = this.schemas.convertEachField(data, changedFields);
     this.conn.save(this.table, data._id, data, callback);
   } else {
-    e = error(1300); 
+    e = myna.speak(2100); 
     e.invalidMessages = check.getMessages();
     e.invalid = true;
     callback(e);
@@ -633,7 +625,7 @@ Table.prototype.save = function (data, callback, changedFields) {
 /**
  * 同步保存数据
  * @data: 要保存的数据
- * @throw error 1300 表示数据校验失败
+ * @throw myna.speak 2100 表示数据校验失败
  */
 Table.prototype.saveSync = function (data, changedFields) {
   var check = this.validate(data, changedFields);
@@ -643,10 +635,10 @@ Table.prototype.saveSync = function (data, changedFields) {
     data = this.schemas.convertEachField(data, changedFields);
     return this.conn.saveSync(this.table, data._id, data); 
   } else {
-    e = error(1300); 
+    e = myna.speak(2100); 
     e.invalidMessages = check.getMessages();
     e.invalid = true;
-    // console.error(e);
+    // console.myna.speak(e);
     throw e;
   }
 
