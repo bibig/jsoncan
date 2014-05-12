@@ -1,3 +1,4 @@
+var yi = require('yi');
 var Conn = require('./libs/connect');
 var Table = require('./libs/table');
 
@@ -7,17 +8,21 @@ exports = module.exports = function (path, tableSchemas, validateMessages) {
   this.conn.tables           = tableSchemas || {}; // all tables' definition!
   
   this.capsule = this.table = this.open = function (name, fields) {
-    if (fields) {
+    
+    if (yi.isNotEmpty(fields) && yi.isPlainObject(fields)) {
       this.conn.tables[name] = fields;
     }
+
     return Table.create(this.conn, name);
   };
   
   this.refresh = function () {
     var _this = this;
-    Object.keys(this.conn.tables).forEach(function (name) {
+
+    yi.forEach(this.conn.tables, function (name) {
       _this.table(name).refresh();
     });
+
   };
 
 };

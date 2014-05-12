@@ -69,6 +69,7 @@ describe('test table.js', function () {
   };
   var PATH = path.join(__dirname, '_data');
   var tableName = 'user';
+  var can;
   var Table;
   
   var people1 = {
@@ -97,7 +98,7 @@ describe('test table.js', function () {
   });
   
   it('create a Table Object', function () {
-    var can = new Jsoncan(PATH);
+    can = new Jsoncan(PATH);
     
     Table = can.open(tableName, fields);
     assert.ok(typeof Table == 'object');
@@ -506,6 +507,15 @@ describe('test table.js', function () {
       should.exist(err);
       assert.equal(err.code, 1004);
       done();
+    }
+  });
+
+  it('test open undefined table', function () {
+    try {
+      can.open('none-exist');
+    } catch (err) {
+      should.exist(err);
+      should(err.code).eql(1102);
     }
   });
   

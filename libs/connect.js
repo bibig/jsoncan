@@ -371,7 +371,7 @@ Conn.prototype.queryAll = function (table, ids, options, callback) {
           callback();
         } else  {
        
-          if (Query.checkHash(record, filters)) {
+          if (Query.isMatch(record, filters)) {
        
             if (skip > 0) {
               skip--;
@@ -419,7 +419,7 @@ Conn.prototype.queryAllSync = function (table, ids, options) {
     
     if (!record) { continue; }
     
-    if (Query.checkHash(record, filters)) {
+    if (Query.isMatch(record, filters)) {
     
       if (skip > 0) {
         skip--;

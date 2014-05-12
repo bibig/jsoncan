@@ -39,8 +39,17 @@ var Table = function (conn, table, schemas, validator) {
  * @return Object
  */
 function create (conn, table) {
-  var schemas   = Schemas.create(conn.tables[table]);
-  var validator = Validator.create(schemas, conn.validateMessages);
+
+  var schemas, validator;
+  var tableSchemas = conn.tables[table];
+
+
+  if ( ! tableSchemas ) {
+    throw error(1102, table);
+  }
+
+  schemas   = Schemas.create(tableSchemas);
+  validator = Validator.create(schemas, conn.validateMessages);
   // build table root path and unique fields paths
   conn.createTablePaths(table, schemas.getUniqueFields());
   
@@ -267,10 +276,10 @@ Table.prototype.updateRecord = function (record, data, callback) {
 };
 
 /** 
- * _update sync version
+ * updateRecord sync way
  */ 
 Table.prototype.updateRecordSync = function (record, _data) {
-  var data = this.schemas.filterData(_data);
+  var data          = this.schemas.filterData(_data);
   var changedFields = this.schemas.getChangedFields(data, record);
   var safe;
   
@@ -368,7 +377,7 @@ Table.prototype.updateAll = function (options, data, callback) {
 };
 
 Table.prototype.updateAllSync = function (options, data) {
-  var self = this;
+  var self    = this;
   var results = [];
   var records = this.query(options).execSync();
 
@@ -479,7 +488,6 @@ Table.prototype.removeAll = function (options, callback) {
     
     records.forEach(function (record) {
       tasks.push(function (callback) {
-        // libs.remove.call(self, record, callback);
         self.removeRecord(record, callback);
       });
     });
@@ -520,7 +528,7 @@ Table.prototype.removeAllSync = function (options, callback) {
 Table.prototype.checkFields = function (names) {
   var self = this;
 
-  if (!Array.isArray(names)) {
+  if ( ! Array.isArray(names)) {
 
     if (typeof names == 'object') {
       names = Object.keys(names);
@@ -538,7 +546,7 @@ Table.prototype.checkFields = function (names) {
 
 Table.prototype.checkTable = function (name) {
 
-  if (!this.conn.tables[name]) {
+  if ( ! this.conn.tables[name]) {
     throw error(1005, name);
   }
 
@@ -546,7 +554,7 @@ Table.prototype.checkTable = function (name) {
 
 Table.prototype.checkField = function (name) {
   
-  if (!this.schemas.isField(name)) {
+  if ( ! this.schemas.isField(name)) {
     throw error(1003, name);
   }
 
@@ -555,7 +563,7 @@ Table.prototype.checkField = function (name) {
 Table.prototype.checkUniqueField = function (name) {
   this.checkField(name);
 
-  if (!this.schemas.isUnique(name)) { 
+  if ( ! this.schemas.isUnique(name)) { 
     throw error(1004, name); 
   }
 
@@ -581,7 +589,7 @@ Table.prototype.checkUniqueFieldValue = function (name, value, isReturn) {
   var linkFile = this.conn.getTableUniqueFile(this.table, name, value);
   
   if (isReturn) {
-    return !fs.existsSync(linkFile);
+    return ! fs.existsSync(linkFile);
   } else if (fs.existsSync(linkFile)) {
     throw error(1101, value, name);
   }
@@ -667,7 +675,7 @@ Table.prototype.count = function (filters, callback) {
       });
     },
     function (ids, callback) {
-      var noneIndexFilters = libs.getNoneIndexFilters.call(self, filters);
+      var noneIndexFilters    = libs.getNoneIndexFilters.call(self, filters);
       var noneIndexFilterKeys = Object.keys(noneIndexFilters);
 
       if (noneIndexFilterKeys.length > 0) {

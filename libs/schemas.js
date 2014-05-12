@@ -1,5 +1,6 @@
 exports.create = create;
 
+var yi       = require('yi');
 var error    = require('./error');
 var rander   = require('rander');
 var safepass = require('safepass');
@@ -239,7 +240,7 @@ Schemas.prototype.presentAll = function (data) {
       presentations._raw[name] = value;
     }
 
-  }, data);
+  }, Object.keys(data));
 
   return presentations;
 };
@@ -346,7 +347,7 @@ Schemas.prototype.forEachField = function (callback, fields, filter) {
 
   if (Array.isArray(fields)) {
     targets = fields;
-  } else if ( fields && typeof fields == 'object') {
+  } else if ( fields && yi.isPlainObject(fields) ) {
     targets = Object.keys(fields);
   } else {
     targets = Object.keys(this.fields);
@@ -365,6 +366,7 @@ Schemas.prototype.forEachField = function (callback, fields, filter) {
 
     callback(name, field, self);
   });
+
 };
 
 Schemas.prototype.forEachUniqueField = function (callback, fields) {
@@ -394,7 +396,7 @@ Schemas.prototype.clearFakeFields = function (data) {
 
   this.forEachField(function (name, field, self) {
     noFake[name] = data[name];
-  }, data, function (field) {
+  }, Object.keys(data), function (field) {
     return ! (field.isFake || field.fake);
   });
   
@@ -465,7 +467,7 @@ Schemas.prototype.convertBackEachField = function (data) {
 
   this.forEachField(function (name, field, self) {
     data[name] = self.convertBack(field, data[name]);
-  }, data);
+  }, Object.keys(data));
 
   return data;
 };
@@ -665,7 +667,7 @@ Schemas.prototype.getChangedFields = function (data, record) {
       fields.push(name);
     }
 
-  }, data);
+  }, Object.keys(data));
 
   return fields;
 };

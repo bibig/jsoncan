@@ -8,9 +8,10 @@
  */
 
 exports.create               = create;
-exports.compare              = compare;
-exports.checkHash            = checkHash;
-exports.parseSelectArguments = parseSelectArguments;
+// exports.compare              = compare;
+exports.isMatch              = isMatch;
+// exports.checkHash            = isMatch;
+// exports.parseSelectArguments = parseSelectArguments;
 
 var util = require('util');
 var error = require('./error');
@@ -22,29 +23,53 @@ var error = require('./error');
  * @return Object
  */
 function create (records) {
-  return {
-    fields  : null,
-    records : records,
-    isEmpty : isEmpty,
-    select  : select,
-    key     : key,
-    skip    : skip,
-    limit   : limit,
-    where   : where,
-    order   : order,
-    count   : count,
-    sum     : sum,
-    average : average,
-    filter  : filter
-  };
+  return new Query(records);
+}
+
+function isMatch (hash, options) {
+  var keys = Object.keys(options  || {});
+
+  function _isMatch (value, options) {
+    var operator, compareValue;
+    
+    if (Array.isArray(options)) {
+      operator = options[0];
+      compareValue = options[1];
+    } else {
+      operator = '=';
+      compareValue = options;
+    }
+    // console.log('%s %s %s', value, operator, compareValue);
+    return compare(value, operator, compareValue);
+  }
+
+
+  for (var i = 0; i < keys.length; i++) {
+  
+    if ( ! _isMatch(hash[keys[i]], options[keys[i]])) {
+      return false;
+    }
+
+  }
+
+  return true;  
+}
+
+//-----------------------begin----------------------------
+//////////////////
+// Query construction //
+//////////////////
+
+function Query (records) {
+  this.records = records;
 }
 
 // 是否有记录存在
-function isEmpty () {
+Query.prototype.isEmpty = function () {
   return this.records.length > 0;
-}
+};
 
-function key (name) {
+Query.prototype.key = function (name) {
   var list = [];
 
   this.records.forEach(function (record) {
@@ -64,14 +89,14 @@ function key (name) {
  *  3. select(id, name, age)
  *  4. selelct(['id', 'name', 'age'])
  */
-function select (/*fields*/) {
+Query.prototype.select = function (/*fields*/) {
   var fields = parseSelectArguments.apply(this, arguments);
   
   if (!fields) {
     return this.records;
   }
   
-  if (util.isArray(fields)) {
+  if (Array.isArray(fields)) {
     this.fields = fields;
     return _select(this.records, fields);
   } else {
@@ -95,40 +120,40 @@ function select (/*fields*/) {
   }
   
   return this.records;
-}
+};
 
 /**
  * 求和
  * @field: 字段名
  * @return this
  */
-function sum (field) {
-  var _sum = 0;
+Query.prototype.sum = function (field) {
+  var s = 0;
 
   this.records.forEach(function (record) {
-      _sum += record[field] || 0;
+      s += record[field] || 0;
   });
   
-  return _sum;
-}
+  return s;
+};
 
 /**
  * 返回记录数
  */
-function count () {
+Query.prototype.count = function () {
   return this.records.length;
-}
+};
 
 /**
  * 求平均数
  * @field: 字段名
  * @return this
  */
-function average (field) {
-  var _sum = this.sum(field);
+Query.prototype.average = function (field) {
+  var s = this.sum(field);
 
-  return _sum / this.records.length;
-}
+  return s / this.records.length;
+};
 
 
 /**
@@ -136,7 +161,7 @@ function average (field) {
  * @n: 个数
  * @return this
  */
-function limit (n) {
+Query.prototype.limit = function (n) {
   var list = [];
   var max  = this.records.length;
   
@@ -151,7 +176,7 @@ function limit (n) {
   this.records = list;
   
   return this;
-}
+};
 
 /**
  * 跳跃指定数目的记录
@@ -159,7 +184,7 @@ function limit (n) {
  * @return this
  */
 
-function skip (n) {
+Query.prototype.skip = function (n) {
   var list = [];
   var max = this.records.length;
   
@@ -174,7 +199,7 @@ function skip (n) {
   this.records = list;
 
   return this;
-}
+};
 
 /**
  * 排序
@@ -182,7 +207,7 @@ function skip (n) {
  * @isDescend: 是否倒序
  * @return this
  */
-function order (field, isDescend) {
+Query.prototype.order = function (field, isDescend) {
 
   if (this.records.length > 0) {
 
@@ -203,7 +228,7 @@ function order (field, isDescend) {
   }
 
   return this;
-}
+};
 
 /**
  * 比较值是否符合要求
@@ -219,7 +244,7 @@ function order (field, isDescend) {
  * @field: 要进行比较的字段名
  * @return records 符合要求的记录列表
  */
-function where (field/*, operator, value|values*/) {
+Query.prototype.where = function (field/*, operator, value|values*/) {
   var operator, value;
   var list = [];
   
@@ -252,37 +277,9 @@ function where (field/*, operator, value|values*/) {
   this.records = list;
 
   return this;
-}
+};
 
-function checkValue (value, options) {
-  var operator, compareValue;
-  
-  if (Array.isArray(options)) {
-    operator = options[0];
-    compareValue = options[1];
-  } else {
-    operator = '=';
-    compareValue = options;
-  }
-  // console.log('%s %s %s', value, operator, compareValue);
-  return compare(value, operator, compareValue);
-}
-
-function checkHash (hash, options) {
-  var keys = Object.keys(options  || {});
-
-  for (var i = 0; i < keys.length; i++) {
-  
-    if ( ! checkValue(hash[keys[i]], options[keys[i]])) {
-      return false;
-    }
-
-  }
-
-  return true;  
-}
-
-function filter (options) {
+Query.prototype.filter = function (options) {
   var _this = this;
   var keys = Object.keys(options  || {});
   
@@ -303,7 +300,9 @@ function filter (options) {
   });
 
   return _this;  
-}
+};
+
+//-----------------------over----------------------------
 
 /**
  * 比较值是否符合要求
@@ -355,7 +354,7 @@ function compare (fieldValue, operator, value) {
       if (util.isRegExp(value)) {
         return value.test(fieldValue);  
       } else {
-        throw error(1201, value);
+        throw new Error('Invalid regex object: [' + value + '] in query.');
       }
 
       break;
@@ -378,10 +377,9 @@ function compare (fieldValue, operator, value) {
         return index > -1;
       }
       
-      throw error(1202, value);
-
+      throw new Error('Invalid query value: [' + value + '] in <like> query, only support:[%key, key%, %key%].');
     default:
-      throw error(1200, operator);
+      throw new Error('Unsupported operator: [' + operator + '] in query.');
   }
 }
 
@@ -403,12 +401,7 @@ function parseSelectArguments () {
   
   if (typeof fields == 'string') {
     fields = fields.replace(/[\s]/g, '');
-
-    if (fields.indexOf(',') > -1) { // 支持select('id, name, age');
-      fields = fields.split(',');
-    } else {
-      fields = [fields];
-    }
+    fields = fields.split(','); // 支持select('id, name, age');
   }
   
   return fields;

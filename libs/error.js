@@ -1,6 +1,4 @@
-/**
- * Expose `createError()`
- */
+
 exports = module.exports = createError;
 
 var util = require('util');
@@ -17,6 +15,7 @@ var Messages = {
   // table
   1100: 'Unique field <%s> should have a value.',
   1101: 'Duplicated value found <%s> in unique field <%s>.',
+  1102: 'Undefined table <%s> found.',
   
   // query
   1200: 'Invalid operator <%s> in query.',

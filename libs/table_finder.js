@@ -5,7 +5,6 @@ exports.findBy = findBy;
 var async = require('async');
 var libs  = require('./table_libs');
 var Ref   = require('./table_reference');
-var Query = require('./query');
 var yi    = require('yi');
 
 
@@ -71,12 +70,36 @@ function create () {
     return selectFilter.call(this, record);
   }  
 
+  function parseSelectArguments () {
+    var fields = [];
+
+    if (arguments.length > 1) {
+
+      for (var i = 0; i < arguments.length; i++) {
+        fields.push(arguments[i]);
+      }
+
+    } else if (arguments.length == 1) {
+      fields = arguments[0];
+    } else {
+      // return this.records;
+      return null;
+    }
+    
+    if (typeof fields == 'string') {
+      fields = fields.replace(/[\s]/g, '');
+      fields = fields.split(','); // 支持select('id, name, age');
+    }
+    
+    return fields;
+  }
+
   function selectFilter (record) {
     var fields;
    
     if ( !record ) return record;
     
-    fields = Query.parseSelectArguments.call(this, this.options.select);
+    fields = parseSelectArguments(this.options.select);
     parent.schemas.convertBackEachField(record);
     // parent.schemas.addDefaultValues(record, fields);
     // console.log(fields);
@@ -97,17 +120,17 @@ function create () {
   }
 
   return {
-    references: [],
     options: {
-      select: null,
-      isFormat: false
+      select   : null,
+      isFormat : false
     },
-    select: function () { return Ref.select.apply(this, arguments); },
-    format: function () { return Ref.format.apply(this); },
-    belongsTo: belongsTo,
-    hasMany: function (table, options) { return Ref.hasMany.apply(this, [parent, table, options]); },
-    ref: belongsTo, // alias
-    exec: exec,
-    execSync: execSync
+    references : [],
+    select     : function () { return Ref.select.apply(this, arguments); },
+    format     : function () { return Ref.format.apply(this); },
+    belongsTo  : belongsTo,
+    hasMany    : function (table, options) { return Ref.hasMany.apply(this, [parent, table, options]); },
+    ref        : belongsTo, // alias
+    exec       : exec,
+    execSync   : execSync
   };
 } // end of find
