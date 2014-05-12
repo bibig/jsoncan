@@ -1,10 +1,10 @@
 {
-  "author": "Bibig <bibig@me.com> (https://twitter.com/bibig)",
-  "name": "jsoncan",
-  "version": "1.1.12",
-  "description": "an agile json based database engine",
-  "preferGlobal": "true",
-  "main": "index.js",
+  "author"       : "Bibig <bibig@me.com> (https://twitter.com/bibig)",
+  "name"         : "jsoncan",
+  "version"      : "1.1.12",
+  "description"  : "an agile json based database engine",
+  "preferGlobal" : "true",
+  "main"         : "index.js",
   "keywords": [
     "json",
     "db",
@@ -12,27 +12,28 @@
     "database"
   ],
   "repository": {
-    "type": "git",
-    "url": "https://github.com/bibig/node-jsoncan.git"
+    "type" : "git",
+    "url"  : "https://github.com/bibig/node-jsoncan.git"
   },
   "scripts": {
     "test": "mocha -w"
   },
   "license": "BSD-2-Clause",
   "dependencies": {
-    "validator": "3.3.0",
-    "rander": "*",
-    "async": "*",
-    "safepass": "*",
-    "inflection": "*",
-    "eventchain": "*",
-    "yi": "^0.0.4"
+    "validator"  : "3.3.0",
+    "rander"     : "*",
+    "async"      : "*",
+    "safepass"   : "*",
+    "inflection" : "*",
+    "eventchain" : "*",
+    "yi"         : "^0.0.4",
+    "xun"        : "^0.0.1"
   },
   "devDependencies": {
-    "mocha": "*",
-    "should": "*",
-    "assert": "*",
-    "faker": "*"
+    "mocha"  : "*",
+    "should" : "*",
+    "assert" : "*",
+    "faker"  : "*"
   },
   "engines": {
     "node": "*"

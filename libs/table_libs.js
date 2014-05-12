@@ -18,11 +18,11 @@ exports.makeConnQueryOptions   = makeConnQueryOptions;
 exports.localQuery             = localQuery;
 exports.arrayToMap             = arrayToMap;
 
-var Query     = require('./query');
-var error     = require('./error');
-var async     = require('async');
-var fs        = require('fs');
-var yi        = require('yi');
+var Xun   = require('xun');
+var error = require('./error');
+var async = require('async');
+var fs    = require('fs');
+var yi    = require('yi');
 
 function find (_id, callback) { 
   if (yi.isEmpty(_id)) { return callback(); }
@@ -230,13 +230,13 @@ function getConnQueryIndexKeys (usedIndexKeys) {
 function getIdsFromIndexRecords (records, options) {
   var indexFilters = getIndexFilters.call(this, options.filters);
   var indexOrders  = getIndexOrders.call(this, options.orders);
-  var query        = Query.create(records).filter(indexFilters);
+  var xun        = Xun.create(records).filter(indexFilters);
   // using index orders
   Object.keys(indexOrders).forEach(function (name) {
-    query.order(name, indexOrders[name]);
+    xun.order(name, indexOrders[name]);
   });
   
-  return query.key('_id');
+  return xun.key('_id');
 }
 
 function makeConnQueryOptions (options) {
@@ -256,7 +256,7 @@ function makeConnQueryOptions (options) {
 function localQuery (records, options) {
   var noneIndexOrders, noneIndexOrdersKeys;
   var self = this;
-  var query, fields;
+  var xun, fields;
   
   if ( ! Array.isArray(records) ) { return []; }
 
@@ -266,33 +266,33 @@ function localQuery (records, options) {
   noneIndexOrdersKeys = Object.keys(noneIndexOrders);
 
   if (noneIndexOrdersKeys.length > 0) {
-    query = Query.create(records);
+    xun = Xun.create(records);
     noneIndexOrdersKeys.forEach(function (name) {
-      query = query.order(name, noneIndexOrders[name]);
+      xun = xun.order(name, noneIndexOrders[name]);
     });
     
     if (options.skip) {
-      query = query.skip(options.skip);
+      xun = xun.skip(options.skip);
     }
     
     if (options.limit) {
-      query = query.limit(options.limit);
+      xun = xun.limit(options.limit);
     }
     
-    records = query.select();
+    records = xun.select();
   }
   
   if (options.select) {
 
-    if (!query) {
-      query = Query.create(records);
+    if (!xun) {
+      xun = Xun.create(records);
     }
-    records = query.select(options.select);
+    records = xun.select(options.select);
 
   }
   
-  if (query) {
-    fields = query.fields;
+  if (xun) {
+    fields = xun.fields;
   }
   
   // should keep the value type integrated with the schemas definition.

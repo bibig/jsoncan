@@ -3,7 +3,7 @@ exports.create = create;
 var fs    = require('fs');
 var path  = require('path');
 var async = require('async');
-var Query = require('./query');
+var Xun   = require('xun');
 
 var Conn = function (path) {
   this.PATH = path;
@@ -371,7 +371,7 @@ Conn.prototype.queryAll = function (table, ids, options, callback) {
           callback();
         } else  {
        
-          if (Query.isMatch(record, filters)) {
+          if (Xun.isMatch(record, filters)) {
        
             if (skip > 0) {
               skip--;
@@ -419,7 +419,7 @@ Conn.prototype.queryAllSync = function (table, ids, options) {
     
     if (!record) { continue; }
     
-    if (Query.isMatch(record, filters)) {
+    if (Xun.isMatch(record, filters)) {
     
       if (skip > 0) {
         skip--;
