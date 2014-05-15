@@ -26,9 +26,9 @@
     "safepass"   : "*",
     "inflection" : "*",
     "eventchain" : "*",
-    "yi"         : "^0.0.4",
-    "xun"        : "^0.0.1",
-    "myna"       : "^0.0.1"
+    "yi"         : "*",
+    "xun"        : "*",
+    "myna"       : "*"
   },
   "devDependencies": {
     "mocha"  : "*",
