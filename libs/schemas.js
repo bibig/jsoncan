@@ -80,7 +80,7 @@ var ValidTypes = [
   'object' // array, hash, function ....
 ];
 
-var myna = require('Myna')({
+var myna = require('myna')({
   //schemas
   // 1000: 'Invalid schema element <%s> found in field <%s>.',
   1001: 'Missing basic schema element <%s> in field <%s>.',

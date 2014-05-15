@@ -14,7 +14,7 @@ var Finder     = require('./table_finder');
 var Ref        = require('./table_reference');
 var Eventchain = require('eventchain');
 
-var myna       = require('Myna')({
+var myna       = require('myna')({
   2000: 'Undefined table <%s>',
   2001: 'Duplicated value found <%s> in unique field <%s>.',
   2100: 'invalid data found, save failed!',
