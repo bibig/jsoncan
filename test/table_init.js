@@ -3,7 +3,7 @@ var assert = require('assert');
 var utils = require('./utils');
 var Jsoncan = require('../index');
 var path = require('path');
-var PATH = path.join(__dirname, '_table_init_test');
+var PATH = path.join(__dirname, 'table_init_test');
 var fs = require('fs');
 
 describe('[init status]', function () {

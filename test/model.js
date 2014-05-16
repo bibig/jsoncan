@@ -6,7 +6,7 @@ var fs = require('fs');
 var utils = require('./utils');
 
 describe('test model way', function () {
-  var PATH = path.join(__dirname, '_data');
+  var PATH = path.join(__dirname, 'model_test');
   var fields = {
     id: {
       text: 'user id',

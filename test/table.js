@@ -67,7 +67,7 @@ describe('test table.js', function () {
       },
     }
   };
-  var PATH = path.join(__dirname, '_data');
+  var PATH = path.join(__dirname, 'table_basic_test');
   var tableName = 'user';
   var can;
   var Table;

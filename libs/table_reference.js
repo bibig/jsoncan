@@ -83,12 +83,14 @@ function populateRecordSync (parent, record) {
   
   this.references.forEach(function (ref) {
     var cache, _id;
+
     if (ref.type == 'hasMany') {
       record[ref.table] = parent.findAllHasManySync(record._id, ref);
     } else if (ref.type == 'belongsTo') {
       _id = record[ref.on];
       record[ref.on] = parent.findInOtherTableSync(_id, ref.table);
     } // end of else if
+
   }); // end of forEach
   
   return record;
@@ -109,29 +111,35 @@ function populateRecord (parent, record, callback) {
       case 'hasMany':
         tasks.push(function (callback) {
           parent.findAllHasMany(record._id, ref, function (e, sons) {
+            
             if (e) { callback(e); } else {
               // console.log(sons);
               record[ref.table] = sons;
               // console.log(record);
               callback();
             }
+
           });
         });
         break;
       case 'belongsTo':
         tasks.push(function (callback) {
           var _id = record[ref.on];
+          
           if (_id) {
             parent.findInOtherTable(_id, ref.table, function (e, father) {
+              
               if (e) { callback(e); } else {
                 record[ref.on] = father;
                 callback();
               }
+              
             });
           } else {
             record[ref.on] = null;
             callback();
           }
+
         }); // end of push
         break;
     }

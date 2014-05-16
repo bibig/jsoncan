@@ -86,7 +86,8 @@ var myna = require('myna')({
   1001: 'Missing basic schema element <%s> in field <%s>.',
   1002: 'Invalid field\'s type <%s> found in field <%s>.',
   1003: 'Undefined field <%s>',
-  1004: '<%s> is not an unique field, cannot use findBy feature.'
+  1004: '<%s> is not an unique field, cannot use findBy feature.',
+  1005: 'Invalid event <%s>'
 });
 
 var Schemas = function (fields) {
@@ -105,9 +106,23 @@ function create (fields) {
   return new Schemas(fields);
 }
 
+function checkFields (fields) {
 
-//-------------------error check functions-------------------
-//
+  yi.forEach(fields, function (name, field) {
+    
+    if (isFieldName(name)) {
+      checkField(name, field);  
+    }
+
+    if (isEventName(name)) {
+      checkEvent(name, field);
+    }
+
+  });
+}
+
+//-------------------Schemas.prototype define-------------------
+
 Schemas.prototype.checkField = function (name) {
   
   if ( ! this.isField(name)) {
@@ -170,12 +185,27 @@ Schemas.prototype.getField = function (v) {
 
 Schemas.prototype.getReference = function (name) {
   var field = this.getField(name);
-  // console.log(field.ref);
+  
   return field.ref;
 };
 
+Schemas.prototype.getEvent = function (name) {
+  var fn = this.getField('$' + name);
+  
+  if (typeof fn === 'function') {
+    return fn;
+  }
+
+  return null;
+};
+
 Schemas.prototype.isField = function (name) {
-  return typeof this.fields[name] !== 'undefined';
+
+  if (isFieldName(name)) {
+    return yi.isNotEmpty(this.fields[name]);
+  }
+
+  return false;
 };
 
 // notice: auto increment fields are unique too.
@@ -382,9 +412,11 @@ Schemas.prototype.forEachField = function (callback, fields, filter) {
   }
   
   targets.forEach(function (name) {
-    var field = self.fields[name];
+    var field;
 
-    if (typeof field === 'undefined') return;
+    if ( ! self.isField(name) ) { return; }
+    
+    field = self.fields[name];
 
     if (typeof filter === 'function') {
 
@@ -722,19 +754,44 @@ Schemas.prototype.getRealUpdateData = function (data, record) {
   return this.addValues(target);
 };
 
+Schemas.prototype.isValidType = function (type) {
+  return isValidType(type);
+};
+
+//-----------------static functions-------------------------------
+
 function isValidType (type) {
   return ValidTypes.indexOf(type) > -1;
 }
 
-function checkFields (fields) {
-  
-  Object.keys(fields).forEach(function (name) {
-    checkField(name, fields[name]);
-  });
 
+function isFieldName (name) {
+
+  if (typeof name === 'string' && yi.isNotEmpty(name)) {
+    
+    if (name[0] !== '$') { return true; }
+
+  }
+
+  return false;
 }
 
-Schemas.prototype.isValidType = isValidType;
+function isEventName (name) {
+
+  if (typeof name === 'string' && yi.isNotEmpty(name)) {
+    
+    if (name[0] === '$') { return true; }
+
+  }
+
+  return false;
+}
+
+function checkEvent (name, fn) {
+  if (typeof fn !== 'function') {
+    throw myna.speak(1005, name);
+  }
+}
 
 function checkField (name, field) {  
   

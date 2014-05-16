@@ -25,7 +25,7 @@ describe('table.read feature unit test', function () {
       }
     }
   };
-  var PATH = path.join(__dirname, '_read_test_data');
+  var PATH = path.join(__dirname, 'table_format_test');
   var Table;
   
   after(function (done) {

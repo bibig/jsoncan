@@ -8,7 +8,7 @@ var utils = require('./utils');
 describe('test sync actions in table.js', function () {
   
   
-  var PATH = path.join(__dirname, '_data');
+  var PATH = path.join(__dirname, 'table_sync_test');
   var tableName = 'user';
   var fields = {
     id: {

@@ -4,7 +4,7 @@ var fs = require('fs');
 var Jsoncan = require('../index');
 var path = require('path');
 var utils = require('./utils');
-var PATH = path.join(__dirname, '_data');
+var PATH = path.join(__dirname, 'auto_increment_test');
 
 describe('test auto-increment field', function () {
   

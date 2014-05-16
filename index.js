@@ -1,5 +1,5 @@
-var yi = require('yi');
-var Conn = require('./libs/connect');
+var yi    = require('yi');
+var Conn  = require('./libs/connect');
 var Table = require('./libs/table');
 
 exports = module.exports = function (path, tableSchemas, validateMessages) {

@@ -4,7 +4,7 @@ var utils = require('./utils');
 var faker = require('faker');
 var Jsoncan = require('../index');
 var path = require('path');
-var PATH = path.join(__dirname, '_counter_test');
+var PATH = path.join(__dirname, 'table_counter_test');
 var fs = require('fs');
 
 describe('counter update test', function () {

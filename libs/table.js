@@ -151,7 +151,8 @@ Table.prototype.insert = function (_data, callback) {
       self.bindAddIndexRecordsEvents(afterInsert);
       self.bindAddIdRecordEvent(afterInsert);
       self.bindIncrementCountersEvent(afterInsert);
-      
+      self.bindCustomTriggerEvent(afterInsert, 'afterInsert');
+
       afterInsert.emit(record, function (e) {
         callback(e, record);
       });
@@ -183,6 +184,8 @@ Table.prototype.insertSync = function (data) {
   this.addIdRecordSync(data);
   
   this.incrementCountersSync(data);
+
+  this.pullCustomTriggerSync('afterInsert', data);
   
   return data;
 };
@@ -274,6 +277,8 @@ Table.prototype.updateRecord = function (record, data, callback) {
       // create temporary event to handler after-update events
       afterUpdate = Eventchain.create();
       
+      self.bindCustomTriggerEvent(afterUpdate, 'afterUpdate');
+
       // handler old record which replaced by updated data
       afterUpdate.add(function (args, next) {
         var record         = args[0];
@@ -310,7 +315,7 @@ Table.prototype.updateRecord = function (record, data, callback) {
           next(e, updatedRecord);
         });
       }); // end of add
-    
+
       afterUpdate.emit([record, updatedRecord, changedFields], callback);
     }
 
@@ -356,6 +361,8 @@ Table.prototype.updateRecordSync = function (record, _data) {
   if (this.schemas.hasCounter(changedFields)) {
     this.incrementCountersSync(safe, changedFields);
   }
+
+  this.pullCustomTriggerSync('afterUpdate', [record, safe, changedFields]);
 
   return safe;
 };
@@ -486,7 +493,8 @@ Table.prototype.removeRecord = function (record, callback) {
         self.bindRemoveIndexRecordsEvents(afterRemove);
         self.bindRemoveIdRecordEvent(afterRemove);
         self.bindDecrementCountersEvent(afterRemove);
-        
+        self.bindCustomTriggerEvent(afterRemove, 'afterRemove');
+
         afterRemove.emit(record, function (e) {
           callback(e, record);
         });
@@ -507,20 +515,23 @@ Table.prototype.removeRecordSync = function (record) {
   this.removeIndexRecordsSync(record);
   this.removeIdRecordSync(record);
   this.decrementCountersSync(record);
+  this.pullCustomTriggerSync('afterRemove', record);
 };
 
 Table.prototype.removeSync = function (_id) {
+  var record = this.finder(_id).execSync();
 
-  if (this.schemas.hasUniqueField()) {
-    this.removeRecordSync(this.finder(_id).execSync());
-  } else {
-    this.conn.removeSync(this.table, _id);
-  }
+  this.removeRecordSync(record);
 
+  return record;
 };
 
 Table.prototype.removeBySync = function (field, value, callback) {
-  this.removeRecordSync(this.finder(field, value).execSync());
+  var record = this.finder(field, value).execSync();
+  
+  this.removeRecordSync(record);
+
+  return record;
 };
 
 Table.prototype.removeAll = function (options, callback) {
@@ -1033,6 +1044,30 @@ Table.prototype.bindDecrementCountersEvent = function (event, fields) {
   this.bindUpdateCountersEvent(event, -1, fields);
 };
 
+/**
+ * [bindCustomTriggerEvent]
+ * bind custom trigger event defined in schemas. 
+ * support: afterInsert, afterUpdate, afterRemove
+ * 
+ * @author bibig@me.com
+ * @update [2014-05-16 12:03:04]
+ * @param  {object} eventchain [the instance of eventchain]
+ * @param  {string} name       [event name]
+ * @return {void}
+ */
+Table.prototype.bindCustomTriggerEvent = function (eventchain, name) {
+  var self = this;
+  var customFn = this.schemas.getEvent(name);
+
+  if ( ! customFn ) { return; }
+
+  eventchain.add(function (args, next) {
+    customFn(args);
+    next();
+  });
+
+};
+
 
 // ----------------------SYNC EVENTS---------------------------------
 
@@ -1131,6 +1166,14 @@ Table.prototype.incrementCountersSync = function (record, fields) {
 
 Table.prototype.decrementCountersSync = function (record, fields) {
   this.updateCountersSync(record, -1, fields);
+};
+
+Table.prototype.pullCustomTriggerSync = function (name, args) {
+  var self = this;
+  var customFn = this.schemas.getEvent(name);
+
+  if ( ! customFn ) { return; }
+  customFn(args);
 };
 
 // ----------------------------------------------------------------

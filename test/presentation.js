@@ -3,7 +3,7 @@ var assert = require('assert');
 var utils = require('./utils');
 var Jsoncan = require('../index');
 var path = require('path');
-var PATH = path.join(__dirname, '_data');
+var PATH = path.join(__dirname, 'presentation_test');
 
 
 var fields = {

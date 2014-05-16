@@ -4,7 +4,7 @@ var utils = require('./utils');
 var faker = require('faker');
 var Jsoncan = require('../index');
 var path = require('path');
-var PATH = path.join(__dirname, '_table_reset_test');
+var PATH = path.join(__dirname, 'table_reset_test');
 var fs = require('fs');
 
 describe('test index fields', function () {
