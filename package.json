@@ -1,7 +1,7 @@
 {
   "author"       : "Bibig <bibig@me.com> (https://twitter.com/bibig)",
   "name"         : "jsoncan",
-  "version"      : "1.2.0",
+  "version"      : "1.2.1",
   "description"  : "an agile json based database engine",
   "preferGlobal" : "true",
   "main"         : "index.js",
@@ -13,7 +13,7 @@
   ],
   "repository": {
     "type" : "git",
-    "url"  : "https://github.com/bibig/node-jsoncan.git"
+    "url"  : "https://github.com/bibig/jsoncan.git"
   },
   "scripts": {
     "test": "mocha -w"
@@ -40,7 +40,7 @@
     "node": "*"
   },
   "bugs": {
-    "url": "https://github.com/bibig/node-jsoncan/issues"
+    "url": "https://github.com/bibig/jsoncan/issues"
   },
   "directories": {
     "test": "test"
