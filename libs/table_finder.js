@@ -2,11 +2,7 @@ exports.create = create;
 exports.find   = find;
 exports.findBy = findBy;
 
-var async = require('async');
-var libs  = require('./table_libs');
-var Ref   = require('./table_reference');
-var yi    = require('yi');
-
+var yi = require('yi');
 
 function find (_id) {
   return create.call(this, _id);
@@ -18,18 +14,20 @@ function findBy (name, value) {
 
 function create () {
   var parent = this;
+  var Ref = parent.Ref;
+  var Libs = parent.Libs;
   var fn, syncFn;
   var args;
   
   switch (arguments.length) {
     case 1:
-      fn     = libs.find;
-      syncFn = libs.findSync;
+      fn     = Libs.find;
+      syncFn = Libs.findSync;
       args   = [arguments[0]];
       break;
     case 2:
-      fn     = libs.findBy;
-      syncFn = libs.findBySync;
+      fn     = Libs.findBy;
+      syncFn = Libs.findBySync;
       args   = [arguments[0], arguments[1]];
       break;
   }
@@ -108,7 +106,7 @@ function create () {
     }
 
     if (this.options.isFormat) {
-      record = libs.format.call(parent, record);
+      record = Libs.format.call(parent, record);
     }
     
     return record;

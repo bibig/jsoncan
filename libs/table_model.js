@@ -1,14 +1,9 @@
 exports.create = create;
 
-var libs = require('./table_libs');
-
-/**
- * model way
- */
-
 function create (data) {
   var parent = this; // Table
   var m      = {};
+  var Libs   = parent.Libs;
   
   m.isNew = data._id ? false : true;
   
@@ -39,7 +34,7 @@ function create (data) {
   m.read = function (name) {
 
     if (name) {
-      return libs.present.call(parent, name, this.data[name], this.data);
+      return Libs.present.call(parent, name, this.data[name], this.data);
     } else {
       return parent.schemas.presentAll(this.data);
     }

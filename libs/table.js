@@ -1,13 +1,12 @@
 exports.create = create;
 
 var fs         = require('fs');
-var rander     = require('rander');
 var async      = require('async');
 var Schemas    = require('./schemas');
 var Validator  = require('./validator');
 var safepass   = require('safepass');
 var yi         = require('yi');
-var libs       = require('./table_libs');
+var Libs       = require('./table_libs');
 var Query      = require('./table_query');
 var Model      = require('./table_model');
 var Finder     = require('./table_finder');
@@ -23,7 +22,6 @@ var myna       = require('myna')({
 
 
 var Table = function (conn, table, schemas, validator) {
-  // this.id = rander.string(8);
   this.conn      = conn;
   this.table     = table;
   this.schemas   = schemas;
@@ -35,6 +33,10 @@ var Table = function (conn, table, schemas, validator) {
   this.query     = Query.create;
   this.model     = Model.create;
   this.create    = Model.create; // alias model
+  
+  // hook helpers
+  this.Libs      = Libs;
+  this.Ref       = Ref;
 };
 
 /**
@@ -191,7 +193,7 @@ Table.prototype.insertSync = function (data) {
 };
 
 Table.prototype.insertAll = function (datas, callback) {
-  var tasks = libs.makeInsertTasks.call(this, datas);
+  var tasks = Libs.makeInsertTasks.call(this, datas);
   
   if (this.schemas.hasAutoIncrementField()) {
     async.series(tasks, callback);  
@@ -662,27 +664,27 @@ Table.prototype.count = function (filters, callback) {
   
   async.waterfall([
     function (callback) {
-      var indexFilters = libs.getIndexFilters.call(self, filters);
+      var indexFilters = Libs.getIndexFilters.call(self, filters);
       var indexFilterKeys = Object.keys(indexFilters);
 
-      self.conn.readAllIndexes(self.table, libs.getConnQueryIndexKeys.call(self, indexFilterKeys), function (e, records) {
+      self.conn.readAllIndexes(self.table, Libs.getConnQueryIndexKeys.call(self, indexFilterKeys), function (e, records) {
         var ids;
 
         if (e) {
           callback(e);
         } else {
-          ids = libs.getIdsFromIndexRecords.call(self, records, { filters: indexFilters });
+          ids = Libs.getIdsFromIndexRecords.call(self, records, { filters: indexFilters });
           callback(null, ids);
         }
 
       });
     },
     function (ids, callback) {
-      var noneIndexFilters    = libs.getNoneIndexFilters.call(self, filters);
+      var noneIndexFilters    = Libs.getNoneIndexFilters.call(self, filters);
       var noneIndexFilterKeys = Object.keys(noneIndexFilters);
 
       if (noneIndexFilterKeys.length > 0) {
-        self.conn.queryAll(self.table, ids, libs.makeConnQueryOptions.call(self, { filters: noneIndexFilters }), function (e, records) {
+        self.conn.queryAll(self.table, ids, Libs.makeConnQueryOptions.call(self, { filters: noneIndexFilters }), function (e, records) {
           callback(null, records.length);
         });
       } else {
@@ -698,17 +700,17 @@ Table.prototype.countSync = function (filters) {
 
   this.checkFields(filters);
   
-  indexFilters        = libs.getIndexFilters.call(this, filters);
+  indexFilters        = Libs.getIndexFilters.call(this, filters);
   indexFilterKeys     = Object.keys(indexFilters);
-  noneIndexFilters    = libs.getNoneIndexFilters.call(this, filters);
+  noneIndexFilters    = Libs.getNoneIndexFilters.call(this, filters);
   noneIndexFilterKeys = Object.keys(noneIndexFilters);
-  records             = this.conn.readAllIndexesSync(this.table, libs.getConnQueryIndexKeys.call(this, indexFilterKeys));
-  ids                 = libs.getIdsFromIndexRecords.call(this, records, { filters: indexFilters });
+  records             = this.conn.readAllIndexesSync(this.table, Libs.getConnQueryIndexKeys.call(this, indexFilterKeys));
+  ids                 = Libs.getIdsFromIndexRecords.call(this, records, { filters: indexFilters });
   
   if (noneIndexFilterKeys.length === 0) {
     return ids.length;  
   } else {
-    return this.conn.queryAllSync(this.table, ids, libs.makeConnQueryOptions.call(this, { filters: noneIndexFilters })).length;
+    return this.conn.queryAllSync(this.table, ids, Libs.makeConnQueryOptions.call(this, { filters: noneIndexFilters })).length;
   }
 
 };
@@ -1177,7 +1179,6 @@ Table.prototype.pullCustomTriggerSync = function (name, args) {
 };
 
 // ----------------------------------------------------------------
-
 Table.prototype.resetIdsFile = function () {
   var ids = this.conn.readTableIdsDirSync(this.table);
 

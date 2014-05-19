@@ -1,12 +1,12 @@
 exports.create = create;
 
 var async = require('async');
-var libs  = require('./table_libs');
-var Ref   = require('./table_reference');
 
 // new version of query
 function create (filters) {
   var parent = this;
+  var Libs = parent.Libs;
+  var Ref = parent.Ref;
   
   function popluateRecords (records, callback) {
     var self = this;
@@ -27,19 +27,19 @@ function create (filters) {
   function exec (callback) {
     var self = this;
 
-    libs.findAll.call(parent, self.options, function (e, records) {
+    Libs.findAll.call(parent, self.options, function (e, records) {
 
       if (e) { callback(e); } else {
 
         if (self.options.isFormat) {
-          records = libs.formatAll.call(parent, records);
+          records = Libs.formatAll.call(parent, records);
         }
         
         if (Ref.hasReference.call(self)) {
           popluateRecords.call(self, records, function (e) {
             if (e) { callback(e); } else {
               if (self.options.isMap) {
-                records = libs.arrayToMap(records);
+                records = Libs.arrayToMap(records);
               }
               // console.log('im here');
               callback(null, records);
@@ -47,7 +47,7 @@ function create (filters) {
           });
         } else {
           if (self.options.isMap) {
-            records = libs.arrayToMap(records);
+            records = Libs.arrayToMap(records);
           }
           callback(null, records);
         }
@@ -58,10 +58,10 @@ function create (filters) {
   }
   
   function execSync () {
-    var records = libs.findAllSync.call(parent, this.options);
+    var records = Libs.findAllSync.call(parent, this.options);
     
     if (this.options.isFormat) {
-      records = libs.formatAll.call(parent, records);
+      records = Libs.formatAll.call(parent, records);
     } 
     
     if (Ref.hasReference.call(this)) {
@@ -69,7 +69,7 @@ function create (filters) {
     }
     
     if (this.options.isMap) {
-      records = libs.arrayToMap(records);
+      records = Libs.arrayToMap(records);
     }
     
     return records;
@@ -85,6 +85,46 @@ function create (filters) {
 
   function belongsTo (table, name) { 
     return Ref.belongsTo.apply(this, [parent, table, name]);
+  }
+
+  function where (field/*filter*/) {
+    var filter;
+
+    if (arguments.length == 2) {
+      filter = arguments[1];
+    } else if (arguments.length == 3) {
+      filter = [arguments[1], arguments[2]];
+    } else {
+      return this;
+    }
+    
+    this.options.filters[field] = filter;
+
+    return this;
+  }
+
+  function order (field, isDescend) {
+    this.options.orders[field] = isDescend ? true : false;
+
+    return this;
+  }
+
+  function limit (n) {
+    this.options.limit = n;
+
+    return this;
+  }
+
+  function skip (n) {
+    this.options.skip = n;
+
+    return this;
+  }
+
+  function map () {
+    this.options.isMap = true;
+    
+    return this;
   }
 
   return {
@@ -114,43 +154,3 @@ function create (filters) {
     countSync : countSync
   };
 } // end of create
-
-function where (field/*filter*/) {
-  var filter;
-
-  if (arguments.length == 2) {
-    filter = arguments[1];
-  } else if (arguments.length == 3) {
-    filter = [arguments[1], arguments[2]];
-  } else {
-    return this;
-  }
-  
-  this.options.filters[field] = filter;
-
-  return this;
-}
-
-function order (field, isDescend) {
-  this.options.orders[field] = isDescend ? true : false;
-
-  return this;
-}
-
-function limit (n) {
-  this.options.limit = n;
-
-  return this;
-}
-
-function skip (n) {
-  this.options.skip = n;
-
-  return this;
-}
-
-function map () {
-  this.options.isMap = true;
-  
-  return this;
-}
