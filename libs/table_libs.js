@@ -168,7 +168,7 @@ function findAll (options, callback) {
       var indexOrders     = getIndexOrders.call(self, options.orders);
       var indexOrderKeys  = Object.keys(indexOrders);
       var usedIndexKeys   = yi.mergeArray(indexFilterKeys, indexOrderKeys);
-      
+
       self.conn.readAllIndexes(self.table, getConnQueryIndexKeys.call(self, usedIndexKeys), function (e, records) {
         var ids;
 
@@ -184,7 +184,7 @@ function findAll (options, callback) {
     
     function (ids, callback) {
       self.conn.queryAll(self.table, ids, makeConnQueryOptions.call(self, options), function (e, records) {
-
+       
         if (e) {
           callback(e);
         } else {

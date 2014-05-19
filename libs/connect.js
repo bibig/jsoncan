@@ -154,8 +154,8 @@ Conn.prototype.readTableIdsDirSync = function (table) {
 Conn.prototype.readTableIdIndexFile = function (table, callback) {
   var self    = this;
   var idsFile = this.getTableIndexFile(table, '_id');
-
-  fs.readFile(idsFile, function (e, raw) {
+  
+  fs.readFile(idsFile, {encoding: 'utf8'}, function (e, raw) {
     var ids;
 
     if (e) {
@@ -264,7 +264,6 @@ Conn.prototype.readTableUniqueAutoIncrementFile = function (table, name) {
 
 Conn.prototype.writeTableUniqueAutoIncrementFile = function (table, name, value, callback) {
   var autoIncrementFile = this.getTableUniqueAutoIncrementFile(table, name);
-  // console.log(autoIncrementFile);
   fs.writeFile(autoIncrementFile, value, callback);
 };
 
@@ -359,7 +358,7 @@ Conn.prototype.queryAll = function (table, ids, options, callback) {
   var count   = 0;
   var records = [];
   var self    = this;
-  
+
   async.whilst(
 
     function () {
@@ -489,7 +488,7 @@ Conn.prototype.readAllIndexesSync = function (table, names) {
 Conn.prototype.readIndex = function (table, name, convertFn, callback) {
   var file = this.getTableIndexFile(table, name);
  
-  fs.readFile(file, function (e, content) {
+  fs.readFile(file, {encoding: 'utf8'}, function (e, content) {
     
     if (e) {
       
