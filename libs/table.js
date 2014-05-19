@@ -20,25 +20,6 @@ var myna       = require('myna')({
   2199: 'no data found, find by <%s=%s>'
 });
 
-
-var Table = function (conn, table, schemas, validator) {
-  this.conn      = conn;
-  this.table     = table;
-  this.schemas   = schemas;
-  this.validator = validator;
-  this.find      = Finder.find;
-  this.findBy    = Finder.findBy;
-  this.finder    = Finder.create;
-  this.findAll   = Query.create;
-  this.query     = Query.create;
-  this.model     = Model.create;
-  this.create    = Model.create; // alias model
-  
-  // hook helpers
-  this.Libs      = Libs;
-  this.Ref       = Ref;
-};
-
 /**
  * create table object
  *  
@@ -68,6 +49,24 @@ function create (conn, table) {
   
   return new Table(conn, table, schemas, validator);
 }
+
+var Table = function (conn, table, schemas, validator) {
+  this.conn      = conn;
+  this.table     = table;
+  this.schemas   = schemas;
+  this.validator = validator;
+  this.find      = Finder.find;
+  this.findBy    = Finder.findBy;
+  this.finder    = Finder.create;
+  this.findAll   = Query.create;
+  this.query     = Query.create;
+  this.model     = Model.create;
+  this.create    = Model.create; // alias model
+  
+  // hook helpers
+  this.Libs      = Libs;
+  this.Ref       = Ref;
+};
 
 //-------------------myna.speak check functions-------------------
 

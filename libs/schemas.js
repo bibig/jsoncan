@@ -260,16 +260,8 @@ Schemas.prototype.isEnum = function (name) {
   var field = this.fields[name];
 
   if (!field) return false;
-  // return ( field.type == 'enum') && Array.isArray(field.values);
-  if (field.type == 'enum') {
-
-    if (typeof field.values == 'string') {
-      return field.values.split(',').length > 0;
-    }
-
-    return Array.isArray(field.values);
-  }
-  return false;
+  
+  return field.type === 'enum' && Array.isArray(field.values);
 };
 
 Schemas.prototype.isArray = function (name) {
