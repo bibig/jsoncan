@@ -30,9 +30,9 @@
 
  */
 
-var util  = require('./util');
-var faker = require('faker');
-var max   = 1000;
+var util   = require('./util');
+var rander = require('rander');
+var max    = 100;
 var Table;
 
 util.run(function () {
@@ -68,7 +68,7 @@ function updateAll () {
   var records;
 
   util.setTime();
-  records = Table.updateAllSync({id: ['<>', 0]}, {name: faker.Name.findName()});
+  records = Table.updateAllSync({id: ['<>', 0]}, {name: rander.string()});
   util.report('3. updated %d records', records.length);
 }
 

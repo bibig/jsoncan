@@ -7,7 +7,6 @@ exports.findAllSync            = findAllSync;
 exports.present                = present;
 exports.format                 = format;
 exports.formatAll              = formatAll;
-exports.makeInsertTasks        = makeInsertTasks;
 exports.getIndexOrders         = getIndexOrders;
 exports.getNoneIndexOrders     = getNoneIndexOrders;
 exports.getIndexFilters        = getIndexFilters;
@@ -74,20 +73,6 @@ function formatAll (records) {
 // be careful, the reference fields should not be filtered!
 function format (record) {
   return yi.merge(this.schemas.presentAll(record), record);
-}
-
-// make insert tasks
-function makeInsertTasks (datas) {
-  var self  = this;
-  var tasks = [];
-
-  datas.forEach(function (data) {
-    tasks.push(function (callback) {
-      self.insert(data, callback);
-    });
-  });
-
-  return tasks;
 }
 
 function getIndexOrders (orders) {
@@ -183,22 +168,34 @@ function findAll (options, callback) {
     },
     
     function (ids, callback) {
-      self.conn.queryAll(self.table, ids, makeConnQueryOptions.call(self, options), function (e, records) {
-       
-        if (e) {
-          callback(e);
-        } else {
-          callback(null, localQuery.call(self, records, options)); 
-        }
+      self.conn.queryAll(self.table, ids, makeConnQueryOptions.call(self, options), callback);
+    },
 
-      });
+    function (records, callback) {
+      var textFields = self.schemas.getTextFields(options.select);
+
+      if (yi.isNotEmpty(textFields)) {
+        self.conn.readAllTexts(self.table, records, textFields, callback);
+      } else {
+        callback(null, records);
+      }
+
     }
   
-  ], callback);
+  ], function (e, records) {
+
+    if (e) {
+      callback(e);
+    } else {
+      callback(null, localQuery.call(self, records, options)); 
+    }
+
+  });
 }
 
 function findAllSync (options) {
   var indexFilters, indexFilterKeys, indexOrders, indexOrderKeys, usedIndexKeys, indexRecords, ids, records;  
+  var textFields;
   
   this.checkFields(options.filters);
   this.checkFields(options.orders);
@@ -212,6 +209,13 @@ function findAllSync (options) {
   ids             = getIdsFromIndexRecords.call(this, indexRecords, options);
   records         = this.conn.queryAllSync(this.table, ids, makeConnQueryOptions.call(this, options));
   
+  // merge text fields
+  textFields = this.schemas.getTextFields(options.select);
+
+  if (yi.isNotEmpty(textFields)) {
+    records = this.conn.readAllTextsSync(this.table, records, textFields);
+  }
+
   return localQuery.call(this, records, options);
 }
 

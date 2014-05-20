@@ -41,7 +41,7 @@ function create (conn, table) {
   schemas   = Schemas.create(tableSchemas);
   validator = Validator.create(schemas, conn.validateMessages);
   // build table root path and unique fields paths
-  conn.createTablePaths(table, schemas.getUniqueFields());
+  conn.createTablePaths(table, schemas.getUniqueFields(), schemas.hasTextField());
   
   schemas.getAutoIncrementValue = function (name) {
     return conn.readTableUniqueAutoIncrementFile(table, name);
@@ -141,8 +141,9 @@ Table.prototype.insert = function (_data, callback) {
   
   // 补充default值, _id值
   data = this.schemas.addValues(data);
+  
   this.save(data, function (e, record) {
-
+  
     if (e) {
       callback(e);
     } else {
@@ -192,14 +193,17 @@ Table.prototype.insertSync = function (data) {
 };
 
 Table.prototype.insertAll = function (datas, callback) {
-  var tasks = Libs.makeInsertTasks.call(this, datas);
-  
-  if (this.schemas.hasAutoIncrementField()) {
-    async.series(tasks, callback);  
-  } else {
-    async.parallelLimit(tasks, 100, callback);
-    // async.series(tasks, callback);
-  }
+  var results = [];
+  var self = this;
+
+  async.eachSeries(datas, function (data, callback) {
+    self.insert(data, function (e, record) {
+      results.push(record);
+      callback(e);
+    });
+  }, function (e) {
+    callback(e, results);
+  });
 
 };
 
@@ -259,15 +263,15 @@ Table.prototype.updateBy = function (field, value, data, callback) {
 
 
 Table.prototype.updateRecord = function (record, data, callback) {
-  var self          = this;
-  var changedFields = this.schemas.getChangedFields(data, record);
+  var self              = this;
+  var changedFields     = this.schemas.getChangedFields(data, record);
   var afterUpdate;
       
   if (changedFields.length === 0 ) { // 数据没有更改
     return callback(null, record);
   }
   
-  data = this.schemas.getRealUpdateData(data, record);
+  data = this.schemas.getRealUpdateData(data, record); // real data mean the data will be written into the json file
   
   // save data.
   this.save(data, function (e, updatedRecord) {
@@ -393,34 +397,19 @@ Table.prototype.updateBySync = function (field, value, data) {
 
 Table.prototype.updateAll = function (options, data, callback) {
   var self = this;
-  
-  function _makeUpdateTasks (records) {
-    var tasks = [];
-    
-    records.forEach(function (record) {
-      tasks.push(function (callback) {
-        self.updateRecord(record, data, callback);
-      });
-    });
-    
-    return tasks;
-  }
-  
+
   this.query(options).exec(function (err, records) {
-    var tasks;
-
-    if (err) {
-      callback(err);
-    } else {
+    var results = [];
     
-      if (records.length > 0) { // no data found after filter,
-        tasks = _makeUpdateTasks(records);
-        async.parallelLimit(tasks, 150, callback);
-        // async.series(tasks, callback);
-      } else {
-        callback(null);
-      }
-
+    if (err) { callback(err); } else {
+      async.eachSeries(records, function (record, callback) {
+        self.updateRecord(record, data, function (e, record) {
+          results.push(record);
+          callback(e);
+        });
+      }, function (e) {
+        callback(e, results);
+      });
     }
     
   });
@@ -449,7 +438,7 @@ Table.prototype.updateAllSync = function (options, data) {
 Table.prototype.remove = function (_id, callback) { 
   var self = this;
 
-  this.finder(_id).exec(function (err, record) {
+  this.finder(_id).noReadTextFields().exec(function (err, record) {
 
     if (err) {
       callback(err);
@@ -464,7 +453,7 @@ Table.prototype.remove = function (_id, callback) {
 Table.prototype.removeBy = function (field, value, callback) {
   var self = this;
   
-  this.finder(field, value).exec(function (err, record) {
+  this.finder(field, value).noReadTextFields().exec(function (err, record) {
   
     if (err) {
       callback(err);
@@ -479,25 +468,34 @@ Table.prototype.removeBy = function (field, value, callback) {
 Table.prototype.removeRecord = function (record, callback) {
   var self = this;
   var afterRemove;
+  var textFields; 
+
   // no data found
   if (!record) {
     callback();
   } else {
-
     this.conn.remove(this.table, record._id, function (e) {
 
-      if (e) {
-        callback(e);
-      } else {
-        afterRemove = Eventchain.create();
-        self.bindUnlinkEachUniqueFieldEvents(afterRemove);
-        self.bindRemoveIndexRecordsEvents(afterRemove);
-        self.bindRemoveIdRecordEvent(afterRemove);
-        self.bindDecrementCountersEvent(afterRemove);
-        self.bindCustomTriggerEvent(afterRemove, 'afterRemove');
+      if (e) { callback(e); } else {
+        textFields = self.schemas.getNotEmptyTextFields(record);
 
-        afterRemove.emit(record, function (e) {
-          callback(e, record);
+        async.each(textFields, function (name, callback) {
+          self.conn.removeText(self.table, record._id, name, callback);
+        }, function (e) {
+
+          if (e) { callback(e); } else {
+            afterRemove = Eventchain.create();
+            self.bindUnlinkEachUniqueFieldEvents(afterRemove);
+            self.bindRemoveIndexRecordsEvents(afterRemove);
+            self.bindRemoveIdRecordEvent(afterRemove);
+            self.bindDecrementCountersEvent(afterRemove);
+            self.bindCustomTriggerEvent(afterRemove, 'afterRemove');
+
+            afterRemove.emit(record, function (e) {
+              callback(e, record);
+            });
+          }
+
         });
       }
 
@@ -508,8 +506,16 @@ Table.prototype.removeRecord = function (record, callback) {
 };
 
 Table.prototype.removeRecordSync = function (record) {
-  
+  var self = this;
+  var textFields; 
+
   if (!record) return;
+
+  textFields = self.schemas.getNotEmptyTextFields(record);
+
+  textFields.forEach(function (name) {
+    self.conn.removeTextSync(self.table, record._id, name);
+  });
 
   this.conn.removeSync(this.table, record._id);
   this.unlinkEachUniqueFieldSync(record);
@@ -520,7 +526,7 @@ Table.prototype.removeRecordSync = function (record) {
 };
 
 Table.prototype.removeSync = function (_id) {
-  var record = this.finder(_id).execSync();
+  var record = this.finder(_id).noReadTextFields().execSync();
 
   this.removeRecordSync(record);
 
@@ -528,7 +534,7 @@ Table.prototype.removeSync = function (_id) {
 };
 
 Table.prototype.removeBySync = function (field, value, callback) {
-  var record = this.finder(field, value).execSync();
+  var record = this.finder(field, value).noReadTextFields().execSync();
   
   this.removeRecordSync(record);
 
@@ -537,33 +543,21 @@ Table.prototype.removeBySync = function (field, value, callback) {
 
 Table.prototype.removeAll = function (options, callback) {
   var self = this;
-  
-  function _makeRemoveTasks (records) {
-    var tasks = [];
-    
-    records.forEach(function (record) {
-      tasks.push(function (callback) {
-        self.removeRecord(record, callback);
-      });
-    });
-    
-    return tasks;
-  }
-  
-  this.query(options).exec(function (err, records) {
 
-    if (err) {
-      callback(err);
-    } else {
-    
-      if (records.length > 0) {
-        // async.parallelLimit(_makeRemoveTasks(records), 150, callback);
-        async.series(_makeRemoveTasks(records), callback);
-      } else {
-        callback(null);
-      }
+  this.query(options).exec(function (e, records) {
+    var results = [];
 
-    }
+    if (e) { callback(e); } else {
+
+      async.eachSeries(records, function (record, callback) {
+        self.removeRecord(record, function (e, record) {
+          results.push(record);
+          callback(e);
+        });
+      }, function (e) {
+        callback(e, results);
+      }); // end of eachSeries
+    } // end of else
 
   });
   
@@ -617,14 +611,39 @@ Table.prototype.validate = function (data, changedFields) {
  *  myna.speak 2100 表示数据校验失败
  */
 Table.prototype.save = function (data, callback, changedFields) {
-  var e;
-  var check = this.validate(data, changedFields);
+  var self       = this;
+  var check      = this.validate(data, changedFields);
+  var textFields, e, safe;
   
   if (check.isValid()) {
+
+    if (yi.isEmpty(changedFields)) {
+      textFields = this.schemas.getTextFields();
+    } else {
+      textFields = this.schemas.getTextFields(changedFields);
+    }
+
     data = this.schemas.clearFakeFields(data);
     // 对需要转换的数据进行转换
-    data = this.schemas.convertEachField(data, changedFields);
-    this.conn.save(this.table, data._id, data, callback);
+    safe = this.schemas.convertEachField(data, changedFields);
+
+    async.each(textFields, function (name, callback) {
+      
+      if (safe[name]) {
+        self.conn.saveText(self.table, safe._id, name, data[name], callback);
+      } else {
+        callback();
+      }
+
+    }, function (e) {
+      
+      if (e) {callback(e);} else {
+        self.conn.save(self.table, safe._id, safe, callback);
+      }
+
+    });
+
+    
   } else {
     e = myna.speak(2100); 
     e.invalidMessages = check.getMessages();
@@ -640,12 +659,31 @@ Table.prototype.save = function (data, callback, changedFields) {
  * @throw myna.speak 2100 表示数据校验失败
  */
 Table.prototype.saveSync = function (data, changedFields) {
-  var check = this.validate(data, changedFields);
+  var self       = this;
+  var check      = this.validate(data, changedFields);
+  var textFields, safe;
   
   if (check.isValid()) {
+
+    if (yi.isEmpty(changedFields)) {
+      textFields = this.schemas.getTextFields();
+    } else {
+      textFields = this.schemas.getTextFields(changedFields);
+    }
+
     data = this.schemas.clearFakeFields(data);
-    data = this.schemas.convertEachField(data, changedFields);
-    return this.conn.saveSync(this.table, data._id, data); 
+    safe = this.schemas.convertEachField(data, changedFields);
+
+    textFields.forEach(function (name) {
+
+      if (safe[name]) {
+        self.conn.saveTextSync(self.table, safe._id, name, data[name]);
+      }
+
+    });
+
+    return this.conn.saveSync(this.table, safe._id, safe);
+
   } else {
     e = myna.speak(2100); 
     e.invalidMessages = check.getMessages();
@@ -807,7 +845,6 @@ Table.prototype.increment = function (_id, name, callback, step) {
   var self = this;
 
   step = step || 1;
-  // console.log(arguments);
   this.find(_id).exec(function (e, record) {
     var data = {};
 
@@ -816,7 +853,6 @@ Table.prototype.increment = function (_id, name, callback, step) {
       if ( ! record ) { 
         callback(); 
       } else {
-        // console.log(record);
         data[name] = record[name] + step;
         self.updateRecord(record, data, callback);
       }

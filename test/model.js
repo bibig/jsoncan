@@ -1,9 +1,8 @@
-var should = require('should');
-var assert = require('assert');
+var should  = require('should');
 var Jsoncan = require('../index');
-var path = require('path');
-var fs = require('fs');
-var utils = require('./utils');
+var path    = require('path');
+var fs      = require('fs');
+var utils   = require('./utils');
 
 describe('test model way', function () {
   var PATH = path.join(__dirname, 'model_test');
@@ -133,7 +132,7 @@ describe('test model way', function () {
   
   it('test validate', function () {
     Gary = Table.create(people4);
-    assert.ok(Gary.validate());
+    should(Gary.validate()).be.ok;
   });
     
   it('test save() for insert ', function (done) {
@@ -154,14 +153,14 @@ describe('test model way', function () {
     var emailLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'email', people4.email));
     var mobileLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', people4.mobile));
     var idLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'id', Gary.get('id')));
-    assert.ok(emailLink);
-    assert.ok(mobileLink);
-    assert.ok(idLink);
+    should(emailLink).be.ok;
+    should(mobileLink).be.ok;
+    should(idLink).be.ok;
   });
 
   it('test password validate before insert', function () {
     // console.log(Gary.data);
-    assert.ok(Gary.isValidPassword('123'));
+    should(Gary.isValidPassword('123')).be.ok;
   });
   
   it('test save() for update', function (done) {
@@ -173,10 +172,10 @@ describe('test model way', function () {
       var newNameLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'name', newName));
       should.not.exist(e);
       record.should.have.property('age',newAge);
-      assert.ok(Gary.get('age') == newAge);
-      assert.ok(Gary.get('name') == newName);
-      assert.ok(!oldNameLink);
-      assert.ok(newNameLink);
+      should(Gary.get('age') == newAge).be.ok;
+      should(Gary.get('name') == newName).be.ok;
+      should(!oldNameLink).be.ok;
+      should(newNameLink).be.ok;
       done();
     });
   });
@@ -184,7 +183,7 @@ describe('test model way', function () {
   it('test password validate after update', function () {
     // console.log(Gary.data);
     // console.log(Gary.get('password'));
-    assert.ok(Gary.isValidPassword('123'));
+    should(Gary.isValidPassword('123')).be.ok;
   });
   
   it('test insert sync ', function (done) {
@@ -192,20 +191,20 @@ describe('test model way', function () {
     var p2 = Table.create(people2).saveSync();
     var p3 = Table.create(people3).saveSync();
     var records = Table.query().execSync();
-    assert.ok(p1.get('name') == people1.name);
-    assert.ok(p2.get('name') == people2.name);
-    assert.equal(records.length, 4);
-    assert.ok(p1.isValidPassword('123'));
-    assert.ok(p2.isValidPassword('123'));
-    assert.ok(p3.isValidPassword('123'));
+    should(p1.get('name') == people1.name).be.ok;
+    should(p2.get('name') == people2.name).be.ok;
+    records.length.should.equal(4);
+    should(p1.isValidPassword('123')).be.ok;
+    should(p2.isValidPassword('123')).be.ok;
+    should(p3.isValidPassword('123')).be.ok;
     done();
   });
   
   it('test load', function () {
     var GaryClone = Table.load(Gary.getPrimaryId());
-    assert.ok(GaryClone.get('age') == Gary.get('age'));
-    assert.ok(GaryClone.get('email') == Gary.get('email'));
-    assert.ok(GaryClone.isValidPassword('123'));
+    should(GaryClone.get('age') == Gary.get('age')).be.ok;
+    should(GaryClone.get('email') == Gary.get('email')).be.ok;
+    should(GaryClone.isValidPassword('123')).be.ok;
     // console.log(GaryClone.data);
   });
   
@@ -217,21 +216,21 @@ describe('test model way', function () {
     var oldNameLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'name', oldName));
     var newNameLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'name', newName));
     
-    assert.ok(newNameLink);
-    assert.ok(!oldNameLink);
-    assert.ok(Gary.isValidPassword('123'));
+    should(newNameLink).be.ok;
+    should(!oldNameLink).be.ok;
+    should(Gary.isValidPassword('123')).be.ok;
   });
   
   it('test loadBy', function () {
     var GaryClone = Table.loadBy('name', people4.name);
-    assert.ok(GaryClone.get('age') == Gary.get('age'));
-    assert.ok(GaryClone.get('_id') == Gary.get('_id'));
-    assert.ok(GaryClone.isValidPassword('123'));
+    should(GaryClone.get('age') == Gary.get('age')).be.ok;
+    should(GaryClone.get('_id') == Gary.get('_id')).be.ok;
+    should(GaryClone.isValidPassword('123')).be.ok;
   });
   
   it('validate failed', function () {
     Gary.set({name: people1.name, email: people2.email}).validate();
-    assert.ok(Gary.isValid === false);
+    should(Gary.isValid === false).be.ok;
     Gary.messages.should.have.property('name');
     Gary.messages.should.have.property('email');
     // Gary.saveSync();
@@ -243,7 +242,7 @@ describe('test model way', function () {
     // console.log(GaryClone.get('password'));
     GaryClone.set('password', '234').saveSync();
     // console.log(GaryClone.get('password'));
-    assert.ok(GaryClone.isValidPassword('234'));
+    should(GaryClone.isValidPassword('234')).be.ok;
   });
   
   it('test read feature', function () {
@@ -251,9 +250,9 @@ describe('test model way', function () {
     var GaryClone = Table.loadBy('name', 'Gary');
     var readData = GaryClone.read();
     // console.log(readData);
-    assert.equal(GaryClone.read('email'), '*' + GaryClone.get('email'));
-    assert.equal(readData.total, '$' + 1800.00 );
-    assert.ok(re.test(GaryClone.read('modified')));
+    GaryClone.read('email').should.equal('*' + GaryClone.get('email'));
+    readData.total.should.equal('$' + 1800.00 );
+    should(re.test(GaryClone.read('modified'))).be.ok;
     readData.should.have.property('id', GaryClone.get('id'));
   });
   
@@ -262,7 +261,7 @@ describe('test model way', function () {
       should.not.exist(e);
       Table.findBy('name', 'Gary').exec(function (e, record) {
         should.not.exist(e);
-        assert.ok(!record);
+        should(!record).be.ok;
         done();
       });
     });

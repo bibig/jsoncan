@@ -1,9 +1,9 @@
-var should = require('should');
-var assert = require('assert');
-var path = require('path');
+
+var should  = require('should');
+var path    = require('path');
 var Jsoncan = require('../index');
-var fs = require('fs');
-var utils = require('./utils');
+var fs      = require('fs');
+var utils   = require('./utils');
 
 describe('test sync actions in table.js', function () {
   
@@ -101,9 +101,9 @@ describe('test sync actions in table.js', function () {
     var mobilePath = fs.existsSync(Table.conn.getTableUniquePath(tableName, 'mobile'));
     var idPath = fs.existsSync(Table.conn.getTableUniquePath(tableName, 'id'));
     
-    assert.ok(emailPath);
-    assert.ok(mobilePath);
-    assert.ok(idPath);
+    should.ok(emailPath);
+    should.ok(mobilePath);
+    should.ok(idPath);
     
   });
   
@@ -124,16 +124,16 @@ describe('test sync actions in table.js', function () {
     var mobileLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', record.mobile));
     var idLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'id', record.id));
     
-    assert.ok(emailLink);
-    assert.ok(mobileLink);
-    assert.ok(idLink);
+    should.ok(emailLink);
+    should.ok(mobileLink);
+    should.ok(idLink);
     
   });
 
   it('test insertAll', function () {
     var records = [people2, people3];
     var list = Table.insertAllSync(records);
-    assert.ok(list.length == 2);
+    should.ok(list.length == 2);
       
     list[0].should.have.property('id');
     list[0].should.have.property('_id');
@@ -155,8 +155,8 @@ describe('test sync actions in table.js', function () {
   
   it('test query skip,limit', function () {
     var list = Table.query().order('age').skip(2).limit(1).select('name, age').execSync();
-    assert.equal(list.length, 1);
-    assert.equal(list[0].name, 'Cici');
+    should.equal(list.length, 1);
+    should.equal(list[0].name, 'Cici');
   });
   
   it('test insert invalid data, validate shoule work', function () {
@@ -215,7 +215,7 @@ describe('test sync actions in table.js', function () {
   
   it('test query.execSync', function () {
     var records = Table.query(record).select(['id', 'email', 'name']).execSync();
-    assert.ok(records.length == 1);
+    should.ok(records.length == 1);
     records[0].should.have.property('id', record.id);
     records[0].should.have.property('email', record.email);
     records[0].should.have.property('name', record.name);
@@ -243,13 +243,13 @@ describe('test sync actions in table.js', function () {
     var newEmailExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'email', newRecord.email));
     var newMobileExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', newRecord.mobile));
 
-    assert.ok( ! oldEmailExists );
-    assert.ok( ! oldMobileExists);
+    should.ok( ! oldEmailExists );
+    should.ok( ! oldMobileExists);
 
-    assert.ok(newEmailExists);
-    assert.ok(newMobileExists);
+    should.ok(newEmailExists);
+    should.ok(newMobileExists);
 
-    assert.ok(newRecord.modified > record.modified);
+    should.ok(newRecord.modified > record.modified);
   });
   
   it('test update duplicate value', function () {
@@ -273,7 +273,7 @@ describe('test sync actions in table.js', function () {
   
   it('test update all', function () {
     Table.updateAllSync({age: ['>', 20]}, {age: 100});
-    assert.equal(Table.query().where('age', 100).execSync().length, 2);
+    should.equal(Table.query().where('age', 100).execSync().length, 2);
   });
   
   it('test removeSync', function () {
@@ -284,10 +284,10 @@ describe('test sync actions in table.js', function () {
     var emailExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'email', record.email));
     var mobileExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', record.mobile));
       
-    assert.ok( ! primaryIdExists );
-    assert.ok( ! idExists );
-    assert.ok( ! emailExists );
-    assert.ok( ! mobileExists );
+    should.ok( ! primaryIdExists );
+    should.ok( ! idExists );
+    should.ok( ! emailExists );
+    should.ok( ! mobileExists );
     
   });
   
@@ -296,25 +296,25 @@ describe('test sync actions in table.js', function () {
     var mobileLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', record.mobile));
     var idLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'id', record.id));
     
-    assert.ok(!emailLink);
-    assert.ok(!mobileLink);
-    assert.ok(!idLink);
+    should.ok(!emailLink);
+    should.ok(!mobileLink);
+    should.ok(!idLink);
     
   });
   
   it('test remove all', function () {
     Table.removeAllSync({age: ['>', 10]});
-    assert.ok(Table.query().execSync().length === 0);
+    should.ok(Table.query().execSync().length === 0);
   });
   
   it('test find one none exist', function () {
     record = Table.findBy('email', 'nonexist').execSync();
-    assert.ok(!record);
+    should.ok(!record);
   });
   
   it('test find all none exist', function () {
     records = Table.query({age: ['>', 10]}).execSync();
-    assert.ok(records.length === 0);
+    should.ok(records.length === 0);
   });
 
 });

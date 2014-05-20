@@ -3,6 +3,7 @@ exports.create = create;
 var yi       = require('yi');
 var rander   = require('rander');
 var safepass = require('safepass');
+var crypto   = require('crypto');
 /*
 var ValidKeys = [
   'text', 
@@ -90,19 +91,31 @@ var myna = require('myna')({
   1005: 'Invalid event <%s>'
 });
 
-var Schemas = function (fields) {
-  fields._id = {
+function Schemas (fields) {
+
+  var _idField = {
     text: '_id',
-    type: 'primary'
+    type: 'primary',
+    size: 16
   };
-  
-  this.fields                = fields;
+
+  this.fields = fields;
+
+  // overwrite the size of primary key
+  if (fields._id) {
+    if (fields._id.size) {
+      _idField.size = fields._id.size;
+    }
+  }
+
+  this.fields._id            = _idField;
   this.getAutoIncrementValue = null; // need to inject
-};
+  this.texts                 = {};
+}
 
 function create (fields) {
   checkFields(fields);
-  // console.log(fields);
+  
   return new Schemas(fields);
 }
 
@@ -351,7 +364,6 @@ Schemas.prototype.addPrefixAndSuffix = function (name, value) {
 
 // invoke the format function defined in schema.
 Schemas.prototype.formatField = function (name, value, data) {
-  // console.log(arguments);
   return this.fields[name].format(value, data); 
 };
 
@@ -371,6 +383,21 @@ Schemas.prototype.getUniqueFields = function () {
  */
 Schemas.prototype.hasUniqueField = function () {
   return Object.keys(this.getUniqueFields()).length > 0;
+};
+
+Schemas.prototype.hasTextField = function (fields) {
+  var result = false;
+
+  this.forEachField(function (name, field) {
+    if (result) { return; }
+
+    if (field.type === 'text') {
+      result = true;
+    }
+
+  }, fields);
+
+  return result;
 };
 
 Schemas.prototype.hasAutoIncrementField = function () {
@@ -438,6 +465,14 @@ Schemas.prototype.forEachIndexField = function (callback, fields) {
   });
 };
 
+Schemas.prototype.forEachTextField  = function (callback, fields) {
+  var self = this;
+
+  this.forEachField(callback, fields, function (field) {
+    return field.type === 'text';
+  });
+};
+
 /**
  * remove all the fake fields data
  * @data, ready to save
@@ -461,19 +496,19 @@ Schemas.prototype.clearFakeFields = function (data) {
  * convert value for json file, accoring to the field type
  */
 Schemas.prototype.convertEachField = function (data, fields) {
+  var safe = yi.clone(data);
 
   this.forEachField(function (name, field, self) {
-    data[name] = self.convert(field, data[name]);
+    safe[name] = self.convert(field, data[name]);
   }, fields);
 
-  return data;
+  return safe;
 };
 
 /**
  * convert for json file
  */
 Schemas.prototype.convert = function (field, value) {
-  // console.log('convert field: %s = %s', field.type, value);
   // string to date object
   if ((field.type == 'date' || field.type == 'datetime')) {
 
@@ -507,6 +542,13 @@ Schemas.prototype.convert = function (field, value) {
       return value._id;
     }
 
+  }
+
+  // text field return checksum
+  if (field.type === 'text') {
+    if (value) {
+      return checksum(value);
+    }
   }
   
   return value;
@@ -563,8 +605,9 @@ Schemas.prototype.getTimestamp = function () {
   return (new Date()).getTime();
 };
 
-Schemas.prototype.getPrimaryId = function () {
-  return require('crypto').randomBytes(20).toString('hex');
+Schemas.prototype.getPrimaryId = function (n) {
+  n = n ? Math.ceil(n / 2) : 8;
+  return crypto.randomBytes(n).toString('hex');
 };
 
 /** 
@@ -610,7 +653,7 @@ Schemas.prototype.addSystemValues = function (data) {
       case 'primary':
   
         if (!data[name]) {
-          data[name] = self.getPrimaryId();
+          data[name] = self.getPrimaryId(field.size);
         }
 
         break;
@@ -623,7 +666,6 @@ Schemas.prototype.addSystemValues = function (data) {
         break;
       case 'increment':
       case 'autoIncrement':
-        // console.log('autoIncrement: %s', self.getAutoIncrementValue(name));
         
         if (!data[name]) {
           data[name] = parseInt(self.getAutoIncrementValue(name) || 1, 10);
@@ -661,12 +703,12 @@ Schemas.prototype.addAliasValues = function (data) {
 };
 
 Schemas.prototype.addValues = function (data) {
-  data = clone(data); // do not dirty the param data, object param is dangerous.
-  data = this.addDefaultValues(data);
-  data = this.addSystemValues(data);
-  data = this.addAliasValues(data);
+  var safe  = yi.clone(data); // do not dirty the param data, object param is dangerous.
+  safe = this.addDefaultValues(safe);
+  safe = this.addSystemValues(safe);
+  safe = this.addAliasValues(safe);
   
-  return data;
+  return safe;
 };
 
 /**
@@ -689,8 +731,6 @@ Schemas.prototype.filterData = function (data) {
   return safe;
 };
 
-
-
 /**
  * 检查密码是否正确
  * @hash: 数据库中保存的原值
@@ -709,17 +749,56 @@ Schemas.prototype.getNextAutoIncrementValue = function (name, currentValue) {
 
 Schemas.prototype.getChangedFields = function (data, record) {
   var fields = [];
+
   this.forEachField(function (name, field, self) {
     
     if (self.isReadOnly(field)) { return; }
     
     if (data[name] === undefined) { return; }
     
-    if (data[name] != record[name]) {
-      fields.push(name);
+    if (field.type === 'text') { // text field compare the checksum
+
+      if (checksum(data[name]) != record[name]) {
+        fields.push(name);
+      }
+
+    } else {
+
+      if (data[name] != record[name]) {
+        fields.push(name);
+      }  
+
     }
 
   }, Object.keys(data));
+
+  return fields;
+};
+
+Schemas.prototype.getTextFields = function (targets) {
+  var fields = [];
+
+  this.forEachTextField(function (name) {
+    fields.push(name);
+  }, targets);
+
+  return fields;
+};
+
+/**
+ * select not empty and text type field in the given record
+ * 
+ * @author bibig@me.com
+ * @update [2014-05-20 14:57:44]
+ * @param  {object} record
+ * @return {array}
+ */
+Schemas.prototype.getNotEmptyTextFields = function (record) {
+  var fields = [];
+
+  this.forEachTextField(function (name) {
+    if (record[name]) { fields.push(name); }
+  });
 
   return fields;
 };
@@ -805,12 +884,11 @@ function precise(num, decimals) {
   return Math.round(num * Math.pow(10, decimals)) / Math.pow(10, decimals);
 }
 
-function clone (data) {
-  var _data = {};
-  
-  Object.keys(data).forEach(function (name) {
-    _data[name] = data[name];
-  });
-  
-  return _data;
+function checksum (str, algorithm, encoding) {
+
+  return crypto
+    .createHash(algorithm || 'sha1')
+    .update(str, 'utf8')
+    .digest(encoding || 'hex');
 }
+

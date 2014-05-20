@@ -1,10 +1,9 @@
-var should = require('should');
-var assert = require('assert');
-var fs = require('fs');
+var should  = require('should');
+var fs      = require('fs');
 var Jsoncan = require('../index');
-var path = require('path');
-var utils = require('./utils');
-var PATH = path.join(__dirname, 'auto_increment_test');
+var path    = require('path');
+var utils   = require('./utils');
+var PATH    = path.join(__dirname, 'auto_increment_test');
 
 describe('test auto-increment field', function () {
   
@@ -35,13 +34,13 @@ describe('test auto-increment field', function () {
     var can = new Jsoncan(PATH);
     Table = can.open(tableName, fields);
     var autoIncrementFileExists = fs.existsSync(Table.conn.getTableUniqueAutoIncrementFile(tableName, 'id'));
-    assert.ok(autoIncrementFileExists);
+    should(autoIncrementFileExists).be.ok;
   });
   
   it('test first insert', function (done) {
     Table.insert(data, function (e, record) {
       should.not.exist(e);
-      assert.equal(record.id, 100);
+      should(record.id).equal(100);
       // console.log(record);
       done();
     });
@@ -50,7 +49,7 @@ describe('test auto-increment field', function () {
   it('test second insert', function (done) {
     Table.insert(data, function (e, record) {
       should.not.exist(e);
-      assert.equal(record.id, 105);
+      record.id.should.equal(105);
       // console.log(record);
       done();
     });
@@ -59,7 +58,7 @@ describe('test auto-increment field', function () {
   it('test third insert', function (done) {
     Table.insert(data, function (e, record) {
       should.not.exist(e);
-      assert.equal(record.id, 110);
+      record.id.should.equal(110);
       // console.log(record);
       done();
     });
@@ -75,7 +74,7 @@ describe('test auto-increment field', function () {
   it('test query all', function (done) {
     Table.findAll({id: ['>', 0]}).exec(function (e, records) {
       should.not.exist(e);
-      assert.equal(records.length, 3);
+      records.length.should.equal(3);
       done();
     });
   });

@@ -1,11 +1,9 @@
-var should = require('should');
-var assert = require('assert');
-var utils = require('./utils');
-var faker = require('faker');
+var should  = require('should');
+var utils   = require('./utils');
 var Jsoncan = require('../index');
-var path = require('path');
-var PATH = path.join(__dirname, 'table_ref_test');
-var fs = require('fs');
+var path    = require('path');
+var PATH    = path.join(__dirname, 'table_ref_test');
+var fs      = require('fs');
 
 describe('populate test', function () {
   
@@ -122,7 +120,7 @@ describe('populate test', function () {
     var blogs = Blogs.query().hasMany('comments').execSync();
     // console.log(blogs);
     blogs.forEach(function (blog) {
-      assert.ok(Array.isArray(blog.comments));
+      should.ok(Array.isArray(blog.comments));
       // blog.comments[0].should.have.property('title');
       // blog.comments[0].should.have.property('_id');
       // console.log(blog.comments.length);
@@ -134,7 +132,7 @@ describe('populate test', function () {
       should.not.exist(e);
       // console.log(blogs);
       blogs.forEach(function (blog) {
-        assert.ok(Array.isArray(blog.comments));
+        should.ok(Array.isArray(blog.comments));
       });
       done();
     });
@@ -146,9 +144,9 @@ describe('populate test', function () {
     finder.exec(function (e, record) {
       // console.log(record);
       should.not.exist(e);
-      assert.ok(typeof record._category == 'object');
+      should.ok(typeof record._category == 'object');
       record._category.should.have.property('_id');
-      assert.equal(record._category._id, Blogs.finder('id', 1).execSync()._category);
+      should.equal(record._category._id, Blogs.finder('id', 1).execSync()._category);
       done();
     });
   });
@@ -158,8 +156,8 @@ describe('populate test', function () {
     finder.exec(function (e, record) {
       // console.log(record);
       should.not.exist(e);
-      assert.ok(Array.isArray(record.comments));
-      assert.equal(record.comments.length, 3);
+      should.ok(Array.isArray(record.comments));
+      should.equal(record.comments.length, 3);
       done();
     });
   });
@@ -168,7 +166,7 @@ describe('populate test', function () {
     var categoryA = Categories.query({name: 'a'}).execSync()[0];
     var query = Blogs.query({_category: categoryA._id}).exec(function (e, records) {
       should.not.exists(e);
-      assert.ok(records.length > 0);
+      should.ok(records.length > 0);
       done();
     });
   });

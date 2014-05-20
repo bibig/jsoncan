@@ -37,6 +37,10 @@ Conn.prototype.getTableIdPath = function (table) {
   return path.join(this.getTablePath(table), '_id');
 };
 
+Conn.prototype.getTableTextsPath = function (table) {
+  return path.join(this.getTablePath(table), '__texts__');
+};
+
 // 获取table数据文件
 Conn.prototype.getTableIdFile = function (table, id) {
   return path.join(this.getTableIdPath(table), id);
@@ -58,25 +62,37 @@ Conn.prototype.getTableIndexFile = function (table, name) {
   return path.join(this.getTablePath(table), name + '.index');
 };
 
+Conn.prototype.getTableTextFile = function (table, _id, name) {
+  return path.join(this.getTableTextsPath(table), _encrypt(_id + name));
+};
+
 /**
  * create table data paths, including root path, unique fields paths
  * @table: table name
  * @uniqueFields: unique fields list
  * 
  */
-Conn.prototype.createTablePaths = function (table, uniqueFields) {
-  var root   = this.getTablePath(table);
-  var idPath = this.getTableIdPath(table);
-  var self   = this;
+Conn.prototype.createTablePaths = function (table, uniqueFields, needTextsPath) {
+  var root      = this.getTablePath(table);
+  var idPath    = this.getTableIdPath(table);
+  var textsPath = this.getTableTextsPath(table);
+  var self      = this;
   
-  if (!fs.existsSync(idPath)) {
+  if ( ! fs.existsSync(idPath)) {
 
-    if (!fs.existsSync(root)) {
+    if ( ! fs.existsSync(root)) {
       fs.mkdirSync(root);
     }
 
     fs.mkdirSync(idPath);
   }
+
+  if (needTextsPath) {
+    if ( ! fs.existsSync(textsPath)) {
+      fs.mkdirSync(textsPath); 
+    }  
+  }
+  
   
   Object.keys(uniqueFields).forEach(function (name) {
     var uniquePath              = self.getTableUniquePath(table, name);
@@ -99,23 +115,22 @@ Conn.prototype.createTablePaths = function (table, uniqueFields) {
   });
 };
 
-
 // 得到原始json数据
 Conn.prototype.read = function (table, id, callback) {
-  _read(this.getTableIdFile(table, id), callback);
+  _read(this.getTableIdFile(table, id), true, callback);
 };
 
 Conn.prototype.readBy = function (table, fieldName, fieldValue, callback) {
-  _read(this.getTableUniqueFile(table, fieldName, fieldValue), callback);
+  _read(this.getTableUniqueFile(table, fieldName, fieldValue), true, callback);
 };
 
 // 得到原始json数据
 Conn.prototype.readSync = function (table, id) {
-  return _readSync(this.getTableIdFile(table, id));
+  return _readSync(this.getTableIdFile(table, id), true);
 };
 
 Conn.prototype.readBySync = function (table, fieldName, fieldValue) {
-  return _readSync(this.getTableUniqueFile(table, fieldName, fieldValue));
+  return _readSync(this.getTableUniqueFile(table, fieldName, fieldValue), true);
 };
 
 Conn.prototype.readTableIdsDir = function (table, callback) {
@@ -150,7 +165,6 @@ Conn.prototype.readTableIdsDirSync = function (table) {
   return ids;
 };
 
-
 Conn.prototype.readTableIdIndexFile = function (table, callback) {
   var self    = this;
   var idsFile = this.getTableIndexFile(table, '_id');
@@ -173,7 +187,6 @@ Conn.prototype.readTableIdIndexFile = function (table, callback) {
 
   });
 };
-
 
 Conn.prototype.readTableIdIndexFileSync = function (table, callback) {
   var idsFile = this.getTableIndexFile(table, '_id');
@@ -202,6 +215,15 @@ Conn.prototype.removeSync = function (table, _id) {
   fs.unlinkSync(this.getTableIdFile(table, _id));
 };
 
+Conn.prototype.removeText = function (table, _id, name, callback) {
+  fs.unlink(this.getTableTextFile(table, _id, name), callback);
+};
+
+Conn.prototype.removeTextSync = function (table, _id, name) {
+  fs.unlinkSync(this.getTableTextFile(table, _id, name));
+};
+
+
 Conn.prototype.unlinkTableUniqueFile = function (table, name, value, callback) {
   fs.unlink(this.getTableUniqueFile(table, name, value), callback);
 };
@@ -229,9 +251,7 @@ Conn.prototype.linkTableUniqueFileSync = function (table, _id, name, value) {
 Conn.prototype.save = function (table, _id, data, callback) {
   fs.writeFile(this.getTableIdFile(table, _id), JSON.stringify(data), function (e) {
   
-    if (e) {
-      callback(e);
-    } else {
+    if (e) { callback(e); } else {
       callback(null, data);
     }
 
@@ -242,6 +262,14 @@ Conn.prototype.saveSync = function (table, _id, data) {
   fs.writeFileSync(this.getTableIdFile(table, _id), JSON.stringify(data));
   
   return data;
+};
+
+Conn.prototype.saveText = function (table, _id, name, text, callback) {
+  fs.writeFile(this.getTableTextFile(table, _id, name), text, callback);
+};
+
+Conn.prototype.saveTextSync = function (table, _id, name, text) {
+  fs.writeFileSync(this.getTableTextFile(table, _id, name), text);
 };
 
 Conn.prototype.readTableUniqueAutoIncrementFile = function (table, name) {
@@ -437,7 +465,74 @@ Conn.prototype.queryAllSync = function (table, ids, options) {
   }
 
   return records;
-}; 
+};
+
+Conn.prototype.readAllTexts = function (table, records, textFields, callback) {
+  var self = this;
+  var i = 0;
+  
+  async.eachSeries(records, function (record, callback) {
+    self.readTexts(table, record, textFields, callback, i);
+  }, function (e) {
+    if (e) { callback (e); } else {
+      callback(null, records);
+    }    
+  });
+
+};
+
+Conn.prototype.readAllTextsSync = function (table, records, textFields, callback) {
+  var self = this;
+
+  records.forEach(function (record) {
+    self.readTextsSync(table, record, textFields);
+  });
+
+  return records;
+};
+
+Conn.prototype.readTexts = function (table, record, textFields, callback, i) {
+  var self = this;
+  
+  async.eachSeries(textFields, function (name, callback) {
+    var file;
+
+    if ( ! record[name]) { return callback(); }
+
+    file = self.getTableTextFile(table, record._id, name);
+
+    _read(file, false, function (e, content) {
+
+      if (e) { callback (e); } else {
+        record[name] = content;
+        callback();
+      }
+
+    });
+
+  }, function (e) {
+    if (e) { callback (e); } else {
+      callback(null, record);
+    }
+  });
+};
+
+Conn.prototype.readTextsSync = function (table, record, textFields) {
+  var self = this;
+
+  textFields.forEach(function (name) {
+    var file;
+
+    if ( ! record[name]) { return ; }
+
+    file = self.getTableTextFile(table, record._id, name);
+
+    record[name] = _readSync(file, false);
+  });
+
+  return record;
+
+};
 
 Conn.prototype.readAllIndexes = function (table, names, callback) {
   var tasks = {};
@@ -598,7 +693,7 @@ function _encrypt (s) {
 }
 
 
-function _read (file, callback) {
+function _read (file, isJson, callback) {
   fs.readFile(file, {encoding: 'utf8'}, function (e, data) {
   
     if (e) {
@@ -610,18 +705,24 @@ function _read (file, callback) {
       }
 
     } else {
-      callback(null, JSON.parse(data));
+
+      if (isJson) {
+        callback(null, JSON.parse(data));  
+      } else {
+        callback(null, data);
+      }
     }
   });
 
 }
 
-function _readSync (file) {
+function _readSync (file, isJson) {
 
   try {
     var data = fs.readFileSync(file, {encoding: 'utf8'});
 
-    return JSON.parse(data);
+
+    return isJson ? JSON.parse(data) : data;
   } catch (e) {
   
     if (e.code === "ENOENT") {

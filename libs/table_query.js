@@ -37,15 +37,18 @@ function create (filters) {
         
         if (Ref.hasReference.call(self)) {
           popluateRecords.call(self, records, function (e) {
+            
             if (e) { callback(e); } else {
+              
               if (self.options.isMap) {
                 records = Libs.arrayToMap(records);
               }
-              // console.log('im here');
+
               callback(null, records);
             }
           });
         } else {
+          
           if (self.options.isMap) {
             records = Libs.arrayToMap(records);
           }

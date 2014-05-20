@@ -2,7 +2,8 @@ exports.create = create;
 exports.find   = find;
 exports.findBy = findBy;
 
-var yi = require('yi');
+var yi    = require('yi');
+var async = require('async');
 
 function find (_id) {
   return create.call(this, _id);
@@ -35,23 +36,37 @@ function create () {
   function exec (callback) {
     var self     = this;
     var thisArgs = yi.clone(args);
-    var finderCb = function (e, record) {
+    
+    function finderCb (e, record) {
 
       if (e) { callback(e); } else {
       
-        if (Ref.hasReference.call(self)) {
-          Ref.populateRecord.call(self, parent, record, function (e) {
-            if (e) { callback(e); } else {
-              callback(null, selectFilter.call(self, record));
-            }
-          });
-        } else {
-          callback(null, selectFilter.call(self, record));
-        }
-        
-      }
+        async.series([
+          function (callback) {
+            var textFields;
 
-    };
+            if ( ! self.options.readTextFields ) { return callback(); }
+
+            textFields = parent.schemas.getTextFields(self.options.select);
+            parent.conn.readTexts(parent.table, record, textFields, callback);
+          },
+          function (callback) {
+            if (Ref.hasReference.call(self)) {
+              Ref.populateRecord.call(self, parent, record, callback);
+            } else {
+              callback();
+            }    
+          }
+
+        ], function (e) {
+          if (e) { callback(e); } else {
+            callback(null, selectFilter.call(self, record));
+          }
+        }); // end of async.series
+        
+      } // end of else
+
+    } // end of finderCb
     
     thisArgs.push(finderCb);
     
@@ -60,7 +75,13 @@ function create () {
   
   function execSync () {
     var record = syncFn.apply(parent, args);
-    
+    var textFields;
+
+    if ( this.options.readTextFields ) { 
+      textFields = parent.schemas.getTextFields(this.options.select);
+      record = parent.conn.readTextsSync(parent.table, record, textFields);
+    }
+
     if (Ref.hasReference.call(this)) {
       Ref.populateRecordSync.apply(this, [parent, record]);
     }
@@ -100,7 +121,6 @@ function create () {
     fields = parseSelectArguments(this.options.select);
     parent.schemas.convertBackEachField(record);
     // parent.schemas.addDefaultValues(record, fields);
-    // console.log(fields);
     if (fields) {
       record = yi.clone(record, fields);
     }
@@ -120,8 +140,10 @@ function create () {
   return {
     options: {
       select   : null,
-      isFormat : false
+      isFormat : false,
+      readTextFields: true
     },
+    noReadTextFields: function () { this.options.readTextFields = false; return this;},
     references : [],
     select     : function () { return Ref.select.apply(this, arguments); },
     format     : function () { return Ref.format.apply(this); },

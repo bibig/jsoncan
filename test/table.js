@@ -1,9 +1,8 @@
-var should = require('should');
-var assert = require('assert');
+var should  = require('should');
 var Jsoncan = require('../index');
-var path = require('path');
-var fs = require('fs');
-var utils = require('./utils');
+var path    = require('path');
+var fs      = require('fs');
+var utils   = require('./utils');
 
 describe('test table.js', function () {
   
@@ -101,12 +100,12 @@ describe('test table.js', function () {
     can = new Jsoncan(PATH);
     
     Table = can.open(tableName, fields);
-    assert.ok(typeof Table == 'object');
+    should(typeof Table == 'object').be.ok;
   });
   
   it('should make table root fold', function () {
     var root = fs.existsSync(path.join(PATH, tableName));
-    assert.ok(root);
+    should(root).be.ok;
   });
   
   it('should create all unique fields folds', function () {
@@ -114,9 +113,9 @@ describe('test table.js', function () {
     var mobilePath = fs.existsSync(Table.conn.getTableUniquePath(tableName, 'mobile'));
     var idPath = fs.existsSync(Table.conn.getTableUniquePath(tableName, 'id'));
     
-    assert.ok(emailPath);
-    assert.ok(mobilePath);
-    assert.ok(idPath);
+    should(emailPath).be.ok;
+    should(mobilePath).be.ok;
+    should(idPath).be.ok;
     
   });
   
@@ -142,23 +141,23 @@ describe('test table.js', function () {
     var mobileLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', record.mobile));
     var idLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'id', record.id));
     
-    assert.ok(emailLink);
-    assert.ok(mobileLink);
-    assert.ok(idLink);
+    should(emailLink).be.ok;
+    should(mobileLink).be.ok;
+    should(idLink).be.ok;
     
   });
   
   it('primary ids index file should be created', function () {
     var exist = fs.existsSync(Table.conn.getTableIndexFile(tableName, '_id'));
     // console.log(fs.readFileSync(Table.conn.getTableIndexFile(tableName, '_id'), {encoding: 'utf8'}));
-    assert.ok(exist);
+    should(exist).be.ok;
   });
 
   it('test insertAll', function (done) {
     var records = [people2, people3];
     Table.insertAll(records, function (err, list) {
       should.not.exist(err);
-      assert.ok(list.length == 2);
+      should(list.length == 2).be.ok;
       
       list[0].should.have.property('id');
       list[0].should.have.property('_id');
@@ -183,8 +182,8 @@ describe('test table.js', function () {
   it('primary ids should be appended info index file', function () {
     var exist = fs.existsSync(Table.conn.getTableIndexFile(tableName, '_id'));
     var ids = Table.conn.readTableIdIndexFileSync(tableName);
-    assert.equal(ids.length, 3);
-    assert.ok(exist);
+    ids.length.should.equal(3);
+    should(exist).be.ok;
   });
   
   
@@ -192,8 +191,8 @@ describe('test table.js', function () {
     
     Table.query().order('age').skip(2).limit(1).select('name, age').exec(function (e, records) {
       // console.log(records);
-      assert.equal(records.length, 1);
-      assert.equal(records[0].name, 'Cici');
+      records.length.should.equal(1);
+      records[0].name.should.equal('Cici');
       records[0].should.not.have.property('created');
       records[0].should.have.property('name');
       records[0].should.have.property('age');
@@ -205,7 +204,7 @@ describe('test table.js', function () {
   it('test count', function (done) {
     Table.query().exec(function (e, records) {
       should.not.exist(e);
-      assert.equal(records.length, 3);
+      records.length.should.equal(3);
       done();
     });
   });
@@ -284,7 +283,7 @@ describe('test table.js', function () {
     Table.query(record).select(['id', 'email', 'name']).exec(function (e, records) {
       // console.error(err);
       should.not.exist(e);
-      assert.ok(records.length == 1);
+      should(records.length == 1).be.ok;
       records[0].should.have.property('id', record.id);
       records[0].should.have.property('email', record.email);
       records[0].should.have.property('name', record.name);
@@ -298,7 +297,7 @@ describe('test table.js', function () {
       // console.error(err);
       should.not.exist(err);
       // console.log(records);
-      assert.equal(records.length, 3);
+      records.length.should.equal(3);
       done();
     });
   });
@@ -308,7 +307,7 @@ describe('test table.js', function () {
       // console.error(err);
       should.not.exist(err);
       // console.log(records);
-      assert.equal(records.length, 3);
+      records.length.should.equal(3);
       done();
     });
   });
@@ -318,7 +317,7 @@ describe('test table.js', function () {
       // console.error(err);
       should.not.exist(err);
       // console.log(records);
-      assert.equal(records.length, 3);
+      records.length.should.equal(3);
       done();
     });
   });
@@ -329,8 +328,8 @@ describe('test table.js', function () {
       should.not.exist(err);
       // data.should.have.property('id', record.id);
       // console.log(data);
-      assert.ok(re.test(data.modified));
-      assert.ok(/\$[\d\.]+\*/.test(data.balance));
+      should(re.test(data.modified)).be.ok;
+      should(/\$[\d\.]+\*/.test(data.balance)).be.ok;
       done();
     });
   });
@@ -340,8 +339,8 @@ describe('test table.js', function () {
       // console.error(err);
       should.not.exist(err);
       // console.log(records);
-      assert.ok(/\$[\d\.]+\*/.test(records[0].balance));
-      assert.equal(records.length, 3);
+      should(/\$[\d\.]+\*/.test(records[0].balance)).be.ok;
+      records.length.should.equal(3);
       done();
     });
   });
@@ -352,7 +351,7 @@ describe('test table.js', function () {
       // console.log(records);
       // console.log(records);
       should.not.exist(err);
-      assert.ok(records.length == 1);
+      should(records.length == 1).be.ok;
       records[0].should.have.property('id', record.id);
       records[0].should.have.property('email', '@' + record.email);
       records[0].should.have.property('name', record.name);
@@ -385,15 +384,15 @@ describe('test table.js', function () {
       var newEmailExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'email', newRecord.email));
       var newMobileExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', newRecord.mobile));
 
-      assert.ok( ! oldEmailExists );
-      assert.ok( ! oldMobileExists );
+      should( ! oldEmailExists ).be.ok;
+      should( ! oldMobileExists ).be.ok;
 
-      assert.ok(newEmailExists);
-      assert.ok(newMobileExists);
+      should(newEmailExists).be.ok;
+      should(newMobileExists).be.ok;
 
-      assert.ok(newRecord.modified > record.modified);
-      assert.equal(newRecord.email, email);
-      assert.equal(newRecord.mobile, mobile);
+      should(newRecord.modified > record.modified).be.ok;
+      newRecord.email.should.equal(email);
+      newRecord.mobile.should.equal(mobile);
       done();
     });
   });
@@ -421,7 +420,7 @@ describe('test table.js', function () {
   it('test cannot update readonly fields', function (done) {
     Table.update(record._id, {id: '111'}, function (err, newRecord) {
       should.not.exist(err);
-      assert.equal(newRecord.id, record.id);
+      newRecord.id.should.equal(record.id);
       done();
     });
   });
@@ -437,10 +436,10 @@ describe('test table.js', function () {
       var mobileExists = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', record.mobile));
       
       should.not.exist(err);
-      assert.ok( ! primaryIdExists );
-      assert.ok( ! idExists );
-      assert.ok( ! emailExists );
-      assert.ok( ! mobileExists );
+      should( ! primaryIdExists ).be.ok;
+      should( ! idExists ).be.ok;
+      should( ! emailExists ).be.ok;
+      should( ! mobileExists ).be.ok;
       
       done();
     });
@@ -451,9 +450,9 @@ describe('test table.js', function () {
     var mobileLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'mobile', record.mobile));
     var idLink = fs.existsSync(Table.conn.getTableUniqueFile(tableName, 'id', record.id));
     
-    assert.ok(!emailLink);
-    assert.ok(!mobileLink);
-    assert.ok(!idLink);
+    should(!emailLink).be.ok;
+    should(!mobileLink).be.ok;
+    should(!idLink).be.ok;
     
   });
   
@@ -462,7 +461,7 @@ describe('test table.js', function () {
     var ids = Table.conn.readTableIdIndexFileSync(tableName);
     // console.log(raw);
     // console.log(ids);
-    assert.equal(Object.keys(ids).length, 2);
+    Object.keys(ids).length.should.equal(2);
   });
   
   // now, remain two people in db
@@ -477,7 +476,7 @@ describe('test table.js', function () {
   it('test find one none exist', function (done) {
     Table.findBy('email', 'nonexist').exec(function (err, data) {
       should.not.exist(err);
-      assert.ok(!data);
+      should(!data).be.ok;
       done();
     });
   });
@@ -485,7 +484,7 @@ describe('test table.js', function () {
   it('test find all none exist', function (done) {
     Table.query().where('age', '>', 10).exec(function (err, records) {
       should.not.exist(err);
-      assert.equal(records.length, 0);
+      records.length.should.equal(0);
       done();
     });
   });
@@ -495,7 +494,7 @@ describe('test table.js', function () {
       Table.query().where('noneExistField', 10).exec();
     } catch (err) {
       should.exist(err);
-      assert.equal(err.code, 1003);
+      err.code.should.eql(1003);
       done();
     }
   });
@@ -505,7 +504,7 @@ describe('test table.js', function () {
       Table.findBy('age', 10).execSync();
     } catch (err) {
       should.exist(err);
-      assert.equal(err.code, 1004);
+      err.code.should.eql(1004);
       done();
     }
   });

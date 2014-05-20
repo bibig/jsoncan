@@ -1,10 +1,10 @@
-var should = require('should');
-var utils = require('./utils');
+var should  = require('should');
+var utils   = require('./utils');
 
 var Jsoncan = require('../index');
-var path = require('path');
-var PATH = path.join(__dirname, 'table_unique_test');
-var fs = require('fs');
+var path    = require('path');
+var PATH    = path.join(__dirname, 'table_unique_test');
+var fs      = require('fs');
 
 describe('test unique fields', function () {
   

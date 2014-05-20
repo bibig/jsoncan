@@ -1,11 +1,9 @@
-var should = require('should');
-var assert = require('assert');
-var utils = require('./utils');
-var faker = require('faker');
+var should  = require('should');
+var utils   = require('./utils');
 var Jsoncan = require('../index');
-var path = require('path');
-var PATH = path.join(__dirname, 'table_counter_test');
-var fs = require('fs');
+var path    = require('path');
+var PATH    = path.join(__dirname, 'table_counter_test');
+var fs      = require('fs');
 
 describe('counter update test', function () {
   
@@ -77,16 +75,16 @@ describe('counter update test', function () {
   it('check init categories data', function () {
     var recordA = Categories.query().where('name', 'a').execSync()[0];
     var recordB = Categories.query().where('name', 'b').execSync()[0];
-    assert.equal(recordA.blogs, aCategoryCount);
-    assert.equal(recordB.blogs, bCategoryCount);
+    recordA.blogs.should.equal(aCategoryCount);
+    recordB.blogs.should.equal(bCategoryCount);
   });
   
   it('check init blogs data', function () {
     var recordA = Blogs.query().where('title', 'a').where('comments', '>', 0).limit(1).execSync()[0];
     var recordB = Blogs.query().where('title', 'b').limit(1).execSync()[0];
     
-    assert.equal(recordA.comments, aBlogCommentCount);
-    assert.equal(recordB.comments, bBlogCommentCount);
+    recordA.comments.should.equal(aBlogCommentCount);
+    recordB.comments.should.equal(bBlogCommentCount);
   });
   
   it('check insert async way', function (done) {
@@ -94,7 +92,7 @@ describe('counter update test', function () {
     Blogs.insert({ title: 'aa', _category: recordA._category}, function (e, record) {
       var category = Categories.find(recordA._category).execSync();
       should.not.exist(e);
-      assert.equal(category.blogs, aCategoryCount + 1);
+      category.blogs.should.equal(aCategoryCount + 1);
       done();
     });
   });
@@ -108,7 +106,7 @@ describe('counter update test', function () {
       ], function (e, records) {
       var category = Categories.find(recordA._category).execSync();
       should.not.exist(e);
-      assert.equal(category.blogs, aCategoryCount + 1 + records.length);
+      category.blogs.should.equal(aCategoryCount + 1 + records.length);
       done();
     });
   });
@@ -118,7 +116,7 @@ describe('counter update test', function () {
     Blogs.removeAll({ title: 'aa'}, function (e, records) {
       var category = Categories.find(recordA._category).execSync();
       should.not.exist(e);
-      assert.equal(category.blogs, aCategoryCount);
+      category.blogs.should.equal(aCategoryCount);
       done();
     });
   });
@@ -128,7 +126,7 @@ describe('counter update test', function () {
     Blogs.remove(recordA._id, function (e, record) {
       var category = Categories.find(recordA._category).execSync();
       should.not.exist(e);
-      assert.equal(category.blogs, aCategoryCount - 1);
+      category.blogs.should.equal(aCategoryCount - 1);
       done();
     });
   });
@@ -138,7 +136,7 @@ describe('counter update test', function () {
     
     Blogs.removeSync(recordB._id);
     var category = Categories.find(recordB._category).execSync();
-    assert.equal(category.blogs, bCategoryCount - 1);
+    category.blogs.should.equal(bCategoryCount - 1);
   });
 
 }); // end

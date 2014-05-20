@@ -53,9 +53,9 @@
     
 */
 
-var faker = require('faker');
-var util  = require('./util');
-var max   = 1000;
+var rander = require('rander');
+var util   = require('./util');
+var max    = 100;
 
 var Table;
 
@@ -73,7 +73,6 @@ function insertAll () {
   util.setTime();
 
   Table.insertAll(list, function (e, records) {
-  
     if (e) {
       console.log(e);
     } else {
@@ -89,7 +88,6 @@ function findAll () {
   util.setTime();
 
   Table.query().exec(function (e, records) {
-    // console.log(records);
     util.report('2. finded %d records', records.length);
     updateAll();
   });
@@ -100,8 +98,7 @@ function updateAll () {
   // console.log('ready to updateAll in async way');
   util.setTime();
 
-  Table.updateAll({id: ['<>', 0]}, {name: faker.Name.findName()}, function (e, records) {
-    // console.log(records);
+  Table.updateAll({id: ['<>', 0]}, {name: rander.string()}, function (e, records) {
     util.report('3. updated %d records', records.length);
     removeAll();
   });

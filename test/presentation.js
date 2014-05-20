@@ -1,9 +1,8 @@
-var should = require('should');
-var assert = require('assert');
-var utils = require('./utils');
+var should  = require('should');
+var utils   = require('./utils');
 var Jsoncan = require('../index');
-var path = require('path');
-var PATH = path.join(__dirname, 'presentation_test');
+var path    = require('path');
+var PATH    = path.join(__dirname, 'presentation_test');
 
 
 var fields = {
@@ -114,18 +113,18 @@ describe('test presentation', function () {
   
   it('test alias field', function () {
     var re = /\d{4}\-\d{1,2}\-\d{1,2}\s+\d{1,2}:\d{1,2}:\d{1,2}/i;
-    assert.equal(memberA.read('fullName'), 'Mr. Benjamin Graham');
-    assert.equal(memberA.get('fullName'), 'Benjamin Graham');
-    assert.ok(re.test(memberA.read('modified')));
+    memberA.read('fullName').should.equal('Mr. Benjamin Graham');
+    memberA.get('fullName').should.equal('Benjamin Graham');
+    should(re.test(memberA.read('modified'))).be.ok;
   });
   
   
   it('test prefix', function () {
-    assert.equal(memberA.read('twitter'), '@' + data.twitter);
+    memberA.read('twitter').should.equal('@' + data.twitter);
   });
   
   it('test suffix', function () {
-    assert.equal(memberA.read('balance'), data.balance + '元');
+    memberA.read('balance').should.equal(data.balance + '元');
   });
   
   it('test read()', function () {

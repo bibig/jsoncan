@@ -9,8 +9,9 @@ exports.max         = 100;
 
 var exec    = require('child_process').exec;
 var Jsoncan = require('../index');
-var faker   = require('faker');
-var PATH    = __dirname + '/__data';
+var rander  = require('rander');
+var mice    = require('mice')('en');
+var PATH    = __dirname + '/data';
 var beginTime;
 var allTime;
 
@@ -29,6 +30,9 @@ function createTable (hasAutoIncrement) {
     },
     name: {
       type: 'string'
+    },
+    memo: {
+      type: 'text'
     }
   };
   var can = new Jsoncan(PATH);
@@ -38,10 +42,16 @@ function createTable (hasAutoIncrement) {
 
 function prepareData () {
   var list = [];
-
+  console.time('prepare-data');
+  
   for (var i = 0; i < this.max; i++) {
-    list.push({name: faker.Name.findName()});
+    list.push({
+      name: rander.string(10),
+      memo: mice.paragraphs(1)
+    });
   }
+
+  console.timeEnd('prepare-data');
 
   return list;
 }

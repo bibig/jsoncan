@@ -1,11 +1,11 @@
-var should = require('should');
-var assert = require('assert');
-var utils = require('./utils');
-var faker = require('faker');
+var should  = require('should');
+var assert  = require('assert');
+var utils   = require('./utils');
+var rander  = require('rander');
 var Jsoncan = require('../index');
-var path = require('path');
-var PATH = path.join(__dirname, 'index_fields_test');
-var fs = require('fs');
+var path    = require('path');
+var PATH    = path.join(__dirname, 'index_fields_test');
+var fs      = require('fs');
 
 describe('test index fields', function () {
   
@@ -54,7 +54,7 @@ describe('test index fields', function () {
     for (i = 0; i< pastCount; i++) {
       record = table.insertSync({
         date: new Date(new Date() - 24 * 3600 * 1000 - Math.random() * 10000000000),
-        name: faker.Name.findName(),
+        name: rander.string(),
         age: 30
       });
       // console.log(record);
@@ -63,7 +63,7 @@ describe('test index fields', function () {
     for (i = 0; i < todayCount; i++) {
       record = table.insertSync({
         date: getToday(),
-        name: (i < steveCount ? 'steve' : faker.Name.findName()),
+        name: (i < steveCount ? 'steve' : rander.string()),
         age: (i < babyCount ? 1 : 30),
       });
       // console.log(record);
@@ -72,7 +72,7 @@ describe('test index fields', function () {
     for (i = 0; i < todayInLastYearCount; i++) {
       record = table.insertSync({
         date: getTodayInLastYear(),
-        name: faker.Name.findName(),
+        name: rander.string(),
         age: 30
       }); 
       // console.log(record);
@@ -97,15 +97,15 @@ describe('test index fields', function () {
   it('should exist index file', function () {
     var file1 = table.conn.getTableIndexFile(table.table, 'id');
     var file2 = table.conn.getTableIndexFile(table.table, 'date');
-    assert.ok(fs.existsSync(file1));
-    assert.ok(fs.existsSync(file2));
+    should(fs.existsSync(file1)).be.ok;
+    should(fs.existsSync(file2)).be.ok;
   });
   
   it('test order ascend', function (done) {
     table.query().order('id').exec(function (e, records) {
       should.not.exists(e);
       // console.log(records);
-      assert.equal(records[0].id, 1);
+      records[0].id.should.equal(1);
       done();
     });
   });
@@ -114,7 +114,7 @@ describe('test index fields', function () {
     table.query().order('id', true).exec(function (e, records) {
       should.not.exists(e);
       // console.log(records);
-      assert.equal(records[0].id, pastCount + todayCount + todayInLastYearCount);
+      records[0].id.should.equal(pastCount + todayCount + todayInLastYearCount);
       done();
     });
   });
@@ -123,8 +123,8 @@ describe('test index fields', function () {
     table.query().order('id', true).skip(100).limit(10).exec(function (e, records) {
       should.not.exists(e);
       // console.log(records);
-      assert.equal(records[0].id, pastCount + todayCount + todayInLastYearCount - 100);
-      assert.equal(records.length, 10);
+      records[0].id.should.equal(pastCount + todayCount + todayInLastYearCount - 100);
+      records.length.should.equal(10);
       done();
     });
   });
@@ -132,20 +132,20 @@ describe('test index fields', function () {
   it('test count', function (done) {
     table.query().count(function (e, count) {
       should.not.exists(e);
-      assert.equal(count, pastCount + todayCount + todayInLastYearCount);
+      count.should.equal(pastCount + todayCount + todayInLastYearCount);
       done();
     });
   });
   
   it('test countSync', function () {
-    assert.equal(table.query().countSync(), pastCount + todayCount + todayInLastYearCount);
+    table.query().countSync().should.equal(pastCount + todayCount + todayInLastYearCount);
   });
   
   it('test query all records', function (done) {
     
     table.query().exec(function (e, records) {
       should.not.exists(e);
-      assert.equal(records.length, pastCount + todayCount + todayInLastYearCount);
+      records.length.should.equal(pastCount + todayCount + todayInLastYearCount);
       done();
     });
   });
@@ -153,13 +153,13 @@ describe('test index fields', function () {
   it('test query all records sync way', function () {
     var records = table.query().execSync();
     // console.log(records);
-    assert.equal(records.length, pastCount + todayCount + todayInLastYearCount);
+    records.length.should.equal(pastCount + todayCount + todayInLastYearCount);
   });
   
   it('test query().where().exec()', function (done) {
     table.query().where('date', getToday()).exec(function (e, records) {
       should.not.exists(e);
-      assert.equal(records.length, todayCount);
+      records.length.should.equal(todayCount);
       done();
     });
   });
@@ -167,7 +167,7 @@ describe('test index fields', function () {
   it('test query().where().count()', function (done) {
     table.query().where('date', getToday()).count(function (e, count) {
       should.not.exists(e);
-      assert.equal(count, todayCount);
+      count.should.equal(todayCount);
       done();
     });
   });
@@ -175,7 +175,7 @@ describe('test index fields', function () {
   it('test query(filters).exec()', function (done) {
     table.query({date: getToday()}).exec(function (e, records) {
       should.not.exists(e);
-      assert.equal(records.length, todayCount);
+      records.length.should.equal(todayCount);
       done();
     });
   });
@@ -183,7 +183,7 @@ describe('test index fields', function () {
   it('test query(filters).count()', function (done) {
     table.query({date: getToday()}).count(function (e, count) {
       should.not.exists(e);
-      assert.equal(count, todayCount);
+      count.should.equal(todayCount);
       done();
     });
   });
@@ -192,22 +192,22 @@ describe('test index fields', function () {
     var records = table.query({date: getToday()}).execSync();
     var records2 = table.query().where('date', getToday()).execSync();
     // console.log(records);
-    assert.equal(records.length, todayCount);
-    assert.equal(records2.length, todayCount);
+    records.length.should.equal(todayCount);
+    records2.length.should.equal(todayCount);
   });
   
   it('test query().countSync()', function () {
     var count1 = table.query({date: getToday()}).countSync();
     var count2 = table.query().where('date', getToday()).countSync();
     // console.log(records);
-    assert.equal(count1, todayCount);
-    assert.equal(count2, todayCount);
+    count1.should.equal(todayCount);
+    count2.should.equal(todayCount);
   });
   
   it('test query date by timestamp', function (done) {
     table.query({date: getToday().getTime()}).exec(function (e, records) {
       should.not.exists(e);
-      assert.equal(records.length, todayCount);
+      records.length.should.equal(todayCount);
       done();
     });
   });
@@ -215,7 +215,7 @@ describe('test index fields', function () {
   it('test query(filter) with >=', function (done) {
     table.query({date: ['>=', getToday()]}).exec(function (e, records) {
       should.not.exists(e);
-      assert.equal(records.length, todayCount);
+      records.length.should.equal(todayCount);
       done();
     });
   });
@@ -223,7 +223,7 @@ describe('test index fields', function () {
   it('test query().where() with >=', function (done) {
     table.query().where('date', '>=', getToday()).exec(function (e, records) {
       should.not.exists(e);
-      assert.equal(records.length, todayCount);
+      records.length.should.equal(todayCount);
       done();
     });
   });
@@ -232,7 +232,7 @@ describe('test index fields', function () {
   it('test query filter with <', function (done) {
     table.query({date: ['<', getToday()]}).exec(function (e, records) {
       should.not.exists(e);
-      assert.ok(records.length, todayInLastYearCount + pastCount);
+      records.length.should.equal(todayInLastYearCount + pastCount);
       done();
     });
   });
@@ -241,7 +241,7 @@ describe('test index fields', function () {
   it('test query filter by multi index filters', function (done) {
     table.query({date: getToday(), name: 'steve'}).exec(function (e, records) {
       should.not.exists(e);
-      assert.equal(records.length, steveCount);
+      records.length.should.equal(steveCount);
       done();
     });
   });
@@ -251,7 +251,7 @@ describe('test index fields', function () {
     .where('date', getToday())
     .where('name', 'steve').exec(function (e, records) {
       should.not.exists(e);
-      assert.equal(records.length, steveCount);
+      records.length.should.equal(steveCount);
       done();
     });
   });
@@ -260,7 +260,7 @@ describe('test index fields', function () {
   it('test query by mixed filters( including index filters and noneIndex filters)', function (done) {
     table.query({date: getToday(), name: 'steve', age: 1}).exec(function (e, records) {
       should.not.exists(e);
-      assert.equal(records.length, babyCount);
+      records.length.should.equal(babyCount);
       done();
     });
   });
@@ -270,13 +270,13 @@ describe('test index fields', function () {
   it('test updateAll', function () {
     var records = table.updateAllSync({date: getToday(), name: ['<>', 'steve']}, {name: 'NoneExist'});
     // console.log(records.length);
-    assert.equal(table.query({date: getToday(), name: 'NoneExist'}).execSync().length, todayCount - steveCount);
+    should(table.query({date: getToday(), name: 'NoneExist'}).execSync().length).equal(todayCount - steveCount);
   });
 
   it('test removeAll', function () {
     table.removeAllSync({date: getToday(), name: 'steve'});
-    assert.equal(table.query({date: getToday()}).execSync().length, todayCount - steveCount);
-    assert.equal(table.query({date: getToday(), age: 1}).execSync().length, 0);
-  }); 
+    should(table.query({date: getToday()}).execSync().length).equal(todayCount - steveCount);
+    should(table.query({date: getToday(), age: 1}).execSync().length).equal(0);
+  });
 
 });

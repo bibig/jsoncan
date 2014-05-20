@@ -1,6 +1,5 @@
-var should = require('should');
-var assert = require('assert');
-var Schemas = require('../libs/schemas');
+var should    = require('should');
+var Schemas   = require('../libs/schemas');
 var Validator = require('../libs/validator');
 
 var fields = {
@@ -110,7 +109,7 @@ describe('test validator.js', function () {
     var data = getData();
     var check = validator.check(data);
     // console.log(check.getMessages());
-    assert.ok(check.isValid());
+    should.ok(check.isValid());
   });
   
   it('test invalid type', function () {
@@ -118,7 +117,7 @@ describe('test validator.js', function () {
     data.age = 'ab';
     var check = validator.check(data);
     var messages = check.getMessages();
-    assert.ok(!check.isValid());
+    should.ok(!check.isValid());
     // console.log(messages);
     messages.should.have.property('age');
   });
@@ -129,7 +128,7 @@ describe('test validator.js', function () {
     data.name = 'abcdefghijklmnopqrstuvl';
     var check = validator.check(data);
     var messages = check.getMessages();
-    assert.ok(!check.isValid());
+    should.ok(!check.isValid());
     // console.log(messages);
     messages.should.have.property('name');
   });
@@ -139,7 +138,7 @@ describe('test validator.js', function () {
     data.name = 'ab';
     var check = validator.check(data);
     var messages = check.getMessages();
-    assert.ok(!check.isValid());
+    should.ok(!check.isValid());
     // console.log(messages);
     messages.should.have.property('name');
   });
@@ -150,7 +149,7 @@ describe('test validator.js', function () {
     data.id = 'abef';
     var check = validator.check(data);
     var messages = check.getMessages();
-    assert.ok(!check.isValid());
+    should.ok(!check.isValid());
     // console.log(messages);
     messages.should.have.property('id');
   });
@@ -160,7 +159,7 @@ describe('test validator.js', function () {
     data.email = 'asdf@';
     var check = validator.check(data);
     var messages = check.getMessages();
-    assert.ok(!check.isValid());
+    should.ok(!check.isValid());
     messages.should.have.property('email');
   });
   
@@ -169,7 +168,7 @@ describe('test validator.js', function () {
     data.email = 'asdf@xxx.com';
     var check = validator.check(data);
     var messages = check.getMessages();
-    assert.ok(check.isValid());
+    should.ok(check.isValid());
   });
   
   it('test invalid numbers', function () {
@@ -177,7 +176,7 @@ describe('test validator.js', function () {
     data.numbers = 'asdf@';
     var check = validator.check(data);
     var messages = check.getMessages();
-    assert.ok(!check.isValid());
+    should.ok(!check.isValid());
     messages.should.have.property('numbers');
   });
   
@@ -186,7 +185,7 @@ describe('test validator.js', function () {
     data.uuid = '57b73598-8764-4ad0-a76a-679bb6640eb1';
     var check = validator.check(data);
     var messages = check.getMessages();
-    assert.ok(check.isValid());
+    should.ok(check.isValid());
   });
   
    it('test invalid uuid', function () {
@@ -194,7 +193,7 @@ describe('test validator.js', function () {
     data.uuid = 'xxxA987FBC9-4BED-3078-CF07-9141BA07C9F3';
     var check = validator.check(data);
     var messages = check.getMessages();
-    assert.ok(!check.isValid());
+    should.ok(!check.isValid());
     messages.should.have.property('uuid');
   });
   
@@ -203,7 +202,7 @@ describe('test validator.js', function () {
     data.ip = '127.0.0.1';
     var check = validator.check(data);
     var messages = check.getMessages();
-    assert.ok(check.isValid());
+    should.ok(check.isValid());
   });
   
   it('test invalid ip', function () {
@@ -211,7 +210,7 @@ describe('test validator.js', function () {
     data.ip = '327.0.0.4.1';
     var check = validator.check(data);
     var messages = check.getMessages();
-    assert.ok(!check.isValid());
+    should.ok(!check.isValid());
   });
   
   it('test valid date', function () {
@@ -219,7 +218,7 @@ describe('test validator.js', function () {
     data.birthday = '2011-08-04';
     var check = validator.check(data);
     var messages = check.getMessages();
-    assert.ok(check.isValid());
+    should.ok(check.isValid());
   });
   
   it('test invalid date', function () {
@@ -227,7 +226,7 @@ describe('test validator.js', function () {
     data.birthday = '32011-s08-04';
     var check = validator.check(data);
     var messages = check.getMessages();
-    assert.ok(!check.isValid());
+    should.ok(!check.isValid());
     messages.should.have.property('birthday');
   });  
   

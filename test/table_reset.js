@@ -1,7 +1,6 @@
 var should = require('should');
-var assert = require('assert');
 var utils = require('./utils');
-var faker = require('faker');
+var rander = require('rander');
 var Jsoncan = require('../index');
 var path = require('path');
 var PATH = path.join(__dirname, 'table_reset_test');
@@ -36,7 +35,7 @@ describe('test index fields', function () {
   
     for (var i = 0; i< count; i++) {
       record = table.insertSync({
-        name: faker.Name.findName(),
+        name: rander.string(),
         age: 18
       });
       // console.log(record);
@@ -61,26 +60,26 @@ describe('test index fields', function () {
     var indexFile = table.conn.getTableIndexFile(table.table, '_id');
     fs.unlinkSync(indexFile);
     table.resetIdsFile();
-    assert.ok(fs.existsSync(indexFile));
+    should.ok(fs.existsSync(indexFile));
   });
   
   it('read all ids after reset', function () {
     var ids = table.conn.readTableIdIndexFileSync(table.table);
     // console.log(ids);
-    assert.ok(ids.length, count);
+    should.ok(ids.length, count);
   });
   
   it('test reset index', function () {
     var indexFile = table.conn.getTableIndexFile(table.table, 'id');
     fs.unlinkSync(indexFile);
     table.resetIndexFile('id');
-    assert.ok(fs.existsSync(indexFile));
+    should.ok(fs.existsSync(indexFile));
   });
   
   it('read record by this index after reset', function () {
     var records = table.conn.readIndexSync(table.table, 'id', null);
     // console.log(records);
-    assert.ok(Object.keys(records).length, count);
+    should.ok(Object.keys(records).length, count);
   });
   
   it('test reset all indexes', function () {
@@ -94,9 +93,9 @@ describe('test index fields', function () {
 
     table.resetAllIndexFiles();
     
-    assert.ok(fs.existsSync(indexFile1));
-    assert.ok(fs.existsSync(indexFile2));
-    assert.ok(fs.existsSync(indexFile3));
+    should.ok(fs.existsSync(indexFile1));
+    should.ok(fs.existsSync(indexFile2));
+    should.ok(fs.existsSync(indexFile3));
     
   });
   
@@ -111,9 +110,9 @@ describe('test index fields', function () {
 
     can.refresh();
     
-    assert.ok(fs.existsSync(indexFile1));
-    assert.ok(fs.existsSync(indexFile2));
-    assert.ok(fs.existsSync(indexFile3));
+    should.ok(fs.existsSync(indexFile1));
+    should.ok(fs.existsSync(indexFile2));
+    should.ok(fs.existsSync(indexFile3));
     
   });
   

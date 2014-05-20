@@ -1,5 +1,4 @@
 var should = require('should');
-var assert = require('assert');
 var Jsoncan = require('../index');
 var path = require('path');
 var utils = require('./utils');
@@ -55,7 +54,7 @@ describe('table.read feature unit test', function () {
   it('check query.format()', function (done) {
     Table.query().format().exec(function (e, records) {
       should.not.exist(e);
-      assert.equal(records[0].id[0], '#');
+      should.equal(records[0].id[0], '#');
       done();
     });
   });
@@ -63,7 +62,7 @@ describe('table.read feature unit test', function () {
   it('check query.format(fields, callback)', function (done) {
     Table.query().select('created').format().exec(function (e, records) {
       should.not.exist(e);
-      assert.equal(records[0].created.split('-').length, 3);
+      should.equal(records[0].created.split('-').length, 3);
       done();
     });
   });
@@ -71,14 +70,14 @@ describe('table.read feature unit test', function () {
   it('check query(options).select(fields).format().exec())', function (done) {
     Table.query({age: 1}).select('created').format().exec(function (e, records) {
       should.not.exist(e);
-      assert.equal(records[0].created.split('-').length, 3);
+      should.equal(records[0].created.split('-').length, 3);
       done();
     });
   });
   
   it('check query().format().execSync()', function () {
     var records = Table.query().format().execSync();
-    assert.equal(records[0].id[0], '#');
+    should.equal(records[0].id[0], '#');
   });
   
 });

@@ -1,5 +1,4 @@
 var should = require('should');
-var assert = require('assert');
 var utils = require('./utils');
 var Jsoncan = require('../index');
 var path = require('path');
@@ -47,7 +46,7 @@ describe('test increment, decrement features', function () {
     var people = table.findBy('name', 'David').execSync();
     table.increment(people._id, 'age', function (e, record) {
       should.not.exist(e);
-      assert.equal(record.age - people.age, 1);
+      should.equal(record.age - people.age, 1);
       done();
     });
   });
@@ -57,7 +56,7 @@ describe('test increment, decrement features', function () {
     var people = table.findBy('name', 'Nicols').execSync();
     table.increment(people._id, 'age', function (e, record) {
       should.not.exist(e);
-      assert.equal(record.age - people.age, step);
+      should.equal(record.age - people.age, step);
       done();
     }, step);
   });
@@ -66,7 +65,7 @@ describe('test increment, decrement features', function () {
     var people = table.findBy('name', 'David').execSync();
     table.decrement(people._id, 'age', function (e, record) {
       should.not.exist(e);
-      assert.equal(people.age - record.age, 1);
+      should.equal(people.age - record.age, 1);
       done();
     });
   });
@@ -76,7 +75,7 @@ describe('test increment, decrement features', function () {
     var people = table.findBy('name', 'Nicols').execSync();
     table.decrement(people._id, 'age', function (e, record) {
       should.not.exist(e);
-      assert.equal(people.age - record.age, step);
+      should.equal(people.age - record.age, step);
       done();
     }, step);
   });
@@ -86,20 +85,20 @@ describe('test increment, decrement features', function () {
   it('test incrementSync', function () {
     var people = table.findBy('name', 'David').execSync();
     var record = table.incrementSync(people._id, 'age');
-    assert.equal(record.age - people.age, 1);
+    should.equal(record.age - people.age, 1);
   });
   
   it('test incrementSync with step', function () {
     var step = 5;
     var people = table.findBy('name', 'Nicols').execSync();
     var record = table.incrementSync(people._id, 'age', step);
-    assert.equal(record.age - people.age, step);
+    should.equal(record.age - people.age, step);
   });
   
   it('test decrementSync', function () {
     var people = table.findBy('name', 'David').execSync();
     var record = table.decrementSync(people._id, 'age');
-    assert.equal(people.age - record.age, 1);
+    should.equal(people.age - record.age, 1);
   });
   
   it('test decrementSync with step', function () {
@@ -107,7 +106,7 @@ describe('test increment, decrement features', function () {
     var people = table.findBy('name', 'Nicols').execSync();
     var record = table.decrementSync(people._id, 'age', step);
     // console.log(record);
-    assert.equal(people.age - record.age, step);
+    should.equal(people.age - record.age, step);
   });
   
 });
