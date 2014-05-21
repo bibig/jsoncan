@@ -469,10 +469,9 @@ Conn.prototype.queryAllSync = function (table, ids, options) {
 
 Conn.prototype.readAllTexts = function (table, records, textFields, callback) {
   var self = this;
-  var i = 0;
   
   async.eachSeries(records, function (record, callback) {
-    self.readTexts(table, record, textFields, callback, i);
+    self.readTexts(table, record, textFields, callback);
   }, function (e) {
     if (e) { callback (e); } else {
       callback(null, records);
@@ -491,9 +490,11 @@ Conn.prototype.readAllTextsSync = function (table, records, textFields, callback
   return records;
 };
 
-Conn.prototype.readTexts = function (table, record, textFields, callback, i) {
+Conn.prototype.readTexts = function (table, record, textFields, callback) {
   var self = this;
   
+  record = record || {};
+
   async.eachSeries(textFields, function (name, callback) {
     var file;
 
@@ -503,7 +504,7 @@ Conn.prototype.readTexts = function (table, record, textFields, callback, i) {
 
     _read(file, false, function (e, content) {
 
-      if (e) { callback (e); } else {
+      if (e) { callback(e); } else {
         record[name] = content;
         callback();
       }

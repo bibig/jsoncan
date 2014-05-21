@@ -473,49 +473,4 @@ describe('test table.js', function () {
     });
   });
   
-  it('test find one none exist', function (done) {
-    Table.findBy('email', 'nonexist').exec(function (err, data) {
-      should.not.exist(err);
-      should(!data).be.ok;
-      done();
-    });
-  });
-  
-  it('test find all none exist', function (done) {
-    Table.query().where('age', '>', 10).exec(function (err, records) {
-      should.not.exist(err);
-      records.length.should.equal(0);
-      done();
-    });
-  });
-  
-  it('test find by none exist field', function (done) {
-    try {
-      Table.query().where('noneExistField', 10).exec();
-    } catch (err) {
-      should.exist(err);
-      err.code.should.eql(1003);
-      done();
-    }
-  });
-  
-  it('test find by none unique field', function (done) {
-    try {
-      Table.findBy('age', 10).execSync();
-    } catch (err) {
-      should.exist(err);
-      err.code.should.eql(1004);
-      done();
-    }
-  });
-
-  it('test open undefined table', function () {
-    try {
-      can.open('none-exist');
-    } catch (err) {
-      should.exist(err);
-      should(err.code).eql(2000);
-    }
-  });
-  
 });
