@@ -3,6 +3,7 @@ var Conn  = require('./libs/connect');
 var Table = require('./libs/table');
 
 exports = module.exports = function (path, tableSchemas, validateMessages) {
+  this.path                  = path;
   this.conn                  = Conn.create(path);
   this.conn.validateMessages = validateMessages;
   this.conn.tables           = tableSchemas || {}; // all tables' definition!
