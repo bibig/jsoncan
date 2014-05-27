@@ -1,5 +1,4 @@
 var should  = require('should');
-var utils   = require('./utils');
 var Jsoncan = require('../index');
 var mice    = require('mice')('cn');
 var path    = require('path');
@@ -8,18 +7,11 @@ var fs      = require('fs');
 var rander  = require('rander');
 
 describe('test text fields', function () {
-  
-  var can, Table, firstRecord, textContent;
-  
-  before(function (done) {
-    utils.clear(PATH, function () {
-      can = new Jsoncan(PATH);
-      done();
-    });
-  });
+  var can = new Jsoncan(PATH);
+  var Table, firstRecord, textContent;
   
   after(function (done) {
-    utils.clear(PATH, done);
+    can.drop(done);
   });
   
   it('basic init a table with text field', function (done) {

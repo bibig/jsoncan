@@ -2,7 +2,6 @@ var should  = require('should');
 var Jsoncan = require('../index');
 var path    = require('path');
 var fs      = require('fs');
-var utils   = require('./utils');
 
 var fields = {
   id: {
@@ -117,7 +116,7 @@ describe('test none exist find, query, count', function () {
 
 describe('test wrong field related errors', function () {
   after(function (done) {
-    utils.clear(PATH, done);
+    can.drop(done);
   });
 
   it('query using none exist field', function (done) {

@@ -1,5 +1,4 @@
 var should  = require('should');
-var utils   = require('./utils');
 var Jsoncan = require('../index');
 var path    = require('path');
 var PATH    = path.join(__dirname, 'table_init_test');
@@ -29,17 +28,14 @@ describe('[init status]', function () {
     }
   };
     
-  before(function (done) {
-    utils.clear(PATH, function () {
-      can = new Jsoncan(PATH);
-      table = can.open('myTable', schemas);
-      done();
-    });
+  before(function () {
+    can = new Jsoncan(PATH);
+    table = can.open('myTable', schemas);
   });
   
 
   after(function (done) {
-    utils.clear(PATH, done);
+    can.drop(done);
   });
 
 

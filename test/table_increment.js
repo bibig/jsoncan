@@ -1,19 +1,18 @@
-var should = require('should');
-var utils = require('./utils');
+var should  = require('should');
 var Jsoncan = require('../index');
-var path = require('path');
-var PATH = path.join(__dirname, 'table_increment_test');
-var fs = require('fs');
+var path    = require('path');
+var PATH    = path.join(__dirname, 'table_increment_test');
+var fs      = require('fs');
 
 describe('test increment, decrement features', function () {
   
   var can, table;
   var schemas = {
     name: {
-      type: 'string',
-      index: true,
-      unique: true,
-      required: true
+      type     : 'string',
+      index    : true,
+      unique   : true,
+      required : true
     },
     age: {
       type: 'int',
@@ -26,18 +25,15 @@ describe('test increment, decrement features', function () {
     table.insertSync({name: 'Nicols', age: 15});
   }
   
-  before(function (done) {
-    utils.clear(PATH, function () {
-      can = new Jsoncan(PATH);
-      table = can.open('myTable', schemas);
-      addData();
-      done();
-    });
+  before(function () {
+    can = new Jsoncan(PATH);
+    table = can.open('myTable', schemas);
+    addData();
   });
   
 
   after(function (done) {
-    utils.clear(PATH, done);
+    can.drop(done);
   });
   
   

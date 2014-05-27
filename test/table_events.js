@@ -1,11 +1,10 @@
 var should  = require('should');
 var Jsoncan = require('../index');
 var path    = require('path');
-var utils   = require('./utils');
 var PATH    = path.join(__dirname, 'table_events_test');
 
 describe('test custom event triggers', function () {
-  
+  var can ;
   var Table;
   var ListInsert = [];
   var ListUpdate = [];
@@ -39,12 +38,12 @@ describe('test custom event triggers', function () {
   
   
   after(function (done) {
-    utils.clear(PATH, done);
+    can.drop(done);
   });
   
   
   it('test create table', function () {
-    var can = new Jsoncan(PATH);
+    can = new Jsoncan(PATH);
     Table = can.open(tableName, fields);
     Table.should.be.ok;
   });

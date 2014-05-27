@@ -1,7 +1,6 @@
 var should = require('should');
 var Jsoncan = require('../index');
 var path = require('path');
-var utils = require('./utils');
 
 describe('table.read feature unit test', function () {
   var fields = {
@@ -25,14 +24,15 @@ describe('table.read feature unit test', function () {
     }
   };
   var PATH = path.join(__dirname, 'table_format_test');
+  var can;
   var Table;
   
   after(function (done) {
-    utils.clear(PATH, done);
+    can.drop(done);
   });
 
   before(function (done) {
-    var can = new Jsoncan(PATH);
+    can = new Jsoncan(PATH);
     Table = can.open('myTable', fields);
     Table.insertAll([{age: 1}, {age: 2}, {age:3}], function (e, records) {
       if (e) console.error(e);

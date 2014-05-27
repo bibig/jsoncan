@@ -1,6 +1,6 @@
 var should  = require('should');
 var assert  = require('assert');
-var utils   = require('./utils');
+//var utils   = require('./utils');
 var rander  = require('rander');
 var Jsoncan = require('../index');
 var path    = require('path');
@@ -79,18 +79,15 @@ describe('test index fields', function () {
     }
   }
   
-  before(function (done) {
-    utils.clear(PATH, function () {
-      can = new Jsoncan(PATH);
-      table = can.open('myTable', schemas);
-      addData();
-      done();
-    });
+  before(function () {
+    can = new Jsoncan(PATH);
+    table = can.open('myTable', schemas);
+    addData();
   });
   
 
   after(function (done) {
-    utils.clear(PATH, done);
+    can.drop(done);
   });
 
   

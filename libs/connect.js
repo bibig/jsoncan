@@ -682,6 +682,13 @@ Conn.prototype.readTableIdsFiles = function (table, ids, callback) {
   async.parallelLimit(tasks, 100, callback);
 };
 
+Conn.prototype.drop = function (callback) {
+  var exec    = require('child_process').exec;
+  var command = 'rm -rf ' + this.path;
+
+  exec(command, callback);
+};
+
 function _encrypt (s) {
 
   if (s !== '' && (typeof s === 'string' || typeof s === 'number')) {

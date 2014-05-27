@@ -2,10 +2,10 @@ var should  = require('should');
 var Jsoncan = require('../index');
 var path    = require('path');
 var fs      = require('fs');
-var utils   = require('./utils');
 
 describe('test model way', function () {
   var PATH = path.join(__dirname, 'model_test');
+  var can;
   var fields = {
     id: {
       text: 'user id',
@@ -119,15 +119,14 @@ describe('test model way', function () {
   };
   var Gary;
   
-  before(function (done) {
-    var can = new Jsoncan(PATH);
+  before(function () {
+    can = new Jsoncan(PATH);
     Table = can.open(tableName, fields);
     Gary = Table.create(people4);
-    done();
   });
 
   after(function (done) {
-    utils.clear(PATH, done);
+    can.drop(done);
   });
   
   it('test validate', function () {

@@ -1,9 +1,7 @@
 var should  = require('should');
-var utils   = require('./utils');
 var Jsoncan = require('../index');
 var path    = require('path');
 var PATH    = path.join(__dirname, 'presentation_test');
-
 
 var fields = {
     firstName: {
@@ -76,6 +74,7 @@ var fields = {
 
 describe('test presentation', function () {
   
+  var can;
   var Table;
     
   var data = {
@@ -89,17 +88,14 @@ describe('test presentation', function () {
   };
   var memberA;
   
-  before(function (done) {
-    utils.clear(PATH, function () {
-      var can = new Jsoncan(PATH);
-      Table = can.open('member', fields);
-      memberA = Table.create(data);
-      done();
-    });
+  before(function () {
+    can = new Jsoncan(PATH);
+    Table = can.open('member', fields);
+    memberA = Table.create(data);
   });
   
   after(function (done) {
-    utils.clear(PATH, done);
+    can.drop(done);
   });
   
   it('test save', function (done) {

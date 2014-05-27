@@ -2,7 +2,6 @@ var should  = require('should');
 var fs      = require('fs');
 var Jsoncan = require('../index');
 var path    = require('path');
-var utils   = require('./utils');
 var PATH    = path.join(__dirname, 'auto_increment_test');
 
 describe('test auto-increment field', function () {
@@ -23,15 +22,16 @@ describe('test auto-increment field', function () {
     
   var data = {};
   var tableName = 'autoIncrementTestTable';
+  var can;
   
   
   after(function (done) {
-    utils.clear(PATH, done);
+    can.drop(done);
   });
   
   
   it('test create table', function () {
-    var can = new Jsoncan(PATH);
+    can = new Jsoncan(PATH);
     Table = can.open(tableName, fields);
     var autoIncrementFileExists = fs.existsSync(Table.conn.getTableUniqueAutoIncrementFile(tableName, 'id'));
     should(autoIncrementFileExists).be.ok;

@@ -1,7 +1,7 @@
 {
   "author"       : "Bibig <bibig@me.com> (https://twitter.com/bibig)",
   "name"         : "jsoncan",
-  "version"      : "1.3.2",
+  "version"      : "1.4.0",
   "description"  : "an agile json based database engine",
   "preferGlobal" : "true",
   "main"         : "index.js",
@@ -18,17 +18,17 @@
   "scripts": {
     "test": "mocha -w"
   },
-  "license": "BSD-2-Clause",
+  "license": "MIT",
   "dependencies": {
     "validator"  : "3.3.0",
-    "rander"     : ">= 0.0.2",
+    "rander"     : "^0.1.1",
     "async"      : "*",
     "safepass"   : ">= 0.0.3",
     "inflection" : "*",
-    "eventchain" : ">= 0.0.2",
+    "eventchain" : "^0.1.0",
     "yi"         : ">= 0.0.6",
     "xun"        : ">= 0.0.3",
-    "myna"       : ">= 0.0.2"
+    "myna"       : "^0.1.0"
   },
   "devDependencies": {
     "mocha"  : "*",

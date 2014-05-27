@@ -3,7 +3,6 @@ var should  = require('should');
 var path    = require('path');
 var Jsoncan = require('../index');
 var fs      = require('fs');
-var utils   = require('./utils');
 
 describe('test sync actions in table.js', function () {
   
@@ -62,6 +61,7 @@ describe('test sync actions in table.js', function () {
       type: 'modified'
     }
   };
+  var can;
   var Table;
   var people1 = {
     email: 'tom@hello.com',
@@ -86,14 +86,13 @@ describe('test sync actions in table.js', function () {
   
   var record;
   
-  before(function (done) {
-    var can = new Jsoncan(PATH);
+  before(function () {
+    can = new Jsoncan(PATH);
     Table = can.open(tableName, fields);
-    done();
   });
   
   after(function (done) {
-    utils.clear(PATH, done);
+    can.drop(done);
   });
   
   it('should create all unique fields folds', function () {

@@ -2,7 +2,6 @@ var should  = require('should');
 var Jsoncan = require('../index');
 var path    = require('path');
 var fs      = require('fs');
-var utils   = require('./utils');
 
 describe('test table.js', function () {
   
@@ -93,7 +92,7 @@ describe('test table.js', function () {
   var record;
   
   after(function (done) {
-    utils.clear(PATH, done);
+    can.drop(done);
   });
   
   it('create a Table Object', function () {

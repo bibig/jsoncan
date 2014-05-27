@@ -23,7 +23,8 @@ exports = module.exports = function (path, tableSchemas, validateMessages) {
     yi.forEach(this.conn.tables, function (name) {
       _this.table(name).refresh();
     });
-
   };
+
+  this.drop = this.conn.drop;
 
 };

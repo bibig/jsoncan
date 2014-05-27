@@ -1,5 +1,4 @@
 var should = require('should');
-var utils = require('./utils');
 var faker = require('faker');
 var Jsoncan = require('../index');
 var path = require('path');
@@ -45,14 +44,13 @@ describe('counter update test', function () {
     }
   }
   
-  before(function (done) {
+  before(function () {
     addData();
-    done();
   });
   
 
   after(function (done) {
-    utils.clear(PATH, done);
+    can.drop(done);
   });
 
   it('check init categories data', function () {

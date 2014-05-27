@@ -1,24 +1,15 @@
 var should  = require('should');
-var utils   = require('./utils');
 var Jsoncan = require('../index');
 var path    = require('path');
 var PATH    = path.join(__dirname, 'table_primary_test');
 var fs      = require('fs');
 
 describe('test primary field', function () {
-  
-  var can, table;
-  
-  before(function (done) {
-    utils.clear(PATH, function () {
-      can = new Jsoncan(PATH);
-      done();
-    });
-  });
-  
+  var can = new Jsoncan(PATH);
+  var table;
 
   after(function (done) {
-    utils.clear(PATH, done);
+    can.drop(done);
   });
   
   it('test default _id size', function (done) {
