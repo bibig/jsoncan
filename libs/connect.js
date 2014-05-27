@@ -682,12 +682,37 @@ Conn.prototype.readTableIdsFiles = function (table, ids, callback) {
   async.parallelLimit(tasks, 100, callback);
 };
 
+/**
+ * drop whold db, including db folder itself
+ * 
+ * @author bibig@me.com
+ * @update 2014-05-27 15:54:38
+ * @param  {Function} callback
+ * @return void
+ */
 Conn.prototype.drop = function (callback) {
+  rm(this.path, callback);
+};
+
+/**
+ * clear all tables files in this db.
+ * but will keep the db folder.
+ *
+ * @author bibig@me.com
+ * @update 2014-05-27 15:55:33
+ * @param  {Function} callback
+ * @return void
+ */
+Conn.prototype.clear = function (callback) {
+  rm(path.join(this.path, '*'), callback);
+};
+
+function rm (path, callback) {
   var exec    = require('child_process').exec;
-  var command = 'rm -rf ' + this.path;
+  var command = 'rm -rf ' + path;
 
   exec(command, callback);
-};
+}
 
 function _encrypt (s) {
 

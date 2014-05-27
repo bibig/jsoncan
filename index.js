@@ -25,6 +25,7 @@ exports = module.exports = function (path, tableSchemas, validateMessages) {
     });
   };
 
-  this.drop = this.conn.drop;
+  this.drop  = this.conn.drop;
+  this.clear = this.conn.clear;  
 
 };
