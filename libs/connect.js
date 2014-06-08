@@ -6,7 +6,7 @@ var async = require('async');
 var Xun   = require('xun');
 var myna  = require('myna')({
   900: 'Cannot build the jsoncan data path [%s]',
-  901: 'invalid string param: %s in creating table unique file',
+  901: 'invalid field value [%s] found in making table unique filename',
 });
 
 var Conn = function (path) {
