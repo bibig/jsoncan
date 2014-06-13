@@ -1,7 +1,7 @@
 {
   "author"       : "Bibig <bibig@me.com> (https://twitter.com/bibig)",
   "name"         : "jsoncan",
-  "version"      : "1.4.2",
+  "version"      : "1.4.3",
   "description"  : "an agile json based database engine",
   "preferGlobal" : "true",
   "main"         : "index.js",
@@ -27,7 +27,7 @@
     "inflection" : "*",
     "eventchain" : "^0.1.0",
     "yi"         : ">= 0.0.6",
-    "xun"        : ">= 0.0.3",
+    "xun"        : "^0.1.0",
     "myna"       : "^0.1.0"
   },
   "devDependencies": {
